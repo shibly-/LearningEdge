@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/aspire/">
+    <Project Path="aspires/LearningEdge.AppHost/LearningEdge.AppHost.csproj" />
+    <Project Path="aspires/LearningEdge.ServiceDefaults/LearningEdge.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/LearningEdge.Api/LearningEdge.Api.csproj" />
+    <Project Path="src/LearningEdge.Application/LearningEdge.Application.csproj" />
+    <Project Path="src/LearningEdge.Domain/LearningEdge.Domain.csproj" />
+    <Project Path="src/LearningEdge.Infrastructure/LearningEdge.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+</Solution>

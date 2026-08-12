@@ -1,0 +1,15 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.2.4">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>beca3578-9f30-44d6-aa80-7734aa47ffb5</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\LearningEdge.Api\LearningEdge.Api.csproj" />
+  </ItemGroup>
+
+</Project>
