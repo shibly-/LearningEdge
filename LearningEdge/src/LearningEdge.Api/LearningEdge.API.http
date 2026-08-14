@@ -1,0 +1,6 @@
+@LearningEdge.API_HostAddress = http://localhost:5036
+
+GET {{LearningEdge.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,8 @@
+﻿using MediatR;
+
+namespace LearningEdge.Application.Models.Commands.Organizations;
+
+public record CreateOrganizationCommand(
+    string Name,
+    string Description
+) : IRequest<Guid>;

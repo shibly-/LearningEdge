@@ -5,5 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 	<ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
-  </PropertyGroup>  
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Services\" />
+  </ItemGroup>  
 </Project>
