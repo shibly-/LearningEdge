@@ -30,7 +30,11 @@ public static class ServiceCollectionExtension
     {
         // Register DbContext (Infrastructure)
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("LearningEdgeDBConnection")));
+            options.UseSqlServer(
+                configuration.GetConnectionString("LearningEdgeDBConnectionDockerDev"), 
+                opts => { opts.MigrationsAssembly("LearningEdge.Infrastructure.Migrations"); }
+            )
+        );
 
         // Register IApplicationDbContext for DI    
         services.AddInfrastructure();

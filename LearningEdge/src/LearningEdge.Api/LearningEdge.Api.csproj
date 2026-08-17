@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\aspires\LearningEdge.ServiceDefaults\LearningEdge.ServiceDefaults.csproj" />
     <ProjectReference Include="..\LearningEdge.Application\LearningEdge.Application.csproj" />
+    <ProjectReference Include="..\LearningEdge.Infrastructure.Migrations\LearningEdge.Infrastructure.Migrations.csproj" />
     <ProjectReference Include="..\LearningEdge.Infrastructure\LearningEdge.Infrastructure.csproj" />
   </ItemGroup>
 
@@ -28,6 +29,7 @@
 	<PackageReference Include="Microsoft.AspNetCore.OpenApi" />
 	<PackageReference Include="Microsoft.EntityFrameworkCore" />
 	<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+	<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" />  
 	<PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
 		<PrivateAssets>all</PrivateAssets>
 		<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

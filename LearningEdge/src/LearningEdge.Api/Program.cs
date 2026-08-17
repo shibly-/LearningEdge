@@ -1,4 +1,5 @@
 using LearningEdge.Api.Extensions;
+using LearningEdge.Infrastructure.Persistence;
 using Serilog;
 
 try
@@ -22,6 +23,12 @@ try
 
     // Enable middlewares and capabilities  
     app.UseAppDbContextWithDataSeeding();
+
+    if (app.Environment.IsDevelopment())
+    {
+        //await app.Services.InitializeDatabaseAsync();
+    }
+
     app.UseApiDocumentation();
     app.UseCustomMiddlewarePipeline();
 
