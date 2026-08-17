@@ -16,7 +16,7 @@ public sealed class Organization: BaseEntity<Guid>
     public Organization(string name, string description = "")
     {
         Id = Guid.NewGuid();
-        Name = name;
+        Name = name ?? throw new ArgumentNullException(nameof(name));
         Description = description;
     }
 }

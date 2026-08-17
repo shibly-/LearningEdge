@@ -22,6 +22,10 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Application\Handlers.Tests\" />
   </ItemGroup>	
 
 </Project>
