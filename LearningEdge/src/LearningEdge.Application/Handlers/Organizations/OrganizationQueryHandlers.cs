@@ -3,10 +3,11 @@ using MediatR;
 using LearningEdge.Application.Interfaces;
 using LearningEdge.Application.Models.DTOs;
 using LearningEdge.Application.Models.Queries.Organizations;
+using LearningEdge.Application.Common.Results;
 
 namespace LearningEdge.Application.Handlers.Organizations;
 
-public class OrganizationQueryHandlers : IRequestHandler<GetOrganizationByIdQuery, OrganizationDTO>
+public class OrganizationQueryHandlers : IRequestHandler<GetOrganizationByIdQuery, Result<OrganizationDTO>>
 {
     private readonly IApplicationDbContext _context;
     private readonly IMapper _mapper;
@@ -17,15 +18,16 @@ public class OrganizationQueryHandlers : IRequestHandler<GetOrganizationByIdQuer
         _mapper = mapper;
     }
 
-    public async Task<OrganizationDTO> Handle(GetOrganizationByIdQuery request, CancellationToken cancellationToken)
+    public async Task<Result<OrganizationDTO>> Handle(GetOrganizationByIdQuery request, CancellationToken cancellationToken)
     {
         var organization = await _context.Organizations.FindAsync(new object[] { request.Id }, cancellationToken);
 
         if (organization == null)
         {
-            return null!; // caller can handle NotFound
+            // Generate custom exception
+            return Result<OrganizationDTO>.Fail($"No organization found with Id {request.Id}.");
         }
 
-        return _mapper.Map<OrganizationDTO>(organization);
+        return Result<OrganizationDTO>.Ok(_mapper.Map<OrganizationDTO>(organization));
     }
 }

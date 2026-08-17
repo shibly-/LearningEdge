@@ -14,5 +14,7 @@
     <Project Path="src/LearningEdge.Infrastructure.Migrations/LearningEdge.Infrastructure.Migrations.csproj" Id="bbfdc0cc-089e-4c96-ad69-9cd19efa3c0f" />
     <Project Path="src/LearningEdge.Infrastructure/LearningEdge.Infrastructure.csproj" />
   </Folder>
-  <Folder Name="/tests/" />
+  <Folder Name="/tests/">
+    <Project Path="tests/LearningEdge.Tests/LearningEdge.Tests.csproj" Id="59e4e3eb-3f47-4429-94fa-ad435851018d" />
+  </Folder>
 </Solution>
