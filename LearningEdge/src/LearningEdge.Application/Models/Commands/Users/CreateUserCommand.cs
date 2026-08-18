@@ -7,8 +7,7 @@ using static LearningEdge.Domain.Common.Enums;
 public record CreateUserCommand(
     string FirstName,
     string LastName,
-    string Email,
-    string PhoneNumber,
+    string Email,    
     UserRole Role,
     Guid OrganizationId
 ) : IRequest<Result<Guid>>;
