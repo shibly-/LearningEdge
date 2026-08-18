@@ -5,6 +5,7 @@ using LearningEdge.Application.Models.Queries.Users;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 
 namespace LearningEdge.Api.Controllers.Users;
@@ -35,6 +36,8 @@ public class UserController : ControllerBase
     [EndpointSummary("Get user by id")]
     [EndpointDescription("Get user details using id, Supported API version is 1.0.")]
     [MapToApiVersion("1.0")]
+    //[DisableRateLimiting]
+    [EnableRateLimiting("fixed")]
     public async Task<ActionResult<UserDTO>> GetById(Guid id)
     {
         var user = await _mediator.Send(new GetUserByIdQuery(id));

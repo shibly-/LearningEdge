@@ -15,10 +15,15 @@ public static class WebApplicationExtensions
             context.Database.EnsureCreated();
         }
 
+        //if (app.Environment.IsDevelopment())
+        //{
+            //await app.Services.InitializeDatabaseAsync();
+        //}
+
         return app;
     }
 
-    public static WebApplication UseApiDocumentation(this WebApplication app)
+    public static WebApplication UseOpenApiWithVersioning(this WebApplication app)
     {
         if (app.Environment.IsDevelopment())
         {
@@ -35,9 +40,10 @@ public static class WebApplicationExtensions
 
     public static WebApplication UseCustomMiddlewarePipeline(this WebApplication app)
     {
-        app.UseSerilogRequestLogging();
-        app.UseHttpsRedirection();
-        app.UseAuthorization();
+        app.UseSerilogRequestLogging()
+            .UseHttpsRedirection()
+            .UseAuthorization()
+            .UseRateLimiter();
 
         return app;
     }

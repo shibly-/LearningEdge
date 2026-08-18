@@ -1,0 +1,1 @@
+docker compose run k6 run /scripts/users_api_test.js --out json=/scripts/results/results.json

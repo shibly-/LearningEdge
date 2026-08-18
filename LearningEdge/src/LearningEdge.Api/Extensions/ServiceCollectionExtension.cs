@@ -5,13 +5,30 @@ using LearningEdge.Application;
 using LearningEdge.Infrastructure;
 using LearningEdge.Infrastructure.Persistence;
 using Microsoft.AspNetCore.OpenApi;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using System.Threading.RateLimiting;
 
 namespace LearningEdge.Api.Extensions;
 
 public static class ServiceCollectionExtension
 {
+    public static IServiceCollection AddRateLimiterService(this IServiceCollection services)
+    {
+        services.AddRateLimiter(options =>
+        {
+            options.AddFixedWindowLimiter("fixed", limiterOptions =>
+            {
+                limiterOptions.PermitLimit = 5; // Max 5 requests
+                limiterOptions.Window = TimeSpan.FromSeconds(10); // Per 10 seconds
+                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                limiterOptions.QueueLimit = 2; // Allow 2 queued requests
+            });
+        });
+        return services;
+    }         
+
     public static IServiceCollection AddMediatrMapperFluentValidation(this IServiceCollection services) 
     {
         // MediatR → scans Application assembly for handlers

@@ -10,30 +10,28 @@ try
 
     Log.Information("Starting application...");
 
+    // Create the application builder
     var builder = WebApplication.CreateBuilder(args);
 
     // Register services to DI containers
-    builder.Services.AddMediatrMapperFluentValidation();
-    builder.Services.AddApplicationDbContext(builder.Configuration);
-    builder.Services.AddOpenApiAndApiVersioning();   
-    builder.Services.AddLoggingService(builder.Configuration);    
-    builder.Services.AddControllers();
+    builder.Services.AddMediatrMapperFluentValidation()
+        .AddApplicationDbContext(builder.Configuration)
+        .AddOpenApiAndApiVersioning()
+        .AddLoggingService(builder.Configuration)
+        .AddRateLimiterService()
+        .AddControllers();
+               
 
+    // Build the application
     var app = builder.Build();
 
     // Enable middlewares and capabilities  
-    app.UseAppDbContextWithDataSeeding();
-
-    if (app.Environment.IsDevelopment())
-    {
-        //await app.Services.InitializeDatabaseAsync();
-    }
-
-    app.UseApiDocumentation();
-    app.UseCustomMiddlewarePipeline();
-
-    app.MapControllers();
-
+    app.UseAppDbContextWithDataSeeding()
+        .UseOpenApiWithVersioning()
+        .UseCustomMiddlewarePipeline()
+        .MapControllers();
+        
+    // Run the application
     app.Run();
 }
 catch (Exception ex)
