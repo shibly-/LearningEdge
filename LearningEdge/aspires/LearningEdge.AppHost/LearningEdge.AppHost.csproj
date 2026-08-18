@@ -13,4 +13,9 @@
     <ProjectReference Include="..\..\src\LearningEdge.Api\LearningEdge.Api.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+	  <PackageReference Include="Aspire.Hosting" />
+	  <PackageReference Include="Aspire.Hosting.AppHost" />
+  </ItemGroup>
+
 </Project>
