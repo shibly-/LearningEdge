@@ -8,11 +8,36 @@ public static class WebApplicationExtensions
 
     public static WebApplication UseAppDbContextWithDataSeeding(this WebApplication app)
     {
-        // Seed the application database
-        using (var scope = app.Services.CreateScope())
+        // Microsoft.Extensions.ApiDescription.Server starts the app at build time
+        // to generate OpenAPI documents. There is no SQL Server in that process.
+        var entryAssemblyName = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name;
+        if (string.Equals(entryAssemblyName, "GetDocument.Insider", StringComparison.Ordinal))
         {
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            context.Database.EnsureCreated();
+            return app;
+        }
+
+        using var scope = app.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("Startup");
+
+        const int maxAttempts = 15;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                context.Database.EnsureCreated();
+                break;
+            }
+            catch (Exception ex) when (attempt < maxAttempts)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Database is not ready (attempt {Attempt}/{MaxAttempts}). Retrying in 2 seconds...",
+                    attempt,
+                    maxAttempts);
+                Thread.Sleep(TimeSpan.FromSeconds(2));
+            }
         }
 
         //if (app.Environment.IsDevelopment())

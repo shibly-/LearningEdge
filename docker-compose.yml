@@ -1,0 +1,50 @@
+services:
+  api:
+    container_name: api
+    build:
+      context: ./LearningEdge
+      dockerfile: Dockerfile
+    ports:
+      - "5000:80"
+      - "5001:443"
+    volumes:
+      - ./certs:/https:ro
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: "https://+:443;http://+:80"
+      ASPNETCORE_HTTPS_PORT: "5001"
+      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/aspnetapp.pfx
+      ASPNETCORE_Kestrel__Certificates__Default__Password: "YourCertPassword"
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=LearningEdgeDB;User Id=sqluser;Password=P@ssw0rd;TrustServerCertificate=True;Encrypt=False;"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: on-failure
+    networks:
+      - appnet
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "LE!P@ssw0rd"
+      SA_PASSWORD: "LE!P@ssw0rd"
+    ports:
+      - "11433:1433"
+    volumes:
+      - sqlvolume:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks:
+      - appnet
+
+networks:
+  appnet:
+
+volumes:
+  sqlvolume:

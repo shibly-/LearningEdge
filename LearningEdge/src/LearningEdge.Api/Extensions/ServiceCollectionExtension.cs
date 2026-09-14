@@ -48,7 +48,7 @@ public static class ServiceCollectionExtension
         // Register DbContext (Infrastructure)
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(
-                configuration.GetConnectionString("LearningEdgeDBConnectionDockerDev"), 
+                configuration.GetConnectionString("DefaultConnection"), 
                 opts => { opts.MigrationsAssembly("LearningEdge.Infrastructure.Migrations"); }
             )
         );
