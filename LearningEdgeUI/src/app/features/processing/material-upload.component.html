@@ -1,0 +1,86 @@
+<app-page-header
+  title="Material processing"
+  subtitle="Upload a PDF or Word document to generate a questionnaire."
+/>
+
+<section
+  class="dropzone"
+  appFileDrop
+  (filesDropped)="onDropped($event)"
+  aria-labelledby="dropzone-heading"
+>
+  <h2 id="dropzone-heading">Drag and drop training material</h2>
+  <p>Accepted formats: PDF and DOCX, up to 25 MB each.</p>
+
+  <!-- A drop zone alone is not keyboard accessible, so pair it with a real input. -->
+  <button type="button" class="le-btn" (click)="browse()">Choose files</button>
+  <label class="le-visually-hidden" for="material-input">Choose training material files</label>
+  <input
+    #fileInput
+    id="material-input"
+    class="le-visually-hidden"
+    type="file"
+    multiple
+    [accept]="accept"
+    (change)="onPicked($event)"
+  />
+</section>
+
+<h2 class="section-title">Processing queue</h2>
+
+@if (store.isEmpty()) {
+  <app-empty-state
+    title="Nothing in the queue"
+    message="Uploaded documents appear here with live progress through each pipeline stage."
+  />
+} @else {
+  <ul class="jobs">
+    @for (job of store.jobs(); track job.id) {
+      <li class="le-card job">
+        <div class="job-head">
+          <span class="name">{{ job.fileName }}</span>
+          <app-badge [status]="job.stage" [text]="stageLabel(job.stage)" />
+        </div>
+
+        <div
+          class="bar"
+          role="progressbar"
+          [attr.aria-valuenow]="job.progress"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          [attr.aria-label]="'Progress for ' + job.fileName"
+        >
+          <span
+            class="fill"
+            [class.is-failed]="job.status === 'failed'"
+            [style.width.%]="job.progress"
+          ></span>
+        </div>
+
+        <p class="meta">
+          {{ job.progress }}% · {{ job.fileSize / 1024 / 1024 | number: '1.1-1' }} MB
+          @if (job.status === 'complete') {
+            · {{ job.questionCount }} questions generated
+          }
+        </p>
+
+        @if (job.error !== null) {
+          <p class="error" role="alert">{{ job.error }}</p>
+        }
+
+        <div class="job-actions">
+          @if (job.status === 'failed') {
+            <button type="button" class="le-btn le-btn-secondary" (click)="retry(job)">
+              Retry
+            </button>
+          }
+          @if (job.status !== 'active') {
+            <button type="button" class="le-btn le-btn-secondary" (click)="dismiss(job)">
+              Dismiss
+            </button>
+          }
+        </div>
+      </li>
+    }
+  </ul>
+}

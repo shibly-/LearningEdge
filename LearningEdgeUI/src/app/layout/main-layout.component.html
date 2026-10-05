@@ -1,0 +1,67 @@
+<a class="le-skip-link" href="#main-content">Skip to main content</a>
+
+<div class="shell" [class.sidebar-collapsed]="!isSidebarOpen()">
+  <header class="topbar">
+    <button
+      type="button"
+      class="menu-toggle"
+      [attr.aria-expanded]="isSidebarOpen()"
+      aria-controls="primary-nav"
+      (click)="toggleSidebar()"
+    >
+      <span aria-hidden="true">&#9776;</span>
+      <span class="le-visually-hidden">{{
+        isSidebarOpen() ? 'Collapse navigation' : 'Expand navigation'
+      }}</span>
+    </button>
+
+    <span class="brand">LearningEdge</span>
+
+    <div class="context">
+      @if (canSwitchOrganization()) {
+        <app-org-switcher />
+      } @else {
+        <span class="org-name" title="Active organization">{{ organizationName() }}</span>
+      }
+    </div>
+
+    <div class="user">
+      <span class="user-name">{{ user()?.displayName }}</span>
+      <span class="user-role">{{ roleName() }}</span>
+      <button type="button" class="le-btn le-btn-secondary" (click)="logout()">Sign out</button>
+    </div>
+  </header>
+
+  <aside class="sidebar" [class.is-open]="isSidebarOpen()">
+    <nav id="primary-nav" aria-label="Primary">
+      <ul>
+        @for (item of navItems(); track item.route) {
+          <li>
+            <a
+              [routerLink]="item.route"
+              routerLinkActive="is-active"
+              [routerLinkActiveOptions]="{ exact: item.route === '/platform' }"
+              (click)="closeSidebarOnMobile()"
+            >
+              {{ item.label }}
+            </a>
+          </li>
+        }
+      </ul>
+    </nav>
+  </aside>
+
+  @if (isSidebarOpen()) {
+    <button
+      type="button"
+      class="scrim"
+      tabindex="-1"
+      aria-hidden="true"
+      (click)="toggleSidebar()"
+    ></button>
+  }
+
+  <main id="main-content" class="content" tabindex="-1">
+    <router-outlet />
+  </main>
+</div>

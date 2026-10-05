@@ -1,0 +1,492 @@
+{
+  "_readme": {
+    "purpose": "Sample data for every page while the API is incomplete. Served as a static asset from /mock-data/tms-sample-data.json and fetched over HTTP at bootstrap, so replacing it with real REST endpoints is a URL change in the repository layer, not a code rewrite.",
+    "replacingThisFile": "Each collection below is the `data` payload of a future endpoint. The live API wraps every response in { success, error, data } (see ApiResult). Flip environment.useMockApi to false and the Http* repositories take over; this file is then ignored.",
+    "pageToCollection": {
+      "/platform (Platform overview)": ["organizations"],
+      "/platform/organizations (+ detail)": ["organizations"],
+      "/platform/org-admins": ["organizations"],
+      "/dashboard/admin": ["users", "categories", "trainings", "assignments", "results"],
+      "/dashboard/staff": ["trainings", "assignments", "results"],
+      "/users (+ detail)": ["users"],
+      "/categories": ["categories"],
+      "/trainings (+ assign, category view)": ["trainings", "categories", "users"],
+      "/processing": ["processingJobs"],
+      "/portal (Learner)": ["assignments", "results"],
+      "/staff-ops": ["users", "assignments", "messages"]
+    },
+    "conventions": {
+      "dates": "Any date field accepts a full ISO string OR a relative offset so the samples never go stale: '+14d' is 14 days from load, '-3d' is 3 days ago, '0d' is now. The loader resolves these to ISO strings.",
+      "role": "Numeric, matching the backend enum: 1 Learner, 2 Instructor, 3 OrgAdmin, 4 SysAdmin.",
+      "ids": "Stable string ids. Real records use GUIDs generated server-side.",
+      "tenancy": "Every collection except organizations carries organizationId. Stores filter by the active tenant, so cross-tenant rows here are intentional test coverage."
+    }
+  },
+
+  "organizations": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "name": "Northwind Logistics",
+      "description": "Freight and warehousing operator with a distributed depot network."
+    },
+    {
+      "id": "22222222-2222-2222-2222-222222222222",
+      "name": "Helios Health",
+      "description": "Regional clinical network running mandatory practitioner training."
+    },
+    {
+      "id": "33333333-3333-3333-3333-333333333333",
+      "name": "Vertex Manufacturing",
+      "description": "Precision components supplier. Newly onboarded, no catalogue yet."
+    }
+  ],
+
+  "users": [
+    {
+      "id": "user-a1",
+      "firstName": "Ayesha",
+      "lastName": "Rahman",
+      "email": "ayesha.rahman@northwind.example.com",
+      "role": 3,
+      "organizationId": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+      "id": "user-a2",
+      "firstName": "Daniel",
+      "lastName": "Okafor",
+      "email": "daniel.okafor@northwind.example.com",
+      "role": 2,
+      "organizationId": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+      "id": "user-a3",
+      "firstName": "Mei",
+      "lastName": "Lin",
+      "email": "mei.lin@northwind.example.com",
+      "role": 2,
+      "organizationId": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+      "id": "user-a4",
+      "firstName": "Tomas",
+      "lastName": "Varga",
+      "email": "tomas.varga@northwind.example.com",
+      "role": 1,
+      "organizationId": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+      "id": "user-a5",
+      "firstName": "Grace",
+      "lastName": "Mbeki",
+      "email": "grace.mbeki@northwind.example.com",
+      "role": 1,
+      "organizationId": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+      "id": "user-a6",
+      "firstName": "Henrik",
+      "lastName": "Sorensen",
+      "email": "henrik.sorensen@northwind.example.com",
+      "role": 1,
+      "organizationId": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+      "id": "user-a7",
+      "firstName": "Priya",
+      "lastName": "Chandra",
+      "email": "priya.chandra@northwind.example.com",
+      "role": 1,
+      "organizationId": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+      "id": "user-b1",
+      "firstName": "Oliver",
+      "lastName": "Shaw",
+      "email": "oliver.shaw@helios.example.com",
+      "role": 3,
+      "organizationId": "22222222-2222-2222-2222-222222222222"
+    },
+    {
+      "id": "user-b2",
+      "firstName": "Lucia",
+      "lastName": "Ferrari",
+      "email": "lucia.ferrari@helios.example.com",
+      "role": 2,
+      "organizationId": "22222222-2222-2222-2222-222222222222"
+    },
+    {
+      "id": "user-b3",
+      "firstName": "Samuel",
+      "lastName": "Adeyemi",
+      "email": "samuel.adeyemi@helios.example.com",
+      "role": 1,
+      "organizationId": "22222222-2222-2222-2222-222222222222"
+    },
+    {
+      "id": "user-c1",
+      "firstName": "Kenji",
+      "lastName": "Watanabe",
+      "email": "kenji.watanabe@vertex.example.com",
+      "role": 3,
+      "organizationId": "33333333-3333-3333-3333-333333333333"
+    }
+  ],
+
+  "categories": [
+    {
+      "id": "cat-a1",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "name": "Workplace Safety",
+      "description": "Mandatory safety and compliance modules renewed annually.",
+      "trainingCount": 3,
+      "createdAt": "-180d"
+    },
+    {
+      "id": "cat-a2",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "name": "Fleet Operations",
+      "description": "Vehicle handling, routing, and depot procedures.",
+      "trainingCount": 2,
+      "createdAt": "-150d"
+    },
+    {
+      "id": "cat-a3",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "name": "Onboarding",
+      "description": "First-week essentials for new joiners.",
+      "trainingCount": 1,
+      "createdAt": "-90d"
+    },
+    {
+      "id": "cat-b1",
+      "organizationId": "22222222-2222-2222-2222-222222222222",
+      "name": "Clinical Protocols",
+      "description": "Patient-facing procedure training.",
+      "trainingCount": 1,
+      "createdAt": "-120d"
+    }
+  ],
+
+  "trainings": [
+    {
+      "id": "trn-a1",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "categoryId": "cat-a1",
+      "title": "Manual Handling Essentials",
+      "description": "Safe lifting technique, load assessment, and injury prevention.",
+      "status": "published",
+      "durationMinutes": 45,
+      "passMark": 70,
+      "createdAt": "-170d"
+    },
+    {
+      "id": "trn-a2",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "categoryId": "cat-a1",
+      "title": "Fire Warden Refresher",
+      "description": "Evacuation roles, assembly points, and extinguisher classes.",
+      "status": "published",
+      "durationMinutes": 60,
+      "passMark": 75,
+      "createdAt": "-160d"
+    },
+    {
+      "id": "trn-a3",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "categoryId": "cat-a1",
+      "title": "Hazardous Goods Labelling",
+      "description": "ADR classifications and documentation requirements.",
+      "status": "draft",
+      "durationMinutes": 30,
+      "passMark": 60,
+      "createdAt": "-20d"
+    },
+    {
+      "id": "trn-a4",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "categoryId": "cat-a2",
+      "title": "Defensive Driving",
+      "description": "Hazard perception and adverse-condition handling.",
+      "status": "published",
+      "durationMinutes": 90,
+      "passMark": 80,
+      "createdAt": "-140d"
+    },
+    {
+      "id": "trn-a5",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "categoryId": "cat-a2",
+      "title": "Route Planning Basics",
+      "description": "Superseded by the 2026 telematics module.",
+      "status": "archived",
+      "durationMinutes": 40,
+      "passMark": 60,
+      "createdAt": "-300d"
+    },
+    {
+      "id": "trn-a6",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "categoryId": "cat-a3",
+      "title": "Welcome to Northwind",
+      "description": "Company structure, policies, and systems overview.",
+      "status": "published",
+      "durationMinutes": 20,
+      "passMark": 50,
+      "createdAt": "-85d"
+    },
+    {
+      "id": "trn-b1",
+      "organizationId": "22222222-2222-2222-2222-222222222222",
+      "categoryId": "cat-b1",
+      "title": "Infection Control",
+      "description": "Hand hygiene, PPE sequencing, and isolation protocol.",
+      "status": "published",
+      "durationMinutes": 50,
+      "passMark": 80,
+      "createdAt": "-110d"
+    }
+  ],
+
+  "assignments": [
+    {
+      "id": "asg-1",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "trainingId": "trn-a1",
+      "trainingTitle": "Manual Handling Essentials",
+      "traineeId": "user-a4",
+      "traineeName": "Tomas Varga",
+      "assignedById": "user-a2",
+      "assignedAt": "-40d",
+      "dueAt": "-12d",
+      "status": "completed"
+    },
+    {
+      "id": "asg-2",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "trainingId": "trn-a2",
+      "trainingTitle": "Fire Warden Refresher",
+      "traineeId": "user-a4",
+      "traineeName": "Tomas Varga",
+      "assignedById": "user-a2",
+      "assignedAt": "-15d",
+      "dueAt": "+9d",
+      "status": "in-progress"
+    },
+    {
+      "id": "asg-3",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "trainingId": "trn-a4",
+      "trainingTitle": "Defensive Driving",
+      "traineeId": "user-a4",
+      "traineeName": "Tomas Varga",
+      "assignedById": "user-a3",
+      "assignedAt": "-5d",
+      "dueAt": "+21d",
+      "status": "assigned"
+    },
+    {
+      "id": "asg-4",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "trainingId": "trn-a1",
+      "trainingTitle": "Manual Handling Essentials",
+      "traineeId": "user-a5",
+      "traineeName": "Grace Mbeki",
+      "assignedById": "user-a2",
+      "assignedAt": "-38d",
+      "dueAt": "-5d",
+      "status": "completed"
+    },
+    {
+      "id": "asg-5",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "trainingId": "trn-a6",
+      "trainingTitle": "Welcome to Northwind",
+      "traineeId": "user-a5",
+      "traineeName": "Grace Mbeki",
+      "assignedById": "user-a1",
+      "assignedAt": "-30d",
+      "dueAt": "-3d",
+      "status": "overdue"
+    },
+    {
+      "id": "asg-6",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "trainingId": "trn-a2",
+      "trainingTitle": "Fire Warden Refresher",
+      "traineeId": "user-a6",
+      "traineeName": "Henrik Sorensen",
+      "assignedById": "user-a2",
+      "assignedAt": "-10d",
+      "dueAt": "+14d",
+      "status": "assigned"
+    },
+    {
+      "id": "asg-7",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "trainingId": "trn-a6",
+      "trainingTitle": "Welcome to Northwind",
+      "traineeId": "user-a6",
+      "traineeName": "Henrik Sorensen",
+      "assignedById": "user-a1",
+      "assignedAt": "-9d",
+      "dueAt": null,
+      "status": "in-progress"
+    },
+    {
+      "id": "asg-8",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "trainingId": "trn-a4",
+      "trainingTitle": "Defensive Driving",
+      "traineeId": "user-a7",
+      "traineeName": "Priya Chandra",
+      "assignedById": "user-a3",
+      "assignedAt": "-25d",
+      "dueAt": "-2d",
+      "status": "overdue"
+    },
+    {
+      "id": "asg-9",
+      "organizationId": "22222222-2222-2222-2222-222222222222",
+      "trainingId": "trn-b1",
+      "trainingTitle": "Infection Control",
+      "traineeId": "user-b3",
+      "traineeName": "Samuel Adeyemi",
+      "assignedById": "user-b2",
+      "assignedAt": "-20d",
+      "dueAt": "+7d",
+      "status": "in-progress"
+    }
+  ],
+
+  "results": [
+    {
+      "id": "res-1",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "assignmentId": "asg-1",
+      "trainingId": "trn-a1",
+      "trainingTitle": "Manual Handling Essentials",
+      "traineeId": "user-a4",
+      "score": 82,
+      "passMark": 70,
+      "passed": true,
+      "completedAt": "-12d"
+    },
+    {
+      "id": "res-2",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "assignmentId": "asg-4",
+      "trainingId": "trn-a1",
+      "trainingTitle": "Manual Handling Essentials",
+      "traineeId": "user-a5",
+      "score": 64,
+      "passMark": 70,
+      "passed": false,
+      "completedAt": "-5d"
+    },
+    {
+      "id": "res-3",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "assignmentId": "asg-1",
+      "trainingId": "trn-a6",
+      "trainingTitle": "Welcome to Northwind",
+      "traineeId": "user-a4",
+      "score": 91,
+      "passMark": 50,
+      "passed": true,
+      "completedAt": "-35d"
+    }
+  ],
+
+  "messages": [
+    {
+      "id": "msg-1",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "senderId": "user-a2",
+      "senderName": "Daniel Okafor",
+      "recipientId": "user-a4",
+      "recipientName": "Tomas Varga",
+      "subject": "Fire Warden Refresher due soon",
+      "body": "Please complete the refresher before the end of the month so we stay compliant for the depot audit.",
+      "sentAt": "-2d",
+      "read": true
+    },
+    {
+      "id": "msg-2",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "senderId": "user-a2",
+      "senderName": "Daniel Okafor",
+      "recipientId": "user-a5",
+      "recipientName": "Grace Mbeki",
+      "subject": "Retake required",
+      "body": "Your Manual Handling score was 64 against a pass mark of 70. A retake has been scheduled for next week.",
+      "sentAt": "-1d",
+      "read": false
+    },
+    {
+      "id": "msg-3",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "senderId": "user-a3",
+      "senderName": "Mei Lin",
+      "recipientId": "user-a6",
+      "recipientName": "Henrik Sorensen",
+      "subject": "Welcome aboard",
+      "body": "Your onboarding module is now available in the portal. It takes about 20 minutes.",
+      "sentAt": "0d",
+      "read": false
+    },
+    {
+      "id": "msg-4",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "senderId": "user-a4",
+      "senderName": "Tomas Varga",
+      "recipientId": "user-a2",
+      "recipientName": "Daniel Okafor",
+      "subject": "Re: Fire Warden Refresher due soon",
+      "body": "Acknowledged, I will finish it on Thursday after the morning run.",
+      "sentAt": "-1d",
+      "read": true
+    }
+  ],
+
+  "processingJobs": [
+    {
+      "id": "job-1",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "trainingId": "trn-a2",
+      "fileName": "fire-warden-handbook-2026.pdf",
+      "fileSize": 2411724,
+      "stage": "complete",
+      "progress": 100,
+      "status": "complete",
+      "error": null,
+      "questionCount": 12,
+      "startedAt": "-3d"
+    },
+    {
+      "id": "job-2",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "trainingId": null,
+      "fileName": "adr-labelling-scan.pdf",
+      "fileSize": 8822016,
+      "stage": "failed",
+      "progress": 35,
+      "status": "failed",
+      "error": "The document could not be parsed. It appears to be a scanned image without an embedded text layer.",
+      "questionCount": 0,
+      "startedAt": "-1d"
+    },
+    {
+      "id": "job-3",
+      "organizationId": "11111111-1111-1111-1111-111111111111",
+      "trainingId": "trn-a6",
+      "fileName": "onboarding-deck.docx",
+      "fileSize": 643072,
+      "stage": "complete",
+      "progress": 100,
+      "status": "complete",
+      "error": null,
+      "questionCount": 8,
+      "startedAt": "-6d"
+    }
+  ]
+}

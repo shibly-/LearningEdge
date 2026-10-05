@@ -1,0 +1,159 @@
+<app-page-header title="Trainings" subtitle="Your organization's training catalogue.">
+  <a class="le-btn le-btn-secondary" routerLink="/trainings/assign">Assign training</a>
+  <button type="button" class="le-btn" (click)="openCreate()">New training</button>
+</app-page-header>
+
+@if (store.isLoading()) {
+  <div class="le-card" style="padding: 18px">
+    <app-skeleton [count]="6" label="Loading trainings" />
+  </div>
+} @else if (store.hasError()) {
+  <app-error-state [message]="store.error() ?? ''" (retry)="reload()" />
+} @else if (store.isEmpty()) {
+  <app-empty-state
+    title="No trainings yet"
+    message="Create a training, then upload its material for question generation."
+    actionLabel="New training"
+    (action)="openCreate()"
+  />
+} @else {
+  <div class="le-toolbar">
+    <div role="group" aria-label="Filter by status" class="filters">
+      @for (option of statuses; track option.id) {
+        <button
+          type="button"
+          class="filter"
+          [class.is-active]="activeStatus() === option.id"
+          [attr.aria-pressed]="activeStatus() === option.id"
+          (click)="setStatus(option.id)"
+        >
+          {{ option.label }}
+        </button>
+      }
+    </div>
+    <span class="count">{{ visible().length }} of {{ store.count() }}</span>
+  </div>
+
+  @if (noMatches()) {
+    <app-empty-state title="No matches" message="No training has that status." />
+  } @else {
+    <div class="le-card le-table-wrap">
+      <table class="le-table">
+        <caption>
+          Trainings, sorted by title
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Title</th>
+            <th scope="col">Category</th>
+            <th scope="col">Duration</th>
+            <th scope="col">Pass mark</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (training of visible(); track training.id) {
+            <tr>
+              <th scope="row">{{ training.title }}</th>
+              <td>{{ categoryName(training.categoryId) }}</td>
+              <td>{{ training.durationMinutes | duration }}</td>
+              <td>{{ training.passMark }}%</td>
+              <td><app-badge [status]="training.status" /></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}
+
+@if (isCreating()) {
+  <app-modal-shell title="New training" (close)="closeCreate()">
+    @if (categories.isEmpty()) {
+      <p class="prereq">
+        Create a category first — every training belongs to one.
+        <a routerLink="/categories" (click)="closeCreate()">Go to categories</a>
+      </p>
+    } @else {
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div
+          class="le-field"
+          [class.is-invalid]="form.controls.title.touched && form.controls.title.invalid"
+        >
+          <label for="training-title">Title</label>
+          <input id="training-title" type="text" formControlName="title" />
+          @if (form.controls.title.touched && form.controls.title.hasError('required')) {
+            <span class="le-error">Title is required.</span>
+          }
+        </div>
+
+        <div
+          class="le-field"
+          [class.is-invalid]="form.controls.categoryId.touched && form.controls.categoryId.invalid"
+        >
+          <label for="training-category">Category</label>
+          <select id="training-category" formControlName="categoryId">
+            <option value="">Select a category…</option>
+            @for (category of categories.sortedByName(); track category.id) {
+              <option [value]="category.id">{{ category.name }}</option>
+            }
+          </select>
+          @if (form.controls.categoryId.touched && form.controls.categoryId.hasError('required')) {
+            <span class="le-error">Select a category.</span>
+          }
+        </div>
+
+        <div class="le-field">
+          <label for="training-description">Description</label>
+          <textarea id="training-description" formControlName="description"></textarea>
+        </div>
+
+        <div class="pair">
+          <div
+            class="le-field"
+            [class.is-invalid]="
+              form.controls.durationMinutes.touched && form.controls.durationMinutes.invalid
+            "
+          >
+            <label for="training-duration">Duration (minutes)</label>
+            <input id="training-duration" type="number" min="1" formControlName="durationMinutes" />
+            @if (form.controls.durationMinutes.touched && form.controls.durationMinutes.invalid) {
+              <span class="le-error">Enter a duration of at least 1 minute.</span>
+            }
+          </div>
+
+          <div
+            class="le-field"
+            [class.is-invalid]="form.controls.passMark.touched && form.controls.passMark.invalid"
+          >
+            <label for="training-passmark">Pass mark (%)</label>
+            <input
+              id="training-passmark"
+              type="number"
+              min="0"
+              max="100"
+              formControlName="passMark"
+            />
+            @if (form.controls.passMark.touched && form.controls.passMark.invalid) {
+              <span class="le-error">Enter a value between 0 and 100.</span>
+            }
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="le-btn le-btn-secondary" (click)="closeCreate()">
+            Cancel
+          </button>
+          <button type="submit" class="le-btn" [disabled]="store.isSaving()">
+            @if (store.isSaving()) {
+              <app-spinner [size]="14" label="Saving" />
+              <span>Saving…</span>
+            } @else {
+              <span>Create training</span>
+            }
+          </button>
+        </div>
+      </form>
+    }
+  </app-modal-shell>
+}

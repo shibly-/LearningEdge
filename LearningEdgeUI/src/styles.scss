@@ -1,0 +1,301 @@
+/* Design tokens. Components must reference these, never raw hex values. */
+:root {
+  --le-brand-50: #eef4ff;
+  --le-brand-100: #d9e6ff;
+  --le-brand-500: #3b6cf6;
+  --le-brand-600: #2f55d4;
+  --le-brand-700: #2543ad;
+
+  --le-surface: #ffffff;
+  --le-surface-muted: #f6f7f9;
+  --le-surface-sunken: #eceef2;
+  --le-border: #d8dce3;
+
+  --le-text: #11161f;
+  --le-text-muted: #5a6474;
+  --le-text-inverse: #ffffff;
+
+  --le-success: #1a7f52;
+  --le-success-bg: #e5f5ed;
+  --le-warning: #96610a;
+  --le-warning-bg: #fdf3e2;
+  --le-danger: #b3261e;
+  --le-danger-bg: #fdecea;
+  --le-info: #1d5c99;
+  --le-info-bg: #e8f2fb;
+
+  --le-radius: 8px;
+  --le-shadow: 0 1px 2px rgb(17 22 31 / 8%), 0 4px 12px rgb(17 22 31 / 6%);
+
+  --le-sidebar-width: 260px;
+  --le-sidebar-width-collapsed: 72px;
+  --le-header-height: 60px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--le-surface-muted);
+  color: var(--le-text);
+  font-family:
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* A visible focus ring on every interactive element is a hard requirement. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--le-brand-600);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.le-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.le-skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 10px 16px;
+  background: var(--le-brand-600);
+  color: var(--le-text-inverse);
+  border-radius: 0 0 var(--le-radius) 0;
+
+  &:focus {
+    left: 0;
+  }
+}
+
+/* Shared primitives. Features compose these instead of restyling from scratch. */
+.le-card {
+  background: var(--le-surface);
+  border: 1px solid var(--le-border);
+  border-radius: var(--le-radius);
+  box-shadow: var(--le-shadow);
+}
+
+.le-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--le-radius);
+  background: var(--le-brand-600);
+  color: var(--le-text-inverse);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--le-brand-700);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &.le-btn-secondary {
+    background: var(--le-surface);
+    border-color: var(--le-border);
+    color: var(--le-text);
+
+    &:hover:not(:disabled) {
+      background: var(--le-surface-muted);
+    }
+  }
+
+  &.le-btn-danger {
+    background: var(--le-danger);
+
+    &:hover:not(:disabled) {
+      background: #8f1e18;
+    }
+  }
+}
+
+.le-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+
+  label {
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  input,
+  select,
+  textarea {
+    padding: 9px 11px;
+    border: 1px solid var(--le-border);
+    border-radius: var(--le-radius);
+    background: var(--le-surface);
+    color: var(--le-text);
+    font: inherit;
+  }
+
+  textarea {
+    min-height: 92px;
+    resize: vertical;
+  }
+
+  &.is-invalid {
+    input,
+    select,
+    textarea {
+      border-color: var(--le-danger);
+    }
+  }
+
+  .le-error {
+    color: var(--le-danger);
+    font-size: 0.85rem;
+  }
+
+  .le-hint {
+    color: var(--le-text-muted);
+    font-size: 0.85rem;
+  }
+}
+
+.le-table-wrap {
+  overflow-x: auto;
+}
+
+.le-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  caption {
+    text-align: left;
+    padding: 0 0 10px;
+    color: var(--le-text-muted);
+    font-size: 0.88rem;
+  }
+
+  th,
+  td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--le-border);
+    vertical-align: middle;
+  }
+
+  thead th {
+    background: var(--le-surface-muted);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--le-text-muted);
+    white-space: nowrap;
+  }
+
+  tbody tr:hover {
+    background: var(--le-surface-muted);
+  }
+
+  .le-sort {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-transform: inherit;
+    letter-spacing: inherit;
+    cursor: pointer;
+  }
+}
+
+.le-grid-stats {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  margin-bottom: 22px;
+}
+
+.le-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+
+  input[type='search'],
+  select {
+    padding: 8px 11px;
+    border: 1px solid var(--le-border);
+    border-radius: var(--le-radius);
+    background: var(--le-surface);
+    color: var(--le-text);
+    font: inherit;
+    min-width: 220px;
+  }
+
+  .count {
+    color: var(--le-text-muted);
+    font-size: 0.88rem;
+  }
+}
+
+.filters {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--le-surface-sunken);
+  border-radius: var(--le-radius);
+}
+
+.filter {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--le-text-muted);
+  font: inherit;
+  cursor: pointer;
+
+  &.is-active {
+    background: var(--le-surface);
+    color: var(--le-text);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgb(17 22 31 / 10%);
+  }
+}
+
+.row-actions a {
+  color: var(--le-brand-600);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

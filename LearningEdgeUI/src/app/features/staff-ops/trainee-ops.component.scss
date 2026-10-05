@@ -1,0 +1,30 @@
+.name {
+  display: block;
+}
+
+.email {
+  display: block;
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--le-text-muted);
+}
+
+.none {
+  color: var(--le-text-muted);
+}
+
+.link-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--le-brand-600);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}

@@ -1,0 +1,104 @@
+<app-page-header title="Trainee operations" subtitle="Progress, messaging, and course assignment.">
+  <a class="le-btn" routerLink="/trainings/assign">Assign training</a>
+</app-page-header>
+
+@if (isLoading()) {
+  <div class="le-card" style="padding: 18px">
+    <app-skeleton [count]="6" label="Loading trainees" />
+  </div>
+} @else if (errorMessage() !== null) {
+  <app-error-state [message]="errorMessage() ?? ''" (retry)="reload()" />
+} @else if (rows().length === 0) {
+  <app-empty-state
+    title="No trainees"
+    message="Once trainees are added to your organization they will be listed here."
+  />
+} @else {
+  <div class="le-card le-table-wrap">
+    <table class="le-table">
+      <caption>
+        {{
+          rows().length
+        }}
+        trainee(s) and their assignment rollup
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Trainee</th>
+          <th scope="col">Assigned</th>
+          <th scope="col">Completed</th>
+          <th scope="col">Overdue</th>
+          <th scope="col">Next due</th>
+          <th scope="col"><span class="le-visually-hidden">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.id) {
+          <tr>
+            <th scope="row">
+              <span class="name">{{ row.name }}</span>
+              <span class="email">{{ row.email }}</span>
+            </th>
+            <td>{{ row.total }}</td>
+            <td>{{ row.completed }}</td>
+            <td>
+              @if (row.overdue > 0) {
+                <app-badge status="overdue" [text]="row.overdue + ' overdue'" />
+              } @else {
+                <span class="none">None</span>
+              }
+            </td>
+            <td>{{ row.latestDue === null ? '—' : (row.latestDue | date: 'mediumDate') }}</td>
+            <td>
+              <button type="button" class="link-button" (click)="openMessage(row.id)">
+                Message
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+@if (messagingTraineeId() !== null) {
+  <app-modal-shell [title]="'Message ' + messagingTraineeName()" (close)="closeMessage()">
+    <form [formGroup]="form" (ngSubmit)="sendMessage()" novalidate>
+      <div
+        class="le-field"
+        [class.is-invalid]="form.controls.subject.touched && form.controls.subject.invalid"
+      >
+        <label for="message-subject">Subject</label>
+        <input id="message-subject" type="text" formControlName="subject" />
+        @if (form.controls.subject.touched && form.controls.subject.hasError('required')) {
+          <span class="le-error">Subject is required.</span>
+        }
+      </div>
+
+      <div
+        class="le-field"
+        [class.is-invalid]="form.controls.body.touched && form.controls.body.invalid"
+      >
+        <label for="message-body">Message</label>
+        <textarea id="message-body" formControlName="body"></textarea>
+        @if (form.controls.body.touched && form.controls.body.hasError('required')) {
+          <span class="le-error">Message body is required.</span>
+        }
+      </div>
+
+      <div class="actions">
+        <button type="button" class="le-btn le-btn-secondary" (click)="closeMessage()">
+          Cancel
+        </button>
+        <button type="submit" class="le-btn" [disabled]="messages.isSaving()">
+          @if (messages.isSaving()) {
+            <app-spinner [size]="14" label="Sending" />
+            <span>Sending…</span>
+          } @else {
+            <span>Send message</span>
+          }
+        </button>
+      </div>
+    </form>
+  </app-modal-shell>
+}

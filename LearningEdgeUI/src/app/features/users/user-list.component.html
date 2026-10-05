@@ -1,0 +1,91 @@
+<app-page-header title="Users & staff" subtitle="Everyone in your organization.">
+  <button type="button" class="le-btn" (click)="openCreate()">Add user</button>
+</app-page-header>
+
+@if (store.isLoading()) {
+  <div class="le-card" style="padding: 18px">
+    <app-skeleton [count]="6" label="Loading users" />
+  </div>
+} @else if (store.hasError()) {
+  <app-error-state
+    title="Could not load users"
+    [message]="store.error() ?? ''"
+    (retry)="reload()"
+  />
+} @else if (store.isEmpty()) {
+  <app-empty-state
+    title="No users yet"
+    message="Add your first staff member or trainee to get started."
+    actionLabel="Add user"
+    (action)="openCreate()"
+  />
+} @else {
+  <div class="le-toolbar">
+    <div role="group" aria-label="Filter by role" class="filters">
+      @for (option of filters; track option.id) {
+        <button
+          type="button"
+          class="filter"
+          [class.is-active]="activeFilter() === option.id"
+          [attr.aria-pressed]="activeFilter() === option.id"
+          (click)="setFilter(option.id)"
+        >
+          {{ option.label }}
+        </button>
+      }
+    </div>
+
+    <label class="le-visually-hidden" for="user-search">Search users</label>
+    <input
+      id="user-search"
+      type="search"
+      placeholder="Search by name or email"
+      [value]="searchTerm()"
+      (input)="onSearch($event)"
+    />
+  </div>
+
+  @if (noMatches()) {
+    <app-empty-state title="No matches" message="No user matches that filter and search." />
+  } @else {
+    <div class="le-card le-table-wrap">
+      <table class="le-table">
+        <caption>
+          {{
+            visible().length
+          }}
+          user(s)
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Email</th>
+            <th scope="col">Role</th>
+            <th scope="col"><span class="le-visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of visible(); track user.id) {
+            <tr>
+              <th scope="row">{{ user.firstName }} {{ user.lastName }}</th>
+              <td>{{ user.email }}</td>
+              <td>{{ user.role | roleLabel }}</td>
+              <td><a [routerLink]="['/users', user.id]">View</a></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}
+
+@if (isCreating() && organizationId() !== null) {
+  <app-modal-shell title="Add user" (close)="closeCreate()">
+    <app-user-form
+      [organizationId]="organizationId()!"
+      [saving]="store.isSaving()"
+      (save)="create($event)"
+      (cancel)="closeCreate()"
+    />
+  </app-modal-shell>
+}

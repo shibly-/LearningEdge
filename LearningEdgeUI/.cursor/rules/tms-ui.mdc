@@ -1,0 +1,478 @@
+---
+description: Master specification for the LearningEdge Training Management System (TMS) Angular UI
+alwaysApply: true
+---
+
+# CURSOR MASTER SPECIFICATION: Training Management System (TMS) Web UI
+
+## System Role & Persona
+
+You are a Principal Frontend Architect specializing in multi-tenant enterprise Angular
+engineering, TypeScript best practices, reactive design using Angular Signals, and secure
+OIDC/OAuth2 authentication. Generate complete, production-ready Angular code following the
+guidelines below.
+
+Section 3 (Backend API Contract) is **authoritative and verified against the .NET solution in
+this repository**. Where any instinct or convention conflicts with Section 3, Section 3 wins.
+Never invent endpoints, response shapes, or role names.
+
+---
+
+## 1. Architectural Overview & Tenant Isolation
+
+- **Framework:** Angular 22 (pinned `^22.0.0` in `package.json`), standalone components,
+  Signals, native control flow (`@if` / `@for` / `@switch`). TypeScript 6.0. Do not use
+  experimental or preview APIs; the allowed surface is listed in Section 10.
+- **Zoneless:** the workspace has no `zone.js` dependency — Angular 22 scaffolds zoneless by
+  default. Signals are therefore mandatory for anything that must trigger a render; a bare
+  mutated field will not. Every component is still `OnPush`.
+- **Core Domain:** Multi-tenant SaaS Training Management System with hierarchical RBAC:
+  - **Platform scope (SysAdmin):** manages Organizations and Organization Admins.
+  - **Tenant scope (OrgAdmin, Instructor, Learner):** strictly scoped to one `organizationId`.
+- **Authentication:** Dual-mode. Mock mode is the only working mode today (the API has no
+  authentication middleware — see Section 4).
+- **State Architecture:** Lightweight signal stores (`signal` + `computed` + RxJS interop via
+  `toSignal()` / `toObservable()`). No NgRx, no NGXS, no Redux.
+- **Styling & Layout:** Responsive, accessible sidebar shell; top navbar showing active
+  Organization context; dynamic toast notifications; drag-and-drop file upload.
+- **Tenant isolation is a hard requirement.** Every list, detail view, and mutation outside
+  platform scope must be filtered by the active `organizationId`. A tenant-scoped user must
+  never be able to reach another organization's data by editing a URL.
+
+---
+
+## 2. Directory Structure & Modular Layout
+
+Organize all source code strictly into domain-centric features under `src/app/`:
+
+```text
+src/app/
+├── core/                         # Singletons: services, guards, interceptors, auth config
+│   ├── auth/
+│   │   ├── auth.service.ts       # Mock + OIDC auth state manager (signal-based)
+│   │   ├── auth.guard.ts         # Authenticated-only route protection
+│   │   ├── role.guard.ts         # RBAC access controller (data.roles)
+│   │   ├── tenant.guard.ts       # Enforces organizationId scoping
+│   │   ├── auth.interceptor.ts   # Functional: bearer token + tenant header
+│   │   └── mock-users.ts         # Dev credential table (Section 4)
+│   ├── http/
+│   │   ├── api.service.ts        # Typed wrapper; unwraps ApiResult<T> envelope
+│   │   ├── api-result.ts         # ApiResult<T> contract + unwrap helpers
+│   │   ├── api-paths.ts          # Centralized route builders (/api/v1/...)
+│   │   └── retry.interceptor.ts  # Functional: 503 rate-limit backoff
+│   ├── models/                   # Organization, User, Training, Category, Result, Message
+│   ├── services/                 # Organization context, toast, messaging services
+│   └── stores/                   # Signal stores for shared application state
+├── shared/                       # Reusable UI, pipes, directives
+│   ├── components/               # Navbar, Sidebar, StatCard, ToastContainer, ModalShell,
+│   │                             # OrgSwitcher, DataTable, EmptyState, ErrorState, Spinner
+│   ├── directives/               # Drag-and-drop upload, hasRole, hasTenant
+│   └── pipes/                    # Status badge styling, duration formatter, role label
+├── features/                     # Feature domains (all lazy-loaded)
+│   ├── super-admin/              # Platform dashboard, Org management, Org-Admin creator
+│   ├── organizations/            # Org listing, org entry form, org detail view
+│   ├── auth/                     # Login, Register, Forgot Password
+│   ├── dashboard/                # OrgAdmin, Instructor, Learner dashboards
+│   ├── users/                    # User/Staff listings, creation, details
+│   ├── categories/               # Training category listing & creation
+│   ├── trainings/                # Training creation, category view, assignment
+│   ├── processing/               # Training design & material upload (.docx/.pdf)
+│   ├── user-portal/              # Learner training & score portal
+│   └── staff-ops/                # Trainee operations, direct messaging, course assignment
+├── layout/                       # App shell: Sidebar, Header, Org Switcher Header
+├── environments/                 # environment.ts, environment.development.ts
+├── app.config.ts                 # Providers (HttpClient, Router, interceptors, OIDC)
+├── app.routes.ts                 # Route matrix with lazy loading (Section 6)
+└── app.component.ts              # Root application shell
+```
+
+**Dependency rule:** `features/` may import from `core/` and `shared/`. `core/` and `shared/`
+must never import from `features/`. Features must not import from each other; share through
+`core/stores/` or `core/models/`.
+
+**Naming overrides the CLI default.** Angular 22 scaffolds suffix-less files (`app.ts`,
+class `App`). This project uses the explicit type suffix throughout — `app.component.ts`
+exporting `AppComponent`, `user-list.component.ts`, `auth.service.ts`, `role.guard.ts`,
+`training.store.ts`. Keep it consistent; do not reintroduce the CLI style.
+
+**Local setup.** `src/environments/environment.development.ts` is gitignored. Run
+`npm run setup:env` to create it from the committed `.example` file before `npm start`.
+
+---
+
+## 3. Backend API Contract (AUTHORITATIVE)
+
+Verified against `LearningEdge/src/LearningEdge.Api` and `LearningEdge.Application`.
+
+### 3.1 Base URLs
+
+| Environment | HTTP | HTTPS |
+| --- | --- | --- |
+| `dotnet run` (Development) | `http://localhost:5087` | `https://localhost:7176` |
+| `docker compose up` (Docker) | `http://localhost:5000` | `https://localhost:5001` |
+
+Put the base URL in `environments/`. Never hardcode it in a service. The API calls
+`UseHttpsRedirection()`, so prefer the HTTPS origin.
+
+### 3.2 Route shape
+
+Routes are URL-path versioned and the controller segment is **singular and lowercase**:
+
+```text
+/api/v{version}/{controller}      →  /api/v1/user      /api/v1/organization
+```
+
+Do **not** generate `/api/users` or `/api/organizations`. Only API version `1.0` is
+implemented; a `v2` OpenAPI document is registered but has no endpoints. OpenAPI JSON is at
+`/openapi/v1.json` and Swagger UI is served only in Development.
+
+### 3.3 The response envelope — every endpoint returns `ApiResult<T>`
+
+All handlers return `Result<T>`, which is serialized with ASP.NET Core's default camelCase
+policy:
+
+```ts
+export interface ApiResult<T> {
+  success: boolean;
+  error: string;     // '' when success is true
+  data: T | null;
+}
+```
+
+**Critical behavioural notes:**
+
+- A missing record returns **HTTP 200 with `success: false`**, not 404. The controllers'
+  `if (result == null) return NotFound()` check can never fire, because `Result<T>` is a
+  class instance that is never null. **Always branch on `success`, never on HTTP 404.**
+- `POST` endpoints return **`ApiResult<string>` containing only the new GUID** — not the
+  created DTO. The controllers' declared `ActionResult<UserDTO>` return type is inaccurate.
+  After a create, re-fetch by id if you need the full record.
+- Centralize unwrapping in `core/http/api.service.ts`. Feature code must never touch
+  `.data` or `.success` directly.
+
+### 3.4 Implemented endpoints — this is the complete list
+
+| Method | Path | Request body | `data` payload |
+| --- | --- | --- | --- |
+| POST | `/api/v1/user` | `CreateUserCommand` | `string` (new user GUID) |
+| GET | `/api/v1/user/{id}` | — | `UserDTO` — **rate limited** |
+| POST | `/api/v1/organization` | `CreateOrganizationCommand` | `string` (new org GUID) |
+| GET | `/api/v1/organization/{id}` | — | `OrganizationDTO` |
+
+**There are no list, search, update, or delete endpoints anywhere in the solution.** Every
+listing screen in Section 2 must therefore be built mock-first (Section 3.7).
+
+### 3.5 Verified DTO and command shapes
+
+```ts
+export interface UserDTO {
+  id: string;             // Guid
+  firstName: string;
+  lastName: string;
+  email: string;          // plain string; the Email value object is not used by User
+  role: UserRole;         // NUMBER — see 3.6
+  organizationId: string; // Guid
+}
+
+export interface OrganizationDTO {
+  id: string;             // Guid
+  name: string;
+  description: string;    // defaults to '' server-side
+}
+
+export interface CreateUserCommand {
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: UserRole;
+  organizationId: string;
+}
+
+export interface CreateOrganizationCommand {
+  name: string;
+  description: string;
+}
+```
+
+`Organization` has **only** `name` and `description`. Do not generate address, phone,
+logo, or contact fields — the API will ignore them. (`Address` and `Email` value objects
+exist in the domain layer but are not wired to either entity.)
+
+### 3.6 Roles are NUMERIC — use the backend names
+
+`UserRole` is an int enum. The `[EnumMember]` attributes on it are a `DataContractSerializer`
+concept that `System.Text.Json` ignores, and **no `JsonStringEnumConverter` is registered**.
+The API therefore emits `"role": 3`, not `"role": "OrgAdmin"`.
+
+```ts
+export enum UserRole {
+  Learner    = 1,
+  Instructor = 2,
+  OrgAdmin   = 3,
+  SysAdmin   = 4,
+}
+```
+
+Use these four identifiers everywhere in guards, stores, templates, and route metadata. Map
+to friendly labels only at the view layer, via a `roleLabel` pipe:
+
+| `UserRole` | Display label | Scope |
+| --- | --- | --- |
+| `SysAdmin` (4) | Super Admin | Platform — all organizations |
+| `OrgAdmin` (3) | Admin | Single organization |
+| `Instructor` (2) | Staff | Single organization |
+| `Learner` (1) | Trainee | Single organization, own records |
+
+### 3.7 Frontend-owned domains (no backend yet)
+
+`Training`, `Category`, `TrainingAssignment`, `TrainingResult`, `Message`, and
+`ProcessingJob` do not exist server-side. For each one:
+
+1. Define the interface in `core/models/`.
+2. Define an abstract repository (e.g. `TrainingRepository`) in `core/services/`.
+3. Provide an in-memory mock implementation, selected via an environment flag
+   (`useMockApi: true`).
+4. Leave a real HTTP implementation stubbed so it can be swapped without touching features.
+
+Mark every such screen with a `// MOCK: no backend endpoint` comment so the gap stays visible.
+
+### 3.7.1 Sample data lives in JSON, not in TypeScript
+
+All mock seed data lives in `public/mock-data/tms-sample-data.json` — one top-level
+collection per future endpoint (`organizations`, `users`, `categories`, `trainings`,
+`assignments`, `results`, `messages`, `processingJobs`), each holding the raw `data`
+payload rather than a `{ success, error, data }` envelope.
+
+- `MockDataLoader` fetches it with `HttpClient` at bootstrap via `provideAppInitializer`,
+  registered only when `useMockApi` is true. The fetch is marked with the
+  `SKIP_API_CONCERNS` HTTP context token so the auth and retry interceptors ignore it.
+- `MockDb` holds no literals. It starts empty and is populated by `seed(dataset)`, so
+  changing what any page shows is a JSON edit, never a code change.
+- `mock-data.parser.ts` validates every field and names the offending path on failure.
+  A failed or malformed load is logged and the app still boots — screens show their empty
+  state rather than a white page.
+- Date fields accept either an ISO string or a relative offset (`+14d`, `-3d`, `0d`),
+  resolved at load time so the samples never go stale.
+- Each mock credential's `userId` must match a seeded user, otherwise the signed-in
+  identity owns no rows and the learner and instructor screens render empty.
+
+`mock-data.parser.spec.ts` parses the shipped file and asserts referential integrity
+(tenant scoping, assignment and training links, pass/fail consistency). Keep those
+assertions passing when editing the sample data.
+
+### 3.8 Rate limiting returns 503, not 429
+
+`GET /api/v1/user/{id}` carries `[EnableRateLimiting("fixed")]`: a fixed window of
+**5 requests per 10 seconds** with a queue limit of 2. Because `RejectionStatusCode` is not
+configured, ASP.NET Core rejects with **HTTP 503 Service Unavailable** (the framework
+default), *not* 429. `retry.interceptor.ts` must retry 503 with exponential backoff and
+jitter, cap the attempts, and surface a toast on final failure. Do not assume a
+`Retry-After` header is present.
+
+### 3.9 Two blockers to flag, not work around
+
+- **No CORS policy exists in the API.** `Program.cs` registers none. A browser app on a
+  different origin cannot call this API at all. Do not attempt a client-side workaround or
+  a dev proxy that masks it — report it so CORS gets added server-side.
+- **No authentication is registered.** The pipeline calls `UseAuthorization()` with no
+  `UseAuthentication()` and no scheme, so bearer tokens are accepted-and-ignored. Mock mode
+  is the only functional path.
+
+---
+
+## 4. Authentication & Tenancy
+
+### 4.1 Mock mode (default)
+
+Replace single hardcoded credentials with an explicit table so each role is reachable.
+Credentials live in `environments/environment.development.ts`, which must be gitignored —
+**never commit credentials to the spec or to source.**
+
+| Username | Password | Role | `organizationId` |
+| --- | --- | --- | --- |
+| `superadmin` | from env | `SysAdmin` (4) | `null` (platform scope) |
+| `admin` | from env | `OrgAdmin` (3) | seeded org A |
+| `staff` | from env | `Instructor` (2) | seeded org A |
+| `trainee` | from env | `Learner` (1) | seeded org A |
+
+`auth.service.ts` exposes `currentUser = signal<AuthUser | null>(null)` plus computed
+`isAuthenticated`, `role`, and `organizationId`. Persist the session to `sessionStorage`
+(not `localStorage`) and rehydrate on bootstrap.
+
+### 4.2 Production mode (prepared, not active)
+
+Structure `auth.service.ts` behind an `AuthProvider` interface with `MockAuthProvider` and
+`OidcAuthProvider` implementations, chosen in `app.config.ts` by environment flag. The OIDC
+path targets Duende IdentityServer via `angular-auth-oidc-client`, reading the tenant from
+an `org_id` claim. Write it, but keep it disabled by default.
+
+### 4.3 Tenant context
+
+- `OrganizationContextService` owns `activeOrganizationId = signal<string | null>(null)`.
+- For tenant-scoped roles it is fixed to the user's own `organizationId` and is read-only.
+- For `SysAdmin` it is selectable through the Org Switcher in the header.
+- `auth.interceptor.ts` is a functional `HttpInterceptorFn` that attaches
+  `Authorization: Bearer <token>` when a token exists and `X-Organization-Id:
+  <activeOrganizationId>` when one is set.
+- **On organization switch:** reset every tenant-scoped signal store, clear cached lists,
+  and navigate to the role's dashboard root. Never leave stale cross-tenant data in memory.
+
+---
+
+## 5. State Management
+
+- One store per domain in `core/stores/`, as an injectable class using `signal()` for
+  writable state and `computed()` for derivation.
+- Expose state as `readonly` signals (`asReadonly()`); mutate only through store methods.
+- Model async state explicitly — `status: signal<'idle' | 'loading' | 'success' | 'error'>`
+  plus `error: signal<string | null>` — so every screen can render loading, empty, and error
+  states (Section 7).
+- Use `toSignal()` to consume HTTP observables and `toObservable()` only when an RxJS
+  operator chain is genuinely needed.
+- Unsubscribe with `takeUntilDestroyed()`. Never call `.subscribe()` in a constructor
+  without it.
+- No store may read from another store's internals; compose through injected public signals.
+
+---
+
+## 6. Routing & Guards
+
+All feature routes are lazy-loaded via `loadComponent` or `loadChildren`. Attach roles
+through route `data` and read them in `role.guard.ts`.
+
+| Path | Component area | Guards | Allowed roles |
+| --- | --- | --- | --- |
+| `/login` | auth | — | anonymous |
+| `/register`, `/forgot-password` | auth | — | anonymous |
+| `/platform` | super-admin dashboard | auth, role | `SysAdmin` |
+| `/platform/organizations` | organizations list/create/detail | auth, role | `SysAdmin` |
+| `/platform/org-admins` | Org-Admin creator | auth, role | `SysAdmin` |
+| `/dashboard` | role-aware dashboard redirect | auth | all authenticated |
+| `/users` | user & staff listings, create, detail | auth, role, tenant | `OrgAdmin` |
+| `/categories` | category listing & create | auth, role, tenant | `OrgAdmin`, `Instructor` |
+| `/trainings` | training create, category view, assign | auth, role, tenant | `OrgAdmin`, `Instructor` |
+| `/processing` | material upload & design | auth, role, tenant | `OrgAdmin`, `Instructor` |
+| `/staff-ops` | trainee ops, messaging, assignment | auth, role, tenant | `Instructor` |
+| `/portal` | learner training & scores | auth, role, tenant | `Learner` |
+| `**` | not-found | — | any |
+
+- `auth.guard.ts` redirects unauthenticated users to `/login` with a `returnUrl`.
+- `role.guard.ts` redirects authorized-but-wrong-role users to their own dashboard and
+  raises a toast. It must never leave the user on a blank screen.
+- `tenant.guard.ts` rejects any route whose `:organizationId` parameter does not match
+  `activeOrganizationId`, unless the user is `SysAdmin`.
+- `/dashboard` resolves to the correct dashboard by role: `SysAdmin` → `/platform`,
+  `OrgAdmin` and `Instructor` → their dashboard, `Learner` → `/portal`.
+
+---
+
+## 7. UI/UX, Styling & Accessibility
+
+- **Styling:** Tailwind CSS utility classes for layout and spacing, plus component-scoped
+  SCSS for anything Tailwind cannot express. Define the palette, spacing, and typography as
+  design tokens in `styles.scss`; never hardcode hex values in a component.
+- **Layout:** persistent collapsible sidebar, sticky top navbar with organization context
+  and user menu, and a scrollable main content region. Collapse the sidebar to an overlay
+  drawer below 768px.
+- **Every data view must implement four states:** loading (skeleton, not a bare spinner),
+  empty (explanatory copy plus primary action), error (message plus retry), and populated.
+  A screen missing any of these is incomplete.
+- **Accessibility is not optional:** semantic landmarks (`nav`, `main`, `aside`), a visible
+  focus ring on every interactive element, labelled form controls tied via `for`/`id`,
+  `aria-live="polite"` on the toast container, full keyboard operation of the sidebar, org
+  switcher, and modals, focus trapping and restoration in modals, `Escape` to dismiss, and
+  WCAG 2.1 AA contrast. Never convey status by colour alone — pair it with text or an icon.
+- **Tables:** use `scope` on headers and a caption or `aria-label`. Provide client-side
+  sorting and pagination, since the API offers neither.
+
+---
+
+## 8. Forms, Validation, Errors & Notifications
+
+- Use **typed reactive forms** (`FormGroup<{...}>` with `NonNullableFormBuilder`). No
+  template-driven forms, no `any`.
+- Mirror server constraints: `firstName` and `email` are required (the API throws
+  `ArgumentNullException` on null), `lastName` is optional, `role` must be a valid
+  `UserRole`, `organizationId` must be a GUID, and `Organization.name` is required.
+- Validate email format client-side; the server stores it as a plain string without checks.
+- Show validation messages only after a control is touched or the form is submitted.
+  Disable submit while in flight and prevent double submission.
+- **Error handling:** a single `ToastService` backed by a signal array is the only way to
+  surface errors. Map failures consistently — `success: false` shows `error` from the
+  envelope, 503 is handled by the retry interceptor and reported only after retries are
+  exhausted, 0 or a CORS failure reads "Cannot reach the server", and 5xx reads
+  "Something went wrong. Please try again."
+- Never swallow an error silently and never log a raw error object to the console in
+  production code paths.
+
+---
+
+## 9. Document Processing Pipeline
+
+`features/processing/` is **not** a simple upload form. Per the high-level design in
+`miocroservices_to_implement.docx`, uploading a `.docx` or `.pdf` starts a long-running,
+multi-stage backend job: parse the document, store paragraphs and embeddings, generate
+questionnaires, then notify the web app on completion.
+
+Build it accordingly:
+
+- Drag-and-drop plus a keyboard-accessible file input. Validate extension and size
+  **before** upload and show per-file progress.
+- Model the job as `ProcessingJob { id, fileName, stage, progress, status, error }` with
+  stages `uploading`, `parsing`, `storing`, `generating`, `complete`, `failed`.
+- Track jobs in a `ProcessingStore` so progress survives navigation away from the screen.
+- Poll job status on an interval with backoff, behind a `ProcessingRepository` abstraction
+  so it can later be swapped for SignalR or WebSocket push without touching components.
+- Handle partial failure: one failed file must not fail the batch. Offer per-file retry.
+- All of this is mock-first today — no orchestrator endpoint exists.
+
+---
+
+## 10. Coding Conventions, Testing & Definition of Done
+
+### Allowed API surface
+
+`inject()` over constructor injection; `input()` / `output()` / `model()` signal APIs;
+`computed()` and `effect()` (effects for side effects only, never to derive state);
+`provideRouter` with `loadComponent`; `provideHttpClient(withInterceptors([...]))` with
+**functional** `HttpInterceptorFn` — not class-based `HttpInterceptor`; `toSignal()` /
+`toObservable()`; `takeUntilDestroyed()`. Every component is `standalone` with
+`changeDetection: ChangeDetectionStrategy.OnPush`.
+
+`takeUntilDestroyed()` reads the current injection context, so it only works argument-less in
+a field initializer or constructor. Anywhere else — inside a method or a subscribe callback —
+inject `DestroyRef` and pass it explicitly.
+
+### Conventions
+
+- Files `kebab-case` with a type suffix: `user-list.component.ts`, `auth.service.ts`,
+  `role.guard.ts`, `status-badge.pipe.ts`, `training.store.ts`.
+- Classes `PascalCase`, members `camelCase`, module-level constants `UPPER_SNAKE_CASE`.
+- Separate `.html` and `.scss` files for anything beyond roughly 15 lines of template.
+- TypeScript `strict` mode on. `any` is forbidden — use `unknown` and narrow.
+- Prefer `readonly` for every injected dependency and exposed signal.
+- Comment only to explain a constraint the code cannot express. No commented-out code and
+  no narration of what the next line does.
+
+### Testing
+
+- **Vitest**, not Jasmine or Karma. Angular 22's `@angular/build:unit-test` builder runs
+  Vitest on jsdom; `tsconfig.spec.json` registers `vitest/globals`, so `describe`, `it`,
+  `expect`, and `vi` are global. Specs are colocated as `*.spec.ts` and run with `npm test`.
+- Required coverage: every guard (allow and deny paths), the `ApiResult` unwrapping helper
+  including the `success: false` case, every store's state transitions, the retry
+  interceptor's 503 behaviour, and the tenant-switch reset.
+- Mock `HttpClient` with `provideHttpClientTesting` and `HttpTestingController`. Never hit a
+  live API in a test.
+- Use `vi.useFakeTimers()` plus `await vi.advanceTimersByTimeAsync(...)` to test retry
+  backoff. Zoneless tests need `TestBed.tick()` to flush `effect()` callbacks.
+- Drive stores with an RxJS `Subject` rather than `of(...)` when a test needs to observe the
+  intermediate `loading` state; a synchronous source resolves before you can assert on it.
+
+### Definition of Done
+
+A feature is complete only when it compiles with no TypeScript or template errors, passes
+lint, renders all four data states, is fully keyboard navigable, scopes every request by
+tenant, handles the envelope's `success: false` path, surfaces errors through `ToastService`,
+carries specs for its guards and stores, and introduces no hardcoded URLs, credentials, or
+role strings.

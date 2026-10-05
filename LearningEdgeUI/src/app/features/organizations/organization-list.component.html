@@ -1,0 +1,80 @@
+<app-page-header
+  title="Organizations"
+  subtitle="Every tenant on the platform. Only Super Admins can see this list."
+>
+  <button type="button" class="le-btn" (click)="openCreate()">New organization</button>
+</app-page-header>
+
+@if (store.isLoading()) {
+  <div class="le-card" style="padding: 18px">
+    <app-skeleton [count]="5" label="Loading organizations" />
+  </div>
+} @else if (store.hasError()) {
+  <app-error-state
+    title="Could not load organizations"
+    [message]="store.error() ?? ''"
+    (retry)="reload()"
+  />
+} @else if (store.isEmpty()) {
+  <app-empty-state
+    title="No organizations yet"
+    message="Create the first organization to start onboarding administrators and trainees."
+    actionLabel="New organization"
+    (action)="openCreate()"
+  />
+} @else {
+  <div class="le-toolbar">
+    <label class="le-visually-hidden" for="org-search">Search organizations</label>
+    <input
+      id="org-search"
+      type="search"
+      placeholder="Search by name or description"
+      [value]="searchTerm()"
+      (input)="onSearch($event)"
+    />
+    <span class="count">{{ filtered().length }} of {{ store.count() }}</span>
+  </div>
+
+  @if (noMatches()) {
+    <app-empty-state
+      title="No matches"
+      message="No organization matches that search. Try a different term."
+    />
+  } @else {
+    <div class="le-card le-table-wrap">
+      <table class="le-table">
+        <caption>
+          Organizations, sorted by name
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Description</th>
+            <th scope="col"><span class="le-visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (org of filtered(); track org.id) {
+            <tr>
+              <th scope="row">{{ org.name }}</th>
+              <td>{{ org.description || '—' }}</td>
+              <td class="row-actions">
+                <a [routerLink]="['/platform/organizations', org.id]">View</a>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}
+
+@if (isCreating()) {
+  <app-modal-shell title="New organization" (close)="closeCreate()">
+    <app-organization-form
+      [saving]="store.isSaving()"
+      (save)="create($event)"
+      (cancel)="closeCreate()"
+    />
+  </app-modal-shell>
+}

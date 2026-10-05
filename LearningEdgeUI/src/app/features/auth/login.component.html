@@ -1,0 +1,86 @@
+<div class="auth-page">
+  <form class="auth-card le-card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <h1>Sign in</h1>
+    <p class="subtitle">LearningEdge Training Management</p>
+
+    @if (errorMessage() !== null) {
+      <p class="form-error" role="alert">{{ errorMessage() }}</p>
+    }
+
+    <div
+      class="le-field"
+      [class.is-invalid]="form.controls.username.touched && form.controls.username.invalid"
+    >
+      <label for="username">Username</label>
+      <input
+        id="username"
+        type="text"
+        autocomplete="username"
+        formControlName="username"
+        [attr.aria-invalid]="form.controls.username.touched && form.controls.username.invalid"
+        [attr.aria-describedby]="
+          form.controls.username.touched && form.controls.username.invalid ? 'username-error' : null
+        "
+      />
+      @if (form.controls.username.touched && form.controls.username.hasError('required')) {
+        <span id="username-error" class="le-error">Username is required.</span>
+      }
+    </div>
+
+    <div
+      class="le-field"
+      [class.is-invalid]="form.controls.password.touched && form.controls.password.invalid"
+    >
+      <label for="password">Password</label>
+      <input
+        id="password"
+        type="password"
+        autocomplete="current-password"
+        formControlName="password"
+        [attr.aria-invalid]="form.controls.password.touched && form.controls.password.invalid"
+        [attr.aria-describedby]="
+          form.controls.password.touched && form.controls.password.invalid ? 'password-error' : null
+        "
+      />
+      @if (form.controls.password.touched && form.controls.password.hasError('required')) {
+        <span id="password-error" class="le-error">Password is required.</span>
+      }
+    </div>
+
+    <button type="submit" class="le-btn submit" [disabled]="isSubmitting()">
+      @if (isSubmitting()) {
+        <app-spinner [size]="14" label="Signing in" />
+        <span>Signing in…</span>
+      } @else {
+        <span>Sign in</span>
+      }
+    </button>
+
+    <p class="links">
+      <a routerLink="/register">Create an account</a>
+      <span aria-hidden="true">·</span>
+      <a routerLink="/forgot-password">Forgot password?</a>
+    </p>
+
+    @if (showMockHints) {
+      <div class="hints">
+        <p class="hints-title">Development logins</p>
+        @if (hints.length === 0) {
+          <p class="hints-empty">
+            None configured. Run <code>npm run setup:env</code> and restart the dev server.
+          </p>
+        } @else {
+          <ul>
+            @for (hint of hints; track hint.username) {
+              <li>
+                <button type="button" (click)="fillHint(hint)">{{ hint.username }}</button>
+                <span>{{ hint.role }}</span>
+              </li>
+            }
+          </ul>
+          <p class="hints-note">Passwords come from the gitignored local environment file.</p>		  
+        }
+      </div>
+    }
+  </form>
+</div>

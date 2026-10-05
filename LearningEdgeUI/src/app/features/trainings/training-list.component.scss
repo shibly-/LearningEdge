@@ -1,0 +1,28 @@
+.pair {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.prereq {
+  margin: 0;
+  color: var(--le-text-muted);
+
+  a {
+    display: inline-block;
+    margin-left: 4px;
+    color: var(--le-brand-600);
+  }
+}
+
+@media (max-width: 560px) {
+  .pair {
+    grid-template-columns: 1fr;
+  }
+}
