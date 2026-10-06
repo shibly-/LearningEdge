@@ -1,4 +1,19 @@
 services:
+  ui:
+    container_name: ui
+    build:
+      context: ./LearningEdgeUI
+      dockerfile: Dockerfile
+    ports:
+      # Not 4200: that is the `ng serve` port, and the two would collide
+      # whenever the stack and a local dev server run side by side.
+      - "4300:80"
+    depends_on:
+      - api
+    restart: on-failure
+    networks:
+      - appnet
+
   api:
     container_name: api
     build:
