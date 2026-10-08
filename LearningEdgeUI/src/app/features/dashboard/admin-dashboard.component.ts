@@ -42,7 +42,7 @@ import { StatCardComponent } from '../../shared/components/stat-card.component';
         <app-stat-card label="Staff" [value]="users.staff().length" />
         <app-stat-card label="Trainees" [value]="users.trainees().length" />
         <app-stat-card label="Categories" [value]="categories.count()" />
-        <app-stat-card label="Trainings" [value]="trainings.count()" hint="Published and draft" />
+        <app-stat-card label="Trainings" [value]="trainings.count()" hint="Active and inactive" />
         <app-stat-card
           label="Pass rate"
           [value]="passRateLabel()"

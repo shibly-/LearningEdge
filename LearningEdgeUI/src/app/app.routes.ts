@@ -3,7 +3,6 @@ import { anonymousOnlyGuard, authGuard } from './core/auth/auth.guard';
 import { roleGuard } from './core/auth/role.guard';
 import { tenantGuard } from './core/auth/tenant.guard';
 import { UserRole } from './core/models/user-role';
-import { MainLayoutComponent } from './layout/main-layout.component';
 
 /**
  * Route matrix from spec section 6. Every feature is lazy-loaded; roles are
@@ -35,7 +34,8 @@ export const routes: Routes = [
 
   {
     path: '',
-    component: MainLayoutComponent,
+    loadComponent: () =>
+      import('./layout/main-layout.component').then((m) => m.MainLayoutComponent),
     canActivate: [authGuard],
     children: [
       {
@@ -106,8 +106,28 @@ export const routes: Routes = [
         data: { roles: [UserRole.SysAdmin] },
         title: 'Organization admins · LearningEdge',
         loadComponent: () =>
+          import('./features/super-admin/org-admin-list.component').then(
+            (m) => m.OrgAdminListComponent,
+          ),
+      },
+      {
+        path: 'platform/org-admins/new',
+        canActivate: [roleGuard],
+        data: { roles: [UserRole.SysAdmin] },
+        title: 'Add organization admin · LearningEdge',
+        loadComponent: () =>
           import('./features/super-admin/org-admin-creator.component').then(
             (m) => m.OrgAdminCreatorComponent,
+          ),
+      },
+      {
+        path: 'platform/users',
+        canActivate: [roleGuard],
+        data: { roles: [UserRole.SysAdmin] },
+        title: 'Users & staff · LearningEdge',
+        loadComponent: () =>
+          import('./features/super-admin/platform-user-list.component').then(
+            (m) => m.PlatformUserListComponent,
           ),
       },
 

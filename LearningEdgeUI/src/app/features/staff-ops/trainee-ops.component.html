@@ -48,7 +48,7 @@
                 <span class="none">None</span>
               }
             </td>
-            <td>{{ row.latestDue === null ? '—' : (row.latestDue | date: 'mediumDate') }}</td>
+            <td>{{ row.nextDue === null ? '—' : (row.nextDue | date: 'mediumDate') }}</td>
             <td>
               <button type="button" class="link-button" (click)="openMessage(row.id)">
                 Message

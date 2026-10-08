@@ -1,42 +1,111 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, delay, of, throwError } from 'rxjs';
+import { Observable, delay, forkJoin, map, of, switchMap, throwError } from 'rxjs';
+import { ApiService } from '../http/api.service';
 import { ApiFailure } from '../http/api-result';
-import type { CreateTrainingCommand, Training } from '../models/training';
+import { apiPaths } from '../http/api-paths';
+import type { Category } from '../models/category';
+import {
+  validateTrainingFiles,
+  type CreateTrainingCommand,
+  type Training,
+  type TrainingFile,
+  type UpdateTrainingCommand,
+} from '../models/training';
 import { MockDb } from './mock/mock-db';
-import { MOCK_LATENCY_MS, notImplementedUpstream } from './repository-support';
+import { MOCK_LATENCY_MS } from './repository-support';
 
-// MOCK: no backend endpoint for trainings (spec 3.7).
+export interface UploadTrainingFilesRequest {
+  readonly organizationId: string;
+  readonly categoryId: string;
+  readonly trainingId: string;
+  readonly uploadedByUserId: string;
+  readonly files: readonly File[];
+}
+
 export abstract class TrainingRepository {
   abstract listByOrganization(organizationId: string): Observable<readonly Training[]>;
   abstract listByCategory(
     organizationId: string,
     categoryId: string,
   ): Observable<readonly Training[]>;
-  abstract getById(id: string): Observable<Training | null>;
+  abstract getById(
+    organizationId: string,
+    categoryId: string,
+    id: string,
+  ): Observable<Training | null>;
   abstract create(command: CreateTrainingCommand): Observable<string>;
+  abstract update(command: UpdateTrainingCommand): Observable<Training>;
+  abstract uploadFiles(request: UploadTrainingFilesRequest): Observable<readonly TrainingFile[]>;
 }
+
+/** TrainingDTO as the API returns it: no organizationId. */
+type TrainingDto = Omit<Training, 'organizationId'>;
 
 @Injectable()
 export class HttpTrainingRepository extends TrainingRepository {
-  override listByOrganization(_organizationId: string): Observable<readonly Training[]> {
-    return throwError(() => notImplementedUpstream('Listing trainings'));
+  private readonly api = inject(ApiService);
+
+  /** There is no organization-wide training endpoint, so this fans out over the categories. */
+  override listByOrganization(organizationId: string): Observable<readonly Training[]> {
+    return this.api.get<readonly Category[]>(apiPaths.category.list(organizationId)).pipe(
+      switchMap((categories) =>
+        categories.length === 0
+          ? of([] as (readonly Training[])[])
+          : forkJoin(categories.map((c) => this.listByCategory(organizationId, c.id))),
+      ),
+      map((groups) => groups.flat()),
+    );
   }
 
   override listByCategory(
-    _organizationId: string,
-    _categoryId: string,
+    organizationId: string,
+    categoryId: string,
   ): Observable<readonly Training[]> {
-    return throwError(() => notImplementedUpstream('Listing trainings by category'));
+    return this.api
+      .get<readonly TrainingDto[]>(apiPaths.training.list(categoryId))
+      .pipe(map((items) => items.map((dto) => ({ ...dto, organizationId }))));
   }
 
-  override getById(_id: string): Observable<Training | null> {
-    return throwError(() => notImplementedUpstream('Loading a training'));
+  override getById(
+    organizationId: string,
+    categoryId: string,
+    id: string,
+  ): Observable<Training | null> {
+    return this.api
+      .getOptional<TrainingDto>(apiPaths.training.byId(categoryId, id))
+      .pipe(map((dto) => (dto === null ? null : { ...dto, organizationId })));
   }
 
-  override create(_command: CreateTrainingCommand): Observable<string> {
-    return throwError(() => notImplementedUpstream('Creating a training'));
+  override create(command: CreateTrainingCommand): Observable<string> {
+    const { organizationId: _organizationId, categoryId, ...body } = command;
+    return this.api.post(apiPaths.training.list(categoryId), body);
+  }
+
+  override update(command: UpdateTrainingCommand): Observable<Training> {
+    const { organizationId, categoryId, id, ...body } = command;
+    return this.api
+      .put<typeof body, TrainingDto>(apiPaths.training.byId(categoryId, id), body)
+      .pipe(map((dto) => ({ ...dto, organizationId })));
+  }
+
+  override uploadFiles(request: UploadTrainingFilesRequest): Observable<readonly TrainingFile[]> {
+    const form = new FormData();
+    form.append('uploadedByUserId', request.uploadedByUserId);
+    for (const file of request.files) {
+      form.append('files', file, file.name);
+    }
+    return this.api.postForm<readonly TrainingFile[]>(
+      apiPaths.training.files(request.categoryId, request.trainingId),
+      form,
+    );
   }
 }
+
+const CONTENT_TYPES: Readonly<Record<string, string>> = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  txt: 'text/plain',
+};
 
 @Injectable()
 export class MockTrainingRepository extends TrainingRepository {
@@ -57,17 +126,27 @@ export class MockTrainingRepository extends TrainingRepository {
     return of(items).pipe(delay(MOCK_LATENCY_MS));
   }
 
-  override getById(id: string): Observable<Training | null> {
-    return of(this.db.trainings.find((t) => t.id === id) ?? null).pipe(delay(MOCK_LATENCY_MS));
+  override getById(
+    organizationId: string,
+    categoryId: string,
+    id: string,
+  ): Observable<Training | null> {
+    const found =
+      this.db.trainings.find(
+        (t) => t.id === id && t.categoryId === categoryId && t.organizationId === organizationId,
+      ) ?? null;
+    return of(found).pipe(delay(MOCK_LATENCY_MS));
   }
 
   override create(command: CreateTrainingCommand): Observable<string> {
-    const title = command.title.trim();
-    if (title.length === 0) {
-      return throwError(() => new ApiFailure('envelope', 'Training title is required.'));
+    if (!this.db.categories.some((c) => c.id === command.categoryId)) {
+      return throwError(
+        () => new ApiFailure('not-found', `No category found with Id ${command.categoryId}.`, 404),
+      );
     }
-    if (command.durationMinutes <= 0) {
-      return throwError(() => new ApiFailure('envelope', 'Duration must be greater than zero.'));
+    const problem = this.validate(command, null);
+    if (problem !== null) {
+      return throwError(() => problem);
     }
 
     const id = this.db.nextId('trn');
@@ -77,17 +156,83 @@ export class MockTrainingRepository extends TrainingRepository {
         id,
         organizationId: command.organizationId,
         categoryId: command.categoryId,
-        title,
+        name: command.name.trim(),
         description: command.description.trim(),
-        status: 'draft',
-        durationMinutes: command.durationMinutes,
-        passMark: command.passMark,
-        createdAt: new Date().toISOString(),
+        isActive: command.isActive,
+        files: [],
       },
     ];
-    this.db.categories = this.db.categories.map((c) =>
-      c.id === command.categoryId ? { ...c, trainingCount: c.trainingCount + 1 } : c,
-    );
     return of(id).pipe(delay(MOCK_LATENCY_MS));
+  }
+
+  override update(command: UpdateTrainingCommand): Observable<Training> {
+    const existing = this.db.trainings.find(
+      (t) => t.id === command.id && t.categoryId === command.categoryId,
+    );
+    if (existing === undefined) {
+      return throwError(
+        () => new ApiFailure('not-found', `No training found with Id ${command.id}.`, 404),
+      );
+    }
+    const problem = this.validate(command, command.id);
+    if (problem !== null) {
+      return throwError(() => problem);
+    }
+
+    const updated: Training = {
+      ...existing,
+      name: command.name.trim(),
+      description: command.description.trim(),
+      isActive: command.isActive,
+    };
+    this.replace(updated);
+    return of(updated).pipe(delay(MOCK_LATENCY_MS));
+  }
+
+  override uploadFiles(request: UploadTrainingFilesRequest): Observable<readonly TrainingFile[]> {
+    const training = this.db.trainings.find(
+      (t) => t.id === request.trainingId && t.categoryId === request.categoryId,
+    );
+    if (training === undefined) {
+      return throwError(
+        () => new ApiFailure('not-found', `No training found with Id ${request.trainingId}.`, 404),
+      );
+    }
+    const invalid = validateTrainingFiles(request.files);
+    if (invalid !== null) {
+      return throwError(() => new ApiFailure('validation', invalid, 400));
+    }
+
+    const now = new Date().toISOString();
+    const added: TrainingFile[] = request.files.map((file) => ({
+      id: this.db.nextGuid(),
+      fileName: file.name,
+      contentType: CONTENT_TYPES[file.name.split('.').pop()?.toLowerCase() ?? ''] ?? 'text/plain',
+      sizeBytes: file.size,
+      uploadedByUserId: request.uploadedByUserId,
+      createdAt: now,
+    }));
+    this.replace({ ...training, files: [...training.files, ...added] });
+    return of(added).pipe(delay(MOCK_LATENCY_MS));
+  }
+
+  private replace(training: Training): void {
+    this.db.trainings = this.db.trainings.map((t) => (t.id === training.id ? training : t));
+  }
+
+  private validate(command: CreateTrainingCommand, ownId: string | null): ApiFailure | null {
+    const name = command.name.trim();
+    if (name.length === 0) {
+      return new ApiFailure('validation', 'Training name is required.', 400);
+    }
+    const taken = this.db.trainings.some(
+      (t) =>
+        t.id !== ownId &&
+        t.categoryId === command.categoryId &&
+        t.name.toLowerCase() === name.toLowerCase(),
+    );
+    return taken
+      ? new ApiFailure('conflict', `A training named ${name} already exists in this category.`, 409)
+      : null;
   }
 }

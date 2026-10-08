@@ -36,17 +36,11 @@ import {
 } from './core/services/training.repository';
 import {
   AssignmentRepository,
-  HttpAssignmentRepository,
   MockAssignmentRepository,
 } from './core/services/assignment.repository';
-import {
-  MessageRepository,
-  HttpMessageRepository,
-  MockMessageRepository,
-} from './core/services/message.repository';
+import { MessageRepository, MockMessageRepository } from './core/services/message.repository';
 import {
   ProcessingRepository,
-  HttpProcessingRepository,
   MockProcessingRepository,
 } from './core/services/processing.repository';
 import { MockDataLoader } from './core/services/mock/mock-data.loader';
@@ -54,35 +48,38 @@ import { MockDataLoader } from './core/services/mock/mock-data.loader';
 /**
  * Every repository is selected here by environment flag, so swapping mock for
  * live wiring never requires touching a feature (spec 3.7).
+ *
+ * Organizations, users, categories and trainings follow `useMockApi`.
+ * Assignments, messages and processing have no backend endpoint yet, so they
+ * always run in memory; their Http* placeholders are swapped in once the API
+ * grows those routes.
  */
-const repositoryProviders = environment.useMockApi
+const apiBackedRepositories = environment.useMockApi
   ? [
       { provide: OrganizationRepository, useClass: MockOrganizationRepository },
       { provide: UserRepository, useClass: MockUserRepository },
       { provide: CategoryRepository, useClass: MockCategoryRepository },
       { provide: TrainingRepository, useClass: MockTrainingRepository },
-      { provide: AssignmentRepository, useClass: MockAssignmentRepository },
-      { provide: MessageRepository, useClass: MockMessageRepository },
-      { provide: ProcessingRepository, useClass: MockProcessingRepository },
     ]
   : [
       { provide: OrganizationRepository, useClass: HttpOrganizationRepository },
       { provide: UserRepository, useClass: HttpUserRepository },
       { provide: CategoryRepository, useClass: HttpCategoryRepository },
       { provide: TrainingRepository, useClass: HttpTrainingRepository },
-      { provide: AssignmentRepository, useClass: HttpAssignmentRepository },
-      { provide: MessageRepository, useClass: HttpMessageRepository },
-      { provide: ProcessingRepository, useClass: HttpProcessingRepository },
     ];
+
+const mockOnlyRepositories = [
+  { provide: AssignmentRepository, useClass: MockAssignmentRepository },
+  { provide: MessageRepository, useClass: MockMessageRepository },
+  { provide: ProcessingRepository, useClass: MockProcessingRepository },
+];
 
 /**
  * Sample data is fetched before the first route renders, so no screen has to
- * cope with a half-seeded store. Only registered in mock mode — with live
- * repositories the JSON is never requested.
+ * cope with a half-seeded store. Needed in both modes: the mock-only features
+ * read it even when the rest of the app talks to the API.
  */
-const mockDataProviders = environment.useMockApi
-  ? [provideAppInitializer(() => inject(MockDataLoader).load())]
-  : [];
+const mockDataProviders = [provideAppInitializer(() => inject(MockDataLoader).load())];
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -99,7 +96,8 @@ export const appConfig: ApplicationConfig = {
       provide: AUTH_PROVIDER,
       useClass: environment.useOidc ? OidcAuthProvider : MockAuthProvider,
     },
-    ...repositoryProviders,
+    ...apiBackedRepositories,
+    ...mockOnlyRepositories,
     ...mockDataProviders,
   ],
 };

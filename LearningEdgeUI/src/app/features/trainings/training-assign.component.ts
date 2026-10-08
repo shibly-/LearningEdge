@@ -22,10 +22,7 @@ import { SpinnerComponent } from '../../shared/components/spinner.component';
     SpinnerComponent,
   ],
   template: `
-    <app-page-header
-      title="Assign training"
-      subtitle="Give trainees access to a published course."
-    />
+    <app-page-header title="Assign training" subtitle="Give trainees access to an active course." />
 
     @if (isLoading()) {
       <div class="le-card" style="padding: 18px">
@@ -33,10 +30,10 @@ import { SpinnerComponent } from '../../shared/components/spinner.component';
       </div>
     } @else if (errorMessage() !== null) {
       <app-error-state [message]="errorMessage() ?? ''" (retry)="reload()" />
-    } @else if (trainings.published().length === 0) {
+    } @else if (trainings.active().length === 0) {
       <app-empty-state
-        title="No published trainings"
-        message="Only published trainings can be assigned. Publish a draft first."
+        title="No active trainings"
+        message="Only active trainings can be assigned. Mark a training active first."
       />
     } @else if (users.trainees().length === 0) {
       <app-empty-state
@@ -52,8 +49,8 @@ import { SpinnerComponent } from '../../shared/components/spinner.component';
           <label for="assign-training">Training</label>
           <select id="assign-training" formControlName="trainingId">
             <option value="">Select a training…</option>
-            @for (training of trainings.published(); track training.id) {
-              <option [value]="training.id">{{ training.title }}</option>
+            @for (training of trainings.active(); track training.id) {
+              <option [value]="training.id">{{ training.name }}</option>
             }
           </select>
           @if (form.controls.trainingId.touched && form.controls.trainingId.hasError('required')) {
@@ -192,7 +189,7 @@ export class TrainingAssignComponent {
         organizationId,
         trainingId: value.trainingId,
         traineeIds: this.selectedIds(),
-        dueAt: value.dueAt === '' ? null : new Date(value.dueAt).toISOString(),
+        dueAt: value.dueAt === '' ? null : endOfLocalDay(value.dueAt),
       },
       () => {
         this.selectedIds.set([]);
@@ -201,4 +198,12 @@ export class TrainingAssignComponent {
       },
     );
   }
+}
+
+/**
+ * A date input yields `YYYY-MM-DD`, which `new Date()` reads as UTC midnight —
+ * the previous day west of Greenwich. Parse it as the end of the local day instead.
+ */
+export function endOfLocalDay(isoDate: string): string {
+  return new Date(`${isoDate}T23:59:59.999`).toISOString();
 }

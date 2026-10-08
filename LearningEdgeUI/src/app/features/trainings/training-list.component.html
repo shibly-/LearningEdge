@@ -12,20 +12,20 @@
 } @else if (store.isEmpty()) {
   <app-empty-state
     title="No trainings yet"
-    message="Create a training, then upload its material for question generation."
+    message="Create a training, then upload its material."
     actionLabel="New training"
     (action)="openCreate()"
   />
 } @else {
   <div class="le-toolbar">
     <div role="group" aria-label="Filter by status" class="filters">
-      @for (option of statuses; track option.id) {
+      @for (option of filters; track option.id) {
         <button
           type="button"
           class="filter"
-          [class.is-active]="activeStatus() === option.id"
-          [attr.aria-pressed]="activeStatus() === option.id"
-          (click)="setStatus(option.id)"
+          [class.is-active]="activeFilter() === option.id"
+          [attr.aria-pressed]="activeFilter() === option.id"
+          (click)="setFilter(option.id)"
         >
           {{ option.label }}
         </button>
@@ -40,25 +40,47 @@
     <div class="le-card le-table-wrap">
       <table class="le-table">
         <caption>
-          Trainings, sorted by title
+          Trainings, sorted by name
         </caption>
         <thead>
           <tr>
-            <th scope="col">Title</th>
+            <th scope="col">Name</th>
             <th scope="col">Category</th>
-            <th scope="col">Duration</th>
-            <th scope="col">Pass mark</th>
+            <th scope="col">Files</th>
             <th scope="col">Status</th>
+            <th scope="col"><span class="le-visually-hidden">Actions</span></th>
           </tr>
         </thead>
         <tbody>
           @for (training of visible(); track training.id) {
             <tr>
-              <th scope="row">{{ training.title }}</th>
+              <th scope="row">{{ training.name }}</th>
               <td>{{ categoryName(training.categoryId) }}</td>
-              <td>{{ training.durationMinutes | duration }}</td>
-              <td>{{ training.passMark }}%</td>
-              <td><app-badge [status]="training.status" /></td>
+              <td>{{ training.files.length }}</td>
+              <td>
+                <app-badge
+                  [status]="training.isActive ? 'on' : 'off'"
+                  [text]="training.isActive ? 'Active' : 'Inactive'"
+                />
+              </td>
+              <td class="row-actions">
+                <button
+                  type="button"
+                  class="le-btn le-btn-secondary le-btn-sm"
+                  [attr.aria-label]="'Files for ' + training.name"
+                  (click)="filesFor.set(training)"
+                >
+                  Files
+                </button>
+                <button
+                  type="button"
+                  class="le-btn le-btn-secondary le-btn-sm"
+                  [attr.aria-label]="'Edit ' + training.name"
+                  (click)="openEdit(training)"
+                >
+                  Edit
+                </button>
+              </td>
             </tr>
           }
         </tbody>
@@ -67,23 +89,28 @@
   }
 }
 
-@if (isCreating()) {
-  <app-modal-shell title="New training" (close)="closeCreate()">
-    @if (categories.isEmpty()) {
+@if (editor() !== null) {
+  <app-modal-shell [title]="isEditing() ? 'Edit training' : 'New training'" (close)="close()">
+    @if (!isEditing() && categories.isEmpty()) {
       <p class="prereq">
         Create a category first — every training belongs to one.
-        <a routerLink="/categories" (click)="closeCreate()">Go to categories</a>
+        <a routerLink="/categories" (click)="close()">Go to categories</a>
       </p>
     } @else {
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
         <div
           class="le-field"
-          [class.is-invalid]="form.controls.title.touched && form.controls.title.invalid"
+          [class.is-invalid]="form.controls.name.touched && form.controls.name.invalid"
         >
-          <label for="training-title">Title</label>
-          <input id="training-title" type="text" formControlName="title" />
-          @if (form.controls.title.touched && form.controls.title.hasError('required')) {
-            <span class="le-error">Title is required.</span>
+          <label for="training-name">Name</label>
+          <input
+            id="training-name"
+            type="text"
+            formControlName="name"
+            [attr.maxlength]="limits.name"
+          />
+          @if (form.controls.name.touched && form.controls.name.hasError('required')) {
+            <span class="le-error">Name is required.</span>
           }
         </div>
 
@@ -98,6 +125,9 @@
               <option [value]="category.id">{{ category.name }}</option>
             }
           </select>
+          @if (isEditing()) {
+            <span class="le-hint">A training cannot be moved to another category.</span>
+          }
           @if (form.controls.categoryId.touched && form.controls.categoryId.hasError('required')) {
             <span class="le-error">Select a category.</span>
           }
@@ -105,55 +135,34 @@
 
         <div class="le-field">
           <label for="training-description">Description</label>
-          <textarea id="training-description" formControlName="description"></textarea>
+          <textarea
+            id="training-description"
+            formControlName="description"
+            [attr.maxlength]="limits.description"
+          ></textarea>
         </div>
 
-        <div class="pair">
-          <div
-            class="le-field"
-            [class.is-invalid]="
-              form.controls.durationMinutes.touched && form.controls.durationMinutes.invalid
-            "
-          >
-            <label for="training-duration">Duration (minutes)</label>
-            <input id="training-duration" type="number" min="1" formControlName="durationMinutes" />
-            @if (form.controls.durationMinutes.touched && form.controls.durationMinutes.invalid) {
-              <span class="le-error">Enter a duration of at least 1 minute.</span>
-            }
-          </div>
-
-          <div
-            class="le-field"
-            [class.is-invalid]="form.controls.passMark.touched && form.controls.passMark.invalid"
-          >
-            <label for="training-passmark">Pass mark (%)</label>
-            <input
-              id="training-passmark"
-              type="number"
-              min="0"
-              max="100"
-              formControlName="passMark"
-            />
-            @if (form.controls.passMark.touched && form.controls.passMark.invalid) {
-              <span class="le-error">Enter a value between 0 and 100.</span>
-            }
-          </div>
-        </div>
+        <label class="check">
+          <input type="checkbox" formControlName="isActive" />
+          <span>Active</span>
+        </label>
 
         <div class="actions">
-          <button type="button" class="le-btn le-btn-secondary" (click)="closeCreate()">
-            Cancel
-          </button>
+          <button type="button" class="le-btn le-btn-secondary" (click)="close()">Cancel</button>
           <button type="submit" class="le-btn" [disabled]="store.isSaving()">
             @if (store.isSaving()) {
               <app-spinner [size]="14" label="Saving" />
               <span>Saving…</span>
             } @else {
-              <span>Create training</span>
+              <span>{{ isEditing() ? 'Save changes' : 'Create training' }}</span>
             }
           </button>
         </div>
       </form>
     }
   </app-modal-shell>
+}
+
+@if (filesFor(); as training) {
+  <app-training-files-dialog [training]="training" (close)="filesFor.set(null)" />
 }

@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { finalize } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import type { CreateUserCommand, UserDto } from '../models/user';
+import type { CreateUserCommand, UpdateUserCommand, UserDto } from '../models/user';
 import { UserRole } from '../models/user-role';
 import { OrganizationContextService } from '../services/organization-context.service';
 import { ToastService } from '../services/toast.service';
@@ -47,6 +47,28 @@ export class UserStore extends AsyncCollectionStore<UserDto> {
           this.toast.success(`${command.firstName} ${command.lastName} added.`.trim());
           this.loadForActiveOrganization();
           onCreated(id);
+        },
+        error: (error: unknown) => this.toast.error(describeError(error)),
+      });
+  }
+
+  update(id: string, command: UpdateUserCommand, onUpdated: (user: UserDto) => void): void {
+    if (this.savingState()) {
+      return;
+    }
+    this.savingState.set(true);
+
+    this.repository
+      .update(id, command)
+      .pipe(
+        finalize(() => this.savingState.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (user) => {
+          this.toast.success(`${user.firstName} ${user.lastName} updated.`.trim());
+          this.upsert(user, (existing) => existing.id === user.id);
+          onUpdated(user);
         },
         error: (error: unknown) => this.toast.error(describeError(error)),
       });

@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
+import { USER_LIMITS } from '../../core/models/user';
 import { UserRole } from '../../core/models/user-role';
 import { UserRepository } from '../../core/services/user.repository';
 import { ToastService } from '../../core/services/toast.service';
@@ -21,6 +23,7 @@ import { SpinnerComponent } from '../../shared/components/spinner.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
+    RouterLink,
     PageHeaderComponent,
     SkeletonComponent,
     EmptyStateComponent,
@@ -29,9 +32,11 @@ import { SpinnerComponent } from '../../shared/components/spinner.component';
   ],
   template: `
     <app-page-header
-      title="Organization admins"
-      subtitle="Create the first administrator for a tenant."
-    />
+      title="Add organization admin"
+      subtitle="Provision an administrator for a tenant."
+    >
+      <a class="le-btn le-btn-secondary" routerLink="/platform/org-admins">Back to admins</a>
+    </app-page-header>
 
     @if (organizations.isLoading()) {
       <div class="le-card" style="padding: 18px">
@@ -76,7 +81,7 @@ import { SpinnerComponent } from '../../shared/components/spinner.component';
               "
             >
               <label for="admin-first">First name</label>
-              <input id="admin-first" type="text" formControlName="firstName" />
+              <input id="admin-first" type="text" formControlName="firstName" maxlength="50" />
               @if (
                 form.controls.firstName.touched && form.controls.firstName.hasError('required')
               ) {
@@ -86,7 +91,7 @@ import { SpinnerComponent } from '../../shared/components/spinner.component';
 
             <div class="le-field">
               <label for="admin-last">Last name</label>
-              <input id="admin-last" type="text" formControlName="lastName" />
+              <input id="admin-last" type="text" formControlName="lastName" maxlength="50" />
               <span class="le-hint">Optional server-side.</span>
             </div>
           </div>
@@ -96,7 +101,7 @@ import { SpinnerComponent } from '../../shared/components/spinner.component';
             [class.is-invalid]="form.controls.email.touched && form.controls.email.invalid"
           >
             <label for="admin-email">Email</label>
-            <input id="admin-email" type="email" formControlName="email" />
+            <input id="admin-email" type="email" formControlName="email" maxlength="100" />
             @if (form.controls.email.touched && form.controls.email.hasError('required')) {
               <span class="le-error">Email is required.</span>
             }
@@ -168,9 +173,16 @@ export class OrgAdminCreatorComponent {
 
   protected readonly form = this.fb.group({
     organizationId: this.fb.control('', [Validators.required]),
-    firstName: this.fb.control('', [Validators.required]),
-    lastName: this.fb.control(''),
-    email: this.fb.control('', [Validators.required, Validators.email]),
+    firstName: this.fb.control('', [
+      Validators.required,
+      Validators.maxLength(USER_LIMITS.firstName),
+    ]),
+    lastName: this.fb.control('', [Validators.maxLength(USER_LIMITS.lastName)]),
+    email: this.fb.control('', [
+      Validators.required,
+      Validators.email,
+      Validators.maxLength(USER_LIMITS.email),
+    ]),
   });
 
   constructor() {

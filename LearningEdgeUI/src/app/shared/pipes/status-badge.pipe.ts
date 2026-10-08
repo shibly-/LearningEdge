@@ -1,13 +1,9 @@
-import { Pipe } from '@angular/core';
-import type { PipeTransform } from '@angular/core';
-
 export type BadgeTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 
 const TONES: Readonly<Record<string, BadgeTone>> = {
-  // Training status
-  published: 'success',
-  draft: 'neutral',
-  archived: 'neutral',
+  // Category and training active flag
+  on: 'success',
+  off: 'neutral',
   // Assignment status
   completed: 'success',
   'in-progress': 'info',
@@ -36,11 +32,4 @@ export function badgeToneFor(status: string | null | undefined): BadgeTone {
     return 'neutral';
   }
   return TONES[status.toLowerCase()] ?? 'neutral';
-}
-
-@Pipe({ name: 'statusBadge' })
-export class StatusBadgePipe implements PipeTransform {
-  transform(status: string | null | undefined): BadgeTone {
-    return badgeToneFor(status);
-  }
 }

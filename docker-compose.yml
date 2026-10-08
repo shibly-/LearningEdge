@@ -24,16 +24,19 @@ services:
       - "5001:443"
     volumes:
       - ./certs:/https:ro
+      - uploads:/api/uploads
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: "https://+:443;http://+:80"
       ASPNETCORE_HTTPS_PORT: "5001"
       ASPNETCORE_Kestrel__Certificates__Default__Path: /https/aspnetapp.pfx
-      ASPNETCORE_Kestrel__Certificates__Default__Password: "YourCertPassword"
-      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=LearningEdgeDB;User Id=sqluser;Password=P@ssw0rd;TrustServerCertificate=True;Encrypt=False;"
+      ASPNETCORE_Kestrel__Certificates__Default__Password: "${CERT_PASSWORD:?Set CERT_PASSWORD in .env}"
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=LearningEdgeDB;User Id=sqluser;Password=${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env};TrustServerCertificate=True;Encrypt=False;"
     depends_on:
       sqlserver:
         condition: service_healthy
+      sqlserver-init:
+        condition: service_completed_successfully
     restart: on-failure
     networks:
       - appnet
@@ -43,8 +46,7 @@ services:
     container_name: sqlserver
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "LE!P@ssw0rd"
-      SA_PASSWORD: "LE!P@ssw0rd"
+      MSSQL_SA_PASSWORD: "${SA_PASSWORD:?Set SA_PASSWORD in .env}"
     ports:
       - "11433:1433"
     volumes:
@@ -58,8 +60,28 @@ services:
     networks:
       - appnet
 
+  sqlserver-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver-init
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    volumes:
+      - ./docker/mssql/init-db.sql:/init/init-db.sql:ro
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "${SA_PASSWORD:?Set SA_PASSWORD in .env}"
+      APP_DB_PASSWORD: "${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}"
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - '/opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "$$SA_PASSWORD" -C -b -v APP_DB_PASSWORD="$$APP_DB_PASSWORD" -i /init/init-db.sql'
+    networks:
+      - appnet
+    restart: "no"
+
 networks:
   appnet:
 
 volumes:
   sqlvolume:
+  uploads:

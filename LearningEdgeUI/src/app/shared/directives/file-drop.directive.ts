@@ -1,5 +1,4 @@
 import { Directive, output, signal } from '@angular/core';
-import { HostListener } from '@angular/core';
 
 /**
  * Drag-and-drop file source. Pair it with a real <input type="file"> so the
@@ -9,32 +8,46 @@ import { HostListener } from '@angular/core';
   selector: '[appFileDrop]',
   host: {
     '[class.is-dragging]': 'isDragging()',
+    '(dragenter)': 'onDragEnter($event)',
+    '(dragover)': 'onDragOver($event)',
+    '(dragleave)': 'onDragLeave($event)',
+    '(drop)': 'onDrop($event)',
   },
 })
 export class FileDropDirective {
   readonly filesDropped = output<readonly File[]>();
 
+  /**
+   * dragenter/dragleave fire for every child element crossed, so a boolean
+   * flickers. Counting them keeps the state steady until the pointer leaves.
+   */
+  private depth = 0;
   private readonly dragging = signal(false);
   readonly isDragging = this.dragging.asReadonly();
 
-  @HostListener('dragover', ['$event'])
-  onDragOver(event: DragEvent): void {
+  onDragEnter(event: DragEvent): void {
     event.preventDefault();
-    event.stopPropagation();
+    this.depth++;
     this.dragging.set(true);
   }
 
-  @HostListener('dragleave', ['$event'])
-  onDragLeave(event: DragEvent): void {
+  onDragOver(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    this.dragging.set(false);
   }
 
-  @HostListener('drop', ['$event'])
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    this.depth = Math.max(0, this.depth - 1);
+    if (this.depth === 0) {
+      this.dragging.set(false);
+    }
+  }
+
   onDrop(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
+    this.depth = 0;
     this.dragging.set(false);
 
     const files = event.dataTransfer?.files;

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { TRAINING_LIMITS, type Training } from '../../core/models/training';
 import { OrganizationContextService } from '../../core/services/organization-context.service';
 import { CategoryStore } from '../../core/stores/category.store';
 import { TrainingStore } from '../../core/stores/training.store';
@@ -11,9 +12,12 @@ import { ModalShellComponent } from '../../shared/components/modal-shell.compone
 import { PageHeaderComponent } from '../../shared/components/page-header.component';
 import { SkeletonComponent } from '../../shared/components/skeleton.component';
 import { SpinnerComponent } from '../../shared/components/spinner.component';
-import { DurationPipe } from '../../shared/pipes/duration.pipe';
+import { TrainingFilesDialogComponent } from './training-files-dialog.component';
 
-type StatusFilter = 'all' | 'published' | 'draft' | 'archived';
+type ActiveFilter = 'all' | 'active' | 'inactive';
+
+/** null: closed · 'new': creating · Training: editing that training. */
+type Editor = null | 'new' | Training;
 
 @Component({
   selector: 'app-training-list',
@@ -21,7 +25,6 @@ type StatusFilter = 'all' | 'published' | 'draft' | 'archived';
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    DurationPipe,
     BadgeComponent,
     PageHeaderComponent,
     SkeletonComponent,
@@ -29,6 +32,7 @@ type StatusFilter = 'all' | 'published' | 'draft' | 'archived';
     ErrorStateComponent,
     ModalShellComponent,
     SpinnerComponent,
+    TrainingFilesDialogComponent,
   ],
   templateUrl: './training-list.component.html',
   styleUrl: './training-list.component.scss',
@@ -36,27 +40,32 @@ type StatusFilter = 'all' | 'published' | 'draft' | 'archived';
 export class TrainingListComponent {
   protected readonly store = inject(TrainingStore);
   protected readonly categories = inject(CategoryStore);
+  protected readonly limits = TRAINING_LIMITS;
 
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly context = inject(OrganizationContextService);
-  private readonly creating = signal(false);
-  private readonly statusFilter = signal<StatusFilter>('all');
+  private readonly filter = signal<ActiveFilter>('all');
 
-  protected readonly isCreating = this.creating.asReadonly();
-  protected readonly activeStatus = this.statusFilter.asReadonly();
+  protected readonly editor = signal<Editor>(null);
+  protected readonly isEditing = computed(() => {
+    const editor = this.editor();
+    return editor !== null && editor !== 'new';
+  });
+  protected readonly filesFor = signal<Training | null>(null);
+  protected readonly activeFilter = this.filter.asReadonly();
 
-  protected readonly statuses: readonly { readonly id: StatusFilter; readonly label: string }[] = [
+  protected readonly filters: readonly { readonly id: ActiveFilter; readonly label: string }[] = [
     { id: 'all', label: 'All' },
-    { id: 'published', label: 'Published' },
-    { id: 'draft', label: 'Drafts' },
-    { id: 'archived', label: 'Archived' },
+    { id: 'active', label: 'Active' },
+    { id: 'inactive', label: 'Inactive' },
   ];
 
   protected readonly visible = computed(() => {
-    const status = this.statusFilter();
+    const filter = this.filter();
     const all = this.store.items();
-    const filtered = status === 'all' ? all : all.filter((t) => t.status === status);
-    return [...filtered].sort((a, b) => a.title.localeCompare(b.title));
+    const filtered =
+      filter === 'all' ? all : all.filter((t) => t.isActive === (filter === 'active'));
+    return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
   });
 
   protected readonly noMatches = computed(
@@ -64,11 +73,10 @@ export class TrainingListComponent {
   );
 
   protected readonly form = this.fb.group({
-    title: this.fb.control('', [Validators.required]),
+    name: this.fb.control('', [Validators.required, Validators.maxLength(TRAINING_LIMITS.name)]),
     categoryId: this.fb.control('', [Validators.required]),
-    description: this.fb.control(''),
-    durationMinutes: this.fb.control(30, [Validators.required, Validators.min(1)]),
-    passMark: this.fb.control(70, [Validators.required, Validators.min(0), Validators.max(100)]),
+    description: this.fb.control('', [Validators.maxLength(TRAINING_LIMITS.description)]),
+    isActive: this.fb.control(true),
   });
 
   constructor() {
@@ -82,23 +90,35 @@ export class TrainingListComponent {
     return this.categories.findById(categoryId)?.name ?? 'Uncategorized';
   }
 
-  protected setStatus(status: StatusFilter): void {
-    this.statusFilter.set(status);
+  protected setFilter(filter: ActiveFilter): void {
+    this.filter.set(filter);
   }
 
   protected openCreate(): void {
+    this.form.controls.categoryId.enable();
     this.form.reset({
-      title: '',
-      categoryId: this.categories.items()[0]?.id ?? '',
+      name: '',
+      categoryId: this.categories.active()[0]?.id ?? '',
       description: '',
-      durationMinutes: 30,
-      passMark: 70,
+      isActive: true,
     });
-    this.creating.set(true);
+    this.editor.set('new');
   }
 
-  protected closeCreate(): void {
-    this.creating.set(false);
+  /** The API scopes a training to its category, so editing cannot move it. */
+  protected openEdit(training: Training): void {
+    this.form.reset({
+      name: training.name,
+      categoryId: training.categoryId,
+      description: training.description,
+      isActive: training.isActive,
+    });
+    this.form.controls.categoryId.disable();
+    this.editor.set(training);
+  }
+
+  protected close(): void {
+    this.editor.set(null);
   }
 
   protected submit(): void {
@@ -107,23 +127,28 @@ export class TrainingListComponent {
       return;
     }
 
+    const editor = this.editor();
+    const value = this.form.getRawValue();
+    if (editor !== null && editor !== 'new') {
+      this.store.update(
+        {
+          id: editor.id,
+          organizationId: editor.organizationId,
+          categoryId: editor.categoryId,
+          name: value.name,
+          description: value.description,
+          isActive: value.isActive,
+        },
+        () => this.close(),
+      );
+      return;
+    }
+
     const organizationId = this.context.activeOrganizationId();
     if (organizationId === null) {
       return;
     }
-
-    const value = this.form.getRawValue();
-    this.store.create(
-      {
-        organizationId,
-        categoryId: value.categoryId,
-        title: value.title,
-        description: value.description,
-        durationMinutes: Number(value.durationMinutes),
-        passMark: Number(value.passMark),
-      },
-      () => this.creating.set(false),
-    );
+    this.store.create({ ...value, organizationId }, () => this.close());
   }
 
   protected reload(): void {

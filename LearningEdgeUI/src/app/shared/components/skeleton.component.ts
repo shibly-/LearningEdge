@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+
+const WIDTHS = [92, 74, 86, 60, 80, 68];
 
 /** Loading placeholder. The spec requires a skeleton, not a bare spinner. */
 @Component({
@@ -47,8 +49,7 @@ export class SkeletonComponent {
   readonly label = input('Loading content');
 
   /** Varied widths read as content rather than a progress bar. */
-  rows(): readonly number[] {
-    const widths = [92, 74, 86, 60, 80, 68];
-    return Array.from({ length: this.count() }, (_, i) => widths[i % widths.length]);
-  }
+  protected readonly rows = computed(() =>
+    Array.from({ length: this.count() }, (_, i) => WIDTHS[i % WIDTHS.length]),
+  );
 }

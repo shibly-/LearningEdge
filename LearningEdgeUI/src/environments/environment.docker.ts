@@ -1,9 +1,10 @@
 import type { AppEnvironment } from './environment.model';
-import { environment as sampleEnvironment } from './environment.development.example';
+import { UserRole } from '../app/core/models/user-role';
+import { MOCK_ORG_A_ID } from '../app/core/models/mock-ids';
 
 /**
  * Used by the `ui` service in docker-compose.yml. Never add a real credential
- * here — the mock logins below are the placeholder ones already published in
+ * here â€” the mock logins below are the placeholder ones already published in
  * environment.development.example.ts, reused so the container is demoable.
  *
  * apiBaseUrl is empty on purpose: requests go to the UI's own origin and nginx
@@ -14,17 +15,16 @@ export const environment: AppEnvironment = {
   production: true,
   apiBaseUrl: '',
   apiVersion: 'v1',
-  // The API registers no authentication scheme and has no list endpoints, so
-  // the container ships demoable on sample data. Flip to false to exercise the
-  // two live endpoints through the nginx proxy.
-  useMockApi: true,
+  // Live API through the nginx proxy. Logins are matched to API users by email;
+  // on a fresh database sign in as superadmin and create the users first.
+  // Set to true to demo on sample data instead.
+  useMockApi: false,
   useOidc: false,
   oidc: {
     authority: '',
     clientId: 'learningedge-ui',
     scope: 'openid profile email org_id',
   },
-  //mockCredentials: sampleEnvironment.mockCredentials,
   mockCredentials: [
     {
       username: 'superadmin',

@@ -1,16 +1,25 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute } from '@angular/router';
-import { map } from 'rxjs';
-import type { OrganizationDto } from '../../core/models/organization';
+import { map, type Subscription } from 'rxjs';
+import type { CreateOrganizationCommand, OrganizationDto } from '../../core/models/organization';
 import { OrganizationRepository } from '../../core/services/organization.repository';
 import { describeError } from '../../core/stores/async-collection.store';
+import { OrganizationStore } from '../../core/stores/organization.store';
 import { EmptyStateComponent } from '../../shared/components/empty-state.component';
 import { ErrorStateComponent } from '../../shared/components/error-state.component';
+import { ModalShellComponent } from '../../shared/components/modal-shell.component';
 import { PageHeaderComponent } from '../../shared/components/page-header.component';
 import { SkeletonComponent } from '../../shared/components/skeleton.component';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { OrganizationFormComponent } from './organization-form.component';
 
 type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
 
@@ -23,11 +32,27 @@ type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
     SkeletonComponent,
     EmptyStateComponent,
     ErrorStateComponent,
+    ModalShellComponent,
+    OrganizationFormComponent,
   ],
   template: `
     <app-page-header [title]="organization()?.name ?? 'Organization'" subtitle="Tenant detail">
       <a class="le-btn le-btn-secondary" routerLink="/platform/organizations">Back to list</a>
+      @if (state() === 'loaded') {
+        <button type="button" class="le-btn" (click)="editing.set(true)">Edit</button>
+      }
     </app-page-header>
+
+    @if (editing() && organization(); as current) {
+      <app-modal-shell title="Edit organization" (close)="editing.set(false)">
+        <app-organization-form
+          [initial]="current"
+          [saving]="store.isSaving()"
+          (save)="saveEdit(current.id, $event)"
+          (cancel)="editing.set(false)"
+        />
+      </app-modal-shell>
+    }
 
     @switch (state()) {
       @case ('loading') {
@@ -100,6 +125,10 @@ export class OrganizationDetailComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly repository = inject(OrganizationRepository);
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly store = inject(OrganizationStore);
+
+  protected readonly editing = signal(false);
+  private request: Subscription | null = null;
 
   private readonly organizationState = signal<OrganizationDto | null>(null);
   private readonly viewState = signal<ViewState>('loading');
@@ -115,10 +144,25 @@ export class OrganizationDetailComponent {
   );
 
   constructor() {
-    this.load();
+    // The router reuses this component across ids, so reload on every change.
+    effect(() => {
+      this.organizationId();
+      untracked(() => this.load());
+    });
+    this.destroyRef.onDestroy(() => this.request?.unsubscribe());
+  }
+
+  protected saveEdit(id: string, command: CreateOrganizationCommand): void {
+    this.store.update(id, command, (organization) => {
+      this.organizationState.set(organization);
+      this.editing.set(false);
+    });
   }
 
   protected load(): void {
+    this.request?.unsubscribe();
+    this.editing.set(false);
+
     const id = this.organizationId();
     if (id === null) {
       this.viewState.set('missing');
@@ -128,19 +172,15 @@ export class OrganizationDetailComponent {
     this.viewState.set('loading');
     this.failure.set(null);
 
-    this.repository
-      .getById(id)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (organization) => {
-          // success:false on HTTP 200 means absent, not an error (spec 3.3).
-          this.organizationState.set(organization);
-          this.viewState.set(organization === null ? 'missing' : 'loaded');
-        },
-        error: (error: unknown) => {
-          this.failure.set(describeError(error));
-          this.viewState.set('error');
-        },
-      });
+    this.request = this.repository.getById(id).subscribe({
+      next: (organization) => {
+        this.organizationState.set(organization);
+        this.viewState.set(organization === null ? 'missing' : 'loaded');
+      },
+      error: (error: unknown) => {
+        this.failure.set(describeError(error));
+        this.viewState.set('error');
+      },
+    });
   }
 }

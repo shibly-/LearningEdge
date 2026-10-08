@@ -1,15 +1,26 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { map } from 'rxjs';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import type { UserDto } from '../../core/models/user';
+import { map, type Subscription } from 'rxjs';
+import { toSignal } from '@angular/core/rxjs-interop';
+import type { UpdateUserCommand, UserDto } from '../../core/models/user';
 import { UserRepository } from '../../core/services/user.repository';
 import { describeError } from '../../core/stores/async-collection.store';
+import { UserStore } from '../../core/stores/user.store';
 import { EmptyStateComponent } from '../../shared/components/empty-state.component';
 import { ErrorStateComponent } from '../../shared/components/error-state.component';
+import { ModalShellComponent } from '../../shared/components/modal-shell.component';
 import { PageHeaderComponent } from '../../shared/components/page-header.component';
 import { SkeletonComponent } from '../../shared/components/skeleton.component';
 import { RoleLabelPipe } from '../../shared/pipes/role-label.pipe';
+import { UserFormComponent } from './user-form.component';
 
 type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
 
@@ -27,10 +38,15 @@ type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
     SkeletonComponent,
     EmptyStateComponent,
     ErrorStateComponent,
+    ModalShellComponent,
+    UserFormComponent,
   ],
   template: `
     <app-page-header [title]="headingText()" subtitle="User detail">
       <a class="le-btn le-btn-secondary" routerLink="/users">Back to users</a>
+      @if (state() === 'loaded') {
+        <button type="button" class="le-btn" (click)="editing.set(true)">Edit</button>
+      }
     </app-page-header>
 
     @switch (state()) {
@@ -62,6 +78,18 @@ type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
           </dd>
         </dl>
       }
+    }
+
+    @if (editing() && user(); as current) {
+      <app-modal-shell title="Edit user" (close)="editing.set(false)">
+        <app-user-form
+          [initial]="current"
+          [organizationId]="current.organizationId"
+          [saving]="store.isSaving()"
+          (save)="saveEdit(current.id, $event)"
+          (cancel)="editing.set(false)"
+        />
+      </app-modal-shell>
     }
   `,
   styles: `
@@ -105,6 +133,10 @@ export class UserDetailComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly repository = inject(UserRepository);
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly store = inject(UserStore);
+
+  protected readonly editing = signal(false);
+  private request: Subscription | null = null;
 
   private readonly userState = signal<UserDto | null>(null);
   private readonly viewState = signal<ViewState>('loading');
@@ -120,7 +152,12 @@ export class UserDetailComponent {
   );
 
   constructor() {
-    this.load();
+    // The router reuses this component across ids, so reload on every change.
+    effect(() => {
+      this.userId();
+      untracked(() => this.load());
+    });
+    this.destroyRef.onDestroy(() => this.request?.unsubscribe());
   }
 
   protected headingText(): string {
@@ -128,7 +165,17 @@ export class UserDetailComponent {
     return user === null ? 'User' : `${user.firstName} ${user.lastName}`.trim();
   }
 
+  protected saveEdit(id: string, command: UpdateUserCommand): void {
+    this.store.update(id, command, (user) => {
+      this.userState.set(user);
+      this.editing.set(false);
+    });
+  }
+
   protected load(): void {
+    this.request?.unsubscribe();
+    this.editing.set(false);
+
     const id = this.userId();
     if (id === null) {
       this.viewState.set('missing');
@@ -138,18 +185,15 @@ export class UserDetailComponent {
     this.viewState.set('loading');
     this.failure.set(null);
 
-    this.repository
-      .getById(id)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (user) => {
-          this.userState.set(user);
-          this.viewState.set(user === null ? 'missing' : 'loaded');
-        },
-        error: (error: unknown) => {
-          this.failure.set(describeError(error));
-          this.viewState.set('error');
-        },
-      });
+    this.request = this.repository.getById(id).subscribe({
+      next: (user) => {
+        this.userState.set(user);
+        this.viewState.set(user === null ? 'missing' : 'loaded');
+      },
+      error: (error: unknown) => {
+        this.failure.set(describeError(error));
+        this.viewState.set('error');
+      },
+    });
   }
 }

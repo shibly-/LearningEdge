@@ -1,7 +1,11 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { finalize } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import type { CreateOrganizationCommand, OrganizationDto } from '../models/organization';
+import type {
+  CreateOrganizationCommand,
+  OrganizationDto,
+  UpdateOrganizationCommand,
+} from '../models/organization';
 import { OrganizationRepository } from '../services/organization.repository';
 import { ToastService } from '../services/toast.service';
 import { AsyncCollectionStore, describeError } from './async-collection.store';
@@ -23,7 +27,6 @@ export class OrganizationStore extends AsyncCollectionStore<OrganizationDto> {
     this.load(this.repository.list());
   }
 
-  /** Resolves to the new GUID, or null when the create failed. */
   create(command: CreateOrganizationCommand, onCreated: (id: string) => void): void {
     if (this.savingState()) {
       return;
@@ -41,6 +44,32 @@ export class OrganizationStore extends AsyncCollectionStore<OrganizationDto> {
           this.toast.success(`Organization "${command.name}" created.`);
           this.loadAll();
           onCreated(id);
+        },
+        error: (error: unknown) => this.toast.error(describeError(error)),
+      });
+  }
+
+  update(
+    id: string,
+    command: UpdateOrganizationCommand,
+    onUpdated: (organization: OrganizationDto) => void,
+  ): void {
+    if (this.savingState()) {
+      return;
+    }
+    this.savingState.set(true);
+
+    this.repository
+      .update(id, command)
+      .pipe(
+        finalize(() => this.savingState.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (organization) => {
+          this.toast.success(`Organization "${organization.name}" updated.`);
+          this.upsert(organization, (existing) => existing.id === organization.id);
+          onUpdated(organization);
         },
         error: (error: unknown) => this.toast.error(describeError(error)),
       });

@@ -68,9 +68,13 @@ export class TraineeOpsComponent {
         total: owned.length,
         completed: owned.filter((a) => a.status === 'completed').length,
         overdue: owned.filter((a) => a.status === 'overdue').length,
-        latestDue: owned.reduce<string | null>(
-          (latest, a) =>
-            a.dueAt !== null && (latest === null || a.dueAt > latest) ? a.dueAt : latest,
+        nextDue: owned.reduce<string | null>(
+          (soonest, a) =>
+            a.dueAt !== null &&
+            a.status !== 'completed' &&
+            (soonest === null || Date.parse(a.dueAt) < Date.parse(soonest))
+              ? a.dueAt
+              : soonest,
           null,
         ),
       };

@@ -25,7 +25,12 @@ import { StatCardComponent } from '../../shared/components/stat-card.component';
   template: `
     <app-page-header [title]="'My training'" subtitle="Your assigned courses and results." />
 
-    @if (store.isLoading()) {
+    @if (userId() === null) {
+      <app-empty-state
+        title="Not signed in"
+        message="Sign in again to see your assigned training."
+      />
+    } @else if (store.isLoading()) {
       <div class="le-card" style="padding: 18px">
         <app-skeleton [count]="5" label="Loading your training" />
       </div>
@@ -119,6 +124,8 @@ export class UserPortalComponent {
 
   private readonly auth = inject(AuthService);
 
+  protected readonly userId = computed(() => this.auth.currentUser()?.id ?? null);
+
   protected readonly averageLabel = computed(() => {
     const average = this.store.averageScore();
     return average === null ? '—' : `${average}`;
@@ -129,8 +136,8 @@ export class UserPortalComponent {
   }
 
   protected reload(): void {
-    const userId = this.auth.currentUser()?.id;
-    if (userId !== undefined) {
+    const userId = this.userId();
+    if (userId !== null) {
       this.store.loadForTrainee(userId);
     }
   }

@@ -1,8 +1,12 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, delay, of, throwError } from 'rxjs';
+import { Observable, delay, forkJoin, of, switchMap, throwError } from 'rxjs';
+import { AuthService } from '../auth/auth.service';
 import { ApiFailure } from '../http/api-result';
 import type { AssignTrainingCommand, TrainingAssignment, TrainingResult } from '../models/training';
+import { fullName } from '../models/user';
 import { MockDb } from './mock/mock-db';
+import { TrainingRepository } from './training.repository';
+import { UserRepository } from './user.repository';
 import { MOCK_LATENCY_MS, notImplementedUpstream } from './repository-support';
 
 // MOCK: no backend endpoint for assignments or results (spec 3.7).
@@ -52,6 +56,9 @@ export class HttpAssignmentRepository extends AssignmentRepository {
 @Injectable()
 export class MockAssignmentRepository extends AssignmentRepository {
   private readonly db = inject(MockDb);
+  private readonly trainings = inject(TrainingRepository);
+  private readonly users = inject(UserRepository);
+  private readonly auth = inject(AuthService);
 
   override listByOrganization(organizationId: string): Observable<readonly TrainingAssignment[]> {
     const items = this.db.assignments.filter((a) => a.organizationId === organizationId);
@@ -83,44 +90,54 @@ export class MockAssignmentRepository extends AssignmentRepository {
     return of(items).pipe(delay(MOCK_LATENCY_MS));
   }
 
+  /**
+   * Trainings and trainees are read through their repositories, so this works
+   * whether those come from the API or the sample data.
+   */
   override assign(command: AssignTrainingCommand): Observable<number> {
     if (command.traineeIds.length === 0) {
-      return throwError(() => new ApiFailure('envelope', 'Select at least one trainee.'));
+      return throwError(() => new ApiFailure('validation', 'Select at least one trainee.'));
     }
 
-    const training = this.db.trainings.find((t) => t.id === command.trainingId);
-    if (training === undefined) {
-      return throwError(() => new ApiFailure('not-found', 'That training no longer exists.'));
-    }
+    return forkJoin({
+      trainings: this.trainings.listByOrganization(command.organizationId),
+      users: this.users.listByOrganization(command.organizationId),
+    }).pipe(
+      switchMap(({ trainings, users }) => {
+        const training = trainings.find((t) => t.id === command.trainingId);
+        if (training === undefined) {
+          return throwError(() => new ApiFailure('not-found', 'That training no longer exists.'));
+        }
 
-    const existing = new Set(
-      this.db.assignments
-        .filter((a) => a.trainingId === command.trainingId)
-        .map((a) => a.traineeId),
+        const existing = new Set(
+          this.db.assignments
+            .filter((a) => a.trainingId === command.trainingId)
+            .map((a) => a.traineeId),
+        );
+
+        const created: TrainingAssignment[] = [];
+        for (const traineeId of command.traineeIds) {
+          if (existing.has(traineeId)) {
+            continue;
+          }
+          const trainee = users.find((user) => user.id === traineeId);
+          created.push({
+            id: this.db.nextId('asg'),
+            organizationId: command.organizationId,
+            trainingId: command.trainingId,
+            trainingTitle: training.name,
+            traineeId,
+            traineeName: trainee === undefined ? 'Unknown trainee' : fullName(trainee),
+            assignedById: this.auth.currentUser()?.id ?? 'unknown',
+            assignedAt: new Date().toISOString(),
+            dueAt: command.dueAt,
+            status: 'assigned',
+          });
+        }
+
+        this.db.assignments = [...this.db.assignments, ...created];
+        return of(created.length).pipe(delay(MOCK_LATENCY_MS));
+      }),
     );
-
-    const created: TrainingAssignment[] = [];
-    for (const traineeId of command.traineeIds) {
-      if (existing.has(traineeId)) {
-        continue;
-      }
-      const trainee = this.db.users.find((user) => user.id === traineeId);
-      created.push({
-        id: this.db.nextId('asg'),
-        organizationId: command.organizationId,
-        trainingId: command.trainingId,
-        trainingTitle: training.title,
-        traineeId,
-        traineeName:
-          trainee === undefined ? 'Unknown trainee' : `${trainee.firstName} ${trainee.lastName}`,
-        assignedById: 'current-user',
-        assignedAt: new Date().toISOString(),
-        dueAt: command.dueAt,
-        status: 'assigned',
-      });
-    }
-
-    this.db.assignments = [...this.db.assignments, ...created];
-    return of(created.length).pipe(delay(MOCK_LATENCY_MS));
   }
 }

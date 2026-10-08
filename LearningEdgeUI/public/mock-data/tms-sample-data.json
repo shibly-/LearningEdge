@@ -1,19 +1,52 @@
 {
   "_readme": {
     "purpose": "Sample data for every page while the API is incomplete. Served as a static asset from /mock-data/tms-sample-data.json and fetched over HTTP at bootstrap, so replacing it with real REST endpoints is a URL change in the repository layer, not a code rewrite.",
-    "replacingThisFile": "Each collection below is the `data` payload of a future endpoint. The live API wraps every response in { success, error, data } (see ApiResult). Flip environment.useMockApi to false and the Http* repositories take over; this file is then ignored.",
+    "replacingThisFile": "Each collection below mirrors the response of a live endpoint (plain DTOs; errors are ProblemDetails). Flip environment.useMockApi to false and the Http* repositories take over; this file is then ignored. Assignments, results, messages and processingJobs have no backend endpoint yet and stay mock-only.",
     "pageToCollection": {
-      "/platform (Platform overview)": ["organizations"],
-      "/platform/organizations (+ detail)": ["organizations"],
-      "/platform/org-admins": ["organizations"],
-      "/dashboard/admin": ["users", "categories", "trainings", "assignments", "results"],
-      "/dashboard/staff": ["trainings", "assignments", "results"],
-      "/users (+ detail)": ["users"],
-      "/categories": ["categories"],
-      "/trainings (+ assign, category view)": ["trainings", "categories", "users"],
-      "/processing": ["processingJobs"],
-      "/portal (Learner)": ["assignments", "results"],
-      "/staff-ops": ["users", "assignments", "messages"]
+      "/platform (Platform overview)": [
+        "organizations"
+      ],
+      "/platform/organizations (+ detail)": [
+        "organizations"
+      ],
+      "/platform/org-admins": [
+        "organizations"
+      ],
+      "/dashboard/admin": [
+        "users",
+        "categories",
+        "trainings",
+        "assignments",
+        "results"
+      ],
+      "/dashboard/staff": [
+        "trainings",
+        "assignments",
+        "results"
+      ],
+      "/users (+ detail)": [
+        "users"
+      ],
+      "/categories": [
+        "categories"
+      ],
+      "/trainings (+ assign, category view)": [
+        "trainings",
+        "categories",
+        "users"
+      ],
+      "/processing": [
+        "processingJobs"
+      ],
+      "/portal (Learner)": [
+        "assignments",
+        "results"
+      ],
+      "/staff-ops": [
+        "users",
+        "assignments",
+        "messages"
+      ]
     },
     "conventions": {
       "dates": "Any date field accepts a full ISO string OR a relative offset so the samples never go stale: '+14d' is 14 days from load, '-3d' is 3 days ago, '0d' is now. The loader resolves these to ISO strings.",
@@ -22,7 +55,6 @@
       "tenancy": "Every collection except organizations carries organizationId. Stores filter by the active tenant, so cross-tenant rows here are intentional test coverage."
     }
   },
-
   "organizations": [
     {
       "id": "11111111-1111-1111-1111-111111111111",
@@ -40,7 +72,6 @@
       "description": "Precision components supplier. Newly onboarded, no catalogue yet."
     }
   ],
-
   "users": [
     {
       "id": "user-a1",
@@ -131,122 +162,101 @@
       "organizationId": "33333333-3333-3333-3333-333333333333"
     }
   ],
-
   "categories": [
     {
       "id": "cat-a1",
       "organizationId": "11111111-1111-1111-1111-111111111111",
       "name": "Workplace Safety",
       "description": "Mandatory safety and compliance modules renewed annually.",
-      "trainingCount": 3,
-      "createdAt": "-180d"
+      "isActive": true
     },
     {
       "id": "cat-a2",
       "organizationId": "11111111-1111-1111-1111-111111111111",
       "name": "Fleet Operations",
       "description": "Vehicle handling, routing, and depot procedures.",
-      "trainingCount": 2,
-      "createdAt": "-150d"
+      "isActive": true
     },
     {
       "id": "cat-a3",
       "organizationId": "11111111-1111-1111-1111-111111111111",
       "name": "Onboarding",
       "description": "First-week essentials for new joiners.",
-      "trainingCount": 1,
-      "createdAt": "-90d"
+      "isActive": true
     },
     {
       "id": "cat-b1",
       "organizationId": "22222222-2222-2222-2222-222222222222",
       "name": "Clinical Protocols",
       "description": "Patient-facing procedure training.",
-      "trainingCount": 1,
-      "createdAt": "-120d"
+      "isActive": true
     }
   ],
-
   "trainings": [
     {
       "id": "trn-a1",
       "organizationId": "11111111-1111-1111-1111-111111111111",
       "categoryId": "cat-a1",
-      "title": "Manual Handling Essentials",
+      "name": "Manual Handling Essentials",
       "description": "Safe lifting technique, load assessment, and injury prevention.",
-      "status": "published",
-      "durationMinutes": 45,
-      "passMark": 70,
-      "createdAt": "-170d"
+      "isActive": true,
+      "files": []
     },
     {
       "id": "trn-a2",
       "organizationId": "11111111-1111-1111-1111-111111111111",
       "categoryId": "cat-a1",
-      "title": "Fire Warden Refresher",
+      "name": "Fire Warden Refresher",
       "description": "Evacuation roles, assembly points, and extinguisher classes.",
-      "status": "published",
-      "durationMinutes": 60,
-      "passMark": 75,
-      "createdAt": "-160d"
+      "isActive": true,
+      "files": []
     },
     {
       "id": "trn-a3",
       "organizationId": "11111111-1111-1111-1111-111111111111",
       "categoryId": "cat-a1",
-      "title": "Hazardous Goods Labelling",
+      "name": "Hazardous Goods Labelling",
       "description": "ADR classifications and documentation requirements.",
-      "status": "draft",
-      "durationMinutes": 30,
-      "passMark": 60,
-      "createdAt": "-20d"
+      "isActive": false,
+      "files": []
     },
     {
       "id": "trn-a4",
       "organizationId": "11111111-1111-1111-1111-111111111111",
       "categoryId": "cat-a2",
-      "title": "Defensive Driving",
+      "name": "Defensive Driving",
       "description": "Hazard perception and adverse-condition handling.",
-      "status": "published",
-      "durationMinutes": 90,
-      "passMark": 80,
-      "createdAt": "-140d"
+      "isActive": true,
+      "files": []
     },
     {
       "id": "trn-a5",
       "organizationId": "11111111-1111-1111-1111-111111111111",
       "categoryId": "cat-a2",
-      "title": "Route Planning Basics",
+      "name": "Route Planning Basics",
       "description": "Superseded by the 2026 telematics module.",
-      "status": "archived",
-      "durationMinutes": 40,
-      "passMark": 60,
-      "createdAt": "-300d"
+      "isActive": false,
+      "files": []
     },
     {
       "id": "trn-a6",
       "organizationId": "11111111-1111-1111-1111-111111111111",
       "categoryId": "cat-a3",
-      "title": "Welcome to Northwind",
+      "name": "Welcome to Northwind",
       "description": "Company structure, policies, and systems overview.",
-      "status": "published",
-      "durationMinutes": 20,
-      "passMark": 50,
-      "createdAt": "-85d"
+      "isActive": true,
+      "files": []
     },
     {
       "id": "trn-b1",
       "organizationId": "22222222-2222-2222-2222-222222222222",
       "categoryId": "cat-b1",
-      "title": "Infection Control",
+      "name": "Infection Control",
       "description": "Hand hygiene, PPE sequencing, and isolation protocol.",
-      "status": "published",
-      "durationMinutes": 50,
-      "passMark": 80,
-      "createdAt": "-110d"
+      "isActive": true,
+      "files": []
     }
   ],
-
   "assignments": [
     {
       "id": "asg-1",
@@ -357,7 +367,6 @@
       "status": "in-progress"
     }
   ],
-
   "results": [
     {
       "id": "res-1",
@@ -396,7 +405,6 @@
       "completedAt": "-35d"
     }
   ],
-
   "messages": [
     {
       "id": "msg-1",
@@ -447,7 +455,6 @@
       "read": true
     }
   ],
-
   "processingJobs": [
     {
       "id": "job-1",

@@ -1,8 +1,13 @@
 import { Injectable } from '@angular/core';
 import type { AuthUser } from './auth-user';
+import { environment } from '../../../environments/environment';
 import { isUserRole } from '../models/user-role';
 
-const SESSION_KEY = 'le.tms.session';
+/**
+ * Keyed by data source: mock and API identities carry different ids, so a
+ * session from one must not be restored after toggling useMockApi.
+ */
+const SESSION_KEY = `le.tms.session.${environment.useMockApi ? 'mock' : 'api'}`;
 
 /**
  * sessionStorage, not localStorage: the session must not outlive the browser tab.

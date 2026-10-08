@@ -9,14 +9,11 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
 import { ErrorStateComponent } from '../../shared/components/error-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header.component';
 import { SkeletonComponent } from '../../shared/components/skeleton.component';
-import { DurationPipe } from '../../shared/pipes/duration.pipe';
-
 @Component({
   selector: 'app-category-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
-    DurationPipe,
     BadgeComponent,
     PageHeaderComponent,
     SkeletonComponent,
@@ -50,19 +47,24 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
           </caption>
           <thead>
             <tr>
-              <th scope="col">Title</th>
-              <th scope="col">Duration</th>
-              <th scope="col">Pass mark</th>
+              <th scope="col">Name</th>
+              <th scope="col">Description</th>
+              <th scope="col">Files</th>
               <th scope="col">Status</th>
             </tr>
           </thead>
           <tbody>
             @for (training of store.items(); track training.id) {
               <tr>
-                <th scope="row">{{ training.title }}</th>
-                <td>{{ training.durationMinutes | duration }}</td>
-                <td>{{ training.passMark }}%</td>
-                <td><app-badge [status]="training.status" /></td>
+                <th scope="row">{{ training.name }}</th>
+                <td>{{ training.description || '—' }}</td>
+                <td>{{ training.files.length }}</td>
+                <td>
+                  <app-badge
+                    [status]="training.isActive ? 'on' : 'off'"
+                    [text]="training.isActive ? 'Active' : 'Inactive'"
+                  />
+                </td>
               </tr>
             }
           </tbody>

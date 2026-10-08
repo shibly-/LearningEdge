@@ -2,9 +2,11 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   computed,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -19,6 +21,7 @@ import { navItemsFor } from './nav-items';
   selector: 'app-main-layout',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterOutlet, RouterLink, RouterLinkActive, OrgSwitcherComponent],
+  host: { '(document:keydown.escape)': 'onEscape()' },
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.scss',
 })
@@ -30,6 +33,7 @@ export class MainLayoutComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly sidebarOpen = signal(true);
+  private readonly menuToggle = viewChild.required<ElementRef<HTMLButtonElement>>('menuToggle');
 
   protected readonly isSidebarOpen = this.sidebarOpen.asReadonly();
   protected readonly user = this.auth.currentUser;
@@ -62,9 +66,22 @@ export class MainLayoutComponent {
   }
 
   protected closeSidebarOnMobile(): void {
-    if (window.matchMedia('(max-width: 768px)').matches) {
+    if (this.isMobile()) {
       this.sidebarOpen.set(false);
     }
+  }
+
+  /** On mobile the open sidebar is an overlay, so Escape dismisses it like a dialog. */
+  protected onEscape(): void {
+    if (!this.isMobile() || !this.sidebarOpen() || document.querySelector('[aria-modal="true"]')) {
+      return;
+    }
+    this.sidebarOpen.set(false);
+    this.menuToggle().nativeElement.focus();
+  }
+
+  private isMobile(): boolean {
+    return window.matchMedia('(max-width: 768px)').matches;
   }
 
   protected logout(): void {

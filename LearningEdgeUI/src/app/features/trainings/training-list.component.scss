@@ -1,13 +1,21 @@
-.pair {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: 1fr 1fr;
-}
-
 .actions {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+  font-weight: 400;
 }
 
 .prereq {
@@ -18,11 +26,5 @@
     display: inline-block;
     margin-left: 4px;
     color: var(--le-brand-600);
-  }
-}
-
-@media (max-width: 560px) {
-  .pair {
-    grid-template-columns: 1fr;
   }
 }

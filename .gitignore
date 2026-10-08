@@ -428,3 +428,6 @@ FodyWeavers.xsd
 *.msm
 *.msp
 /LearningEdge/tests/LearningEdge.APILoadTests/scripts/results/*.json
+
+# Training files uploaded by a locally running API
+LearningEdge/src/LearningEdge.Api/uploads/

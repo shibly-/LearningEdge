@@ -37,8 +37,8 @@ import { StatCardComponent } from '../../shared/components/stat-card.component';
       <app-error-state [message]="errorMessage() ?? ''" (retry)="reload()" />
     } @else {
       <div class="le-grid-stats">
-        <app-stat-card label="Published trainings" [value]="trainings.published().length" />
-        <app-stat-card label="Drafts" [value]="trainings.drafts().length" />
+        <app-stat-card label="Active trainings" [value]="trainings.active().length" />
+        <app-stat-card label="Inactive trainings" [value]="trainings.inactive().length" />
         <app-stat-card label="In progress" [value]="assignments.inProgress().length" />
         <app-stat-card label="Overdue" [value]="assignments.overdue().length" />
         <app-stat-card label="Average score" [value]="averageLabel()" />

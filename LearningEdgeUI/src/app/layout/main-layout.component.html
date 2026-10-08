@@ -3,6 +3,7 @@
 <div class="shell" [class.sidebar-collapsed]="!isSidebarOpen()">
   <header class="topbar">
     <button
+      #menuToggle
       type="button"
       class="menu-toggle"
       [attr.aria-expanded]="isSidebarOpen()"

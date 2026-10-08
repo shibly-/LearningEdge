@@ -1,8 +1,10 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, delay, of, throwError } from 'rxjs';
+import { Observable, delay, of, switchMap, throwError } from 'rxjs';
 import { ApiFailure } from '../http/api-result';
 import type { Message, SendMessageCommand } from '../models/message';
+import { fullName } from '../models/user';
 import { MockDb } from './mock/mock-db';
+import { UserRepository } from './user.repository';
 import { MOCK_LATENCY_MS, notImplementedUpstream } from './repository-support';
 
 // MOCK: no backend endpoint for messaging (spec 3.7).
@@ -43,6 +45,7 @@ export class HttpMessageRepository extends MessageRepository {
 @Injectable()
 export class MockMessageRepository extends MessageRepository {
   private readonly db = inject(MockDb);
+  private readonly users = inject(UserRepository);
 
   override listForUser(organizationId: string, userId: string): Observable<readonly Message[]> {
     const items = this.db.messages.filter(
@@ -66,34 +69,39 @@ export class MockMessageRepository extends MessageRepository {
     const subject = command.subject.trim();
     const body = command.body.trim();
     if (subject.length === 0) {
-      return throwError(() => new ApiFailure('envelope', 'Subject is required.'));
+      return throwError(() => new ApiFailure('validation', 'Subject is required.'));
     }
     if (body.length === 0) {
-      return throwError(() => new ApiFailure('envelope', 'Message body is required.'));
+      return throwError(() => new ApiFailure('validation', 'Message body is required.'));
     }
 
-    const recipient = this.db.users.find((user) => user.id === command.recipientId);
-    if (recipient === undefined) {
-      return throwError(() => new ApiFailure('not-found', 'That recipient no longer exists.'));
-    }
+    // Read through UserRepository so recipients from the API resolve too.
+    return this.users.listByOrganization(command.organizationId).pipe(
+      switchMap((users) => {
+        const recipient = users.find((user) => user.id === command.recipientId);
+        if (recipient === undefined) {
+          return throwError(() => new ApiFailure('not-found', 'That recipient no longer exists.'));
+        }
 
-    const id = this.db.nextId('msg');
-    this.db.messages = [
-      ...this.db.messages,
-      {
-        id,
-        organizationId: command.organizationId,
-        senderId,
-        senderName,
-        recipientId: recipient.id,
-        recipientName: `${recipient.firstName} ${recipient.lastName}`,
-        subject,
-        body,
-        sentAt: new Date().toISOString(),
-        read: false,
-      },
-    ];
-    return of(id).pipe(delay(MOCK_LATENCY_MS));
+        const id = this.db.nextId('msg');
+        this.db.messages = [
+          ...this.db.messages,
+          {
+            id,
+            organizationId: command.organizationId,
+            senderId,
+            senderName,
+            recipientId: recipient.id,
+            recipientName: fullName(recipient),
+            subject,
+            body,
+            sentAt: new Date().toISOString(),
+            read: false,
+          },
+        ];
+        return of(id).pipe(delay(MOCK_LATENCY_MS));
+      }),
+    );
   }
 
   override markRead(id: string): Observable<void> {

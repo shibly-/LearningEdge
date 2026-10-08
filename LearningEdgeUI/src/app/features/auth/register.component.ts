@@ -16,18 +16,19 @@ import { RouterLink } from '@angular/router';
     <div class="auth-page">
       <div class="auth-card le-card">
         @if (submitted()) {
-          <h1>Request received</h1>
+          <h1>Contact your administrator</h1>
           <p class="subtitle">
-            An administrator will review your request and provision an account for your
-            organization.
+            Access requests cannot be sent from this page yet, so nothing has been submitted. Ask
+            the administrator of {{ form.controls.organization.value }} to create an account for
+            {{ form.controls.email.value }}.
           </p>
           <a class="le-btn" routerLink="/login">Back to sign in</a>
         } @else {
           <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
             <h1>Request access</h1>
             <p class="subtitle">
-              Accounts are created by your organization administrator. Send a request and they will
-              be in touch.
+              Accounts are created by your organization administrator. Enter your details to see who
+              to contact.
             </p>
 
             <div
@@ -35,7 +36,13 @@ import { RouterLink } from '@angular/router';
               [class.is-invalid]="form.controls.fullName.touched && form.controls.fullName.invalid"
             >
               <label for="fullName">Full name</label>
-              <input id="fullName" type="text" autocomplete="name" formControlName="fullName" />
+              <input
+                id="fullName"
+                type="text"
+                autocomplete="name"
+                formControlName="fullName"
+                maxlength="100"
+              />
               @if (form.controls.fullName.touched && form.controls.fullName.hasError('required')) {
                 <span class="le-error">Full name is required.</span>
               }
@@ -46,7 +53,13 @@ import { RouterLink } from '@angular/router';
               [class.is-invalid]="form.controls.email.touched && form.controls.email.invalid"
             >
               <label for="email">Work email</label>
-              <input id="email" type="email" autocomplete="email" formControlName="email" />
+              <input
+                id="email"
+                type="email"
+                autocomplete="email"
+                formControlName="email"
+                maxlength="100"
+              />
               @if (form.controls.email.touched && form.controls.email.hasError('required')) {
                 <span class="le-error">Email is required.</span>
               }
@@ -62,7 +75,7 @@ import { RouterLink } from '@angular/router';
               "
             >
               <label for="organization">Organization</label>
-              <input id="organization" type="text" formControlName="organization" />
+              <input id="organization" type="text" formControlName="organization" maxlength="100" />
               @if (
                 form.controls.organization.touched &&
                 form.controls.organization.hasError('required')
@@ -71,7 +84,7 @@ import { RouterLink } from '@angular/router';
               }
             </div>
 
-            <button type="submit" class="le-btn submit">Send request</button>
+            <button type="submit" class="le-btn submit">Continue</button>
             <p class="links"><a routerLink="/login">Back to sign in</a></p>
           </form>
         }

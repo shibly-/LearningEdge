@@ -12,16 +12,16 @@ export const environment: AppEnvironment = {
   production: false,
   apiBaseUrl: 'https://localhost:7176',
   apiVersion: 'v1',
-  useMockApi: true,
+  useMockApi: false,
   useOidc: false,
   oidc: {
     authority: 'https://localhost:5003',
     clientId: 'learningedge-ui',
     scope: 'openid profile email org_id',
   },
-  // userId must match a record in public/mock-data/tms-sample-data.json,
-  // otherwise the signed-in identity owns no sample rows and the learner and
-  // instructor screens render empty.
+  // Live API (useMockApi: false): each login is matched to the API user with the
+  // same email. Sign in as superadmin first on an empty database and create the
+  // organization and these users. userId/organizationId only apply to mock data.
   mockCredentials: [
     {
       username: 'superadmin',

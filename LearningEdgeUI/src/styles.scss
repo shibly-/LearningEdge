@@ -20,6 +20,7 @@
   --le-warning: #96610a;
   --le-warning-bg: #fdf3e2;
   --le-danger: #b3261e;
+  --le-danger-hover: #8f1e18;
   --le-danger-bg: #fdecea;
   --le-info: #1d5c99;
   --le-info-bg: #e8f2fb;
@@ -130,8 +131,13 @@ body {
     background: var(--le-danger);
 
     &:hover:not(:disabled) {
-      background: #8f1e18;
+      background: var(--le-danger-hover);
     }
+  }
+
+  &.le-btn-sm {
+    padding: 4px 10px;
+    font-size: 0.85rem;
   }
 }
 

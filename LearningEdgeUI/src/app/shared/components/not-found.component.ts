@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { homeRouteFor } from '../../core/models/user-role';
 
@@ -49,14 +49,9 @@ import { homeRouteFor } from '../../core/models/user-role';
 })
 export class NotFoundComponent {
   private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
 
   protected readonly home = (() => {
     const role = this.auth.role();
     return role === null ? '/login' : homeRouteFor(role);
   })();
-
-  protected goHome(): void {
-    void this.router.navigateByUrl(this.home);
-  }
 }

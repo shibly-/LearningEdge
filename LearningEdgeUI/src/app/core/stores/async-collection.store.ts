@@ -46,6 +46,13 @@ export abstract class AsyncCollectionStore<T> {
     this.errorState.set(null);
   }
 
+  /** Swaps in an updated item; a no-op when the item is not in the loaded list. */
+  protected upsert(item: T, matches: (existing: T) => boolean): void {
+    this.itemsState.update((items) =>
+      items.map((existing) => (matches(existing) ? item : existing)),
+    );
+  }
+
   protected load(source: Observable<readonly T[]>): void {
     this.statusState.set('loading');
     this.errorState.set(null);

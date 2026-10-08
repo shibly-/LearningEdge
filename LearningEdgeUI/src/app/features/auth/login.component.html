@@ -78,7 +78,13 @@
               </li>
             }
           </ul>
-          <p class="hints-note">Passwords come from the gitignored local environment file.</p>		  
+          <p class="hints-note">Passwords come from the gitignored local environment file.</p>
+          @if (usesLiveApi) {
+            <p class="hints-note">
+              Each login signs in as the API user with the same email. On an empty database, sign in
+              as the system admin first and create the organization and users.
+            </p>
+          }
         }
       </div>
     }

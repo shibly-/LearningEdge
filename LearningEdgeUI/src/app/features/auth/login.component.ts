@@ -9,6 +9,11 @@ import { describeError } from '../../core/stores/async-collection.store';
 import { SpinnerComponent } from '../../shared/components/spinner.component';
 import { environment } from '../../../environments/environment';
 
+interface LoginHint {
+  readonly username: string;
+  readonly role: string;
+}
+
 @Component({
   selector: 'app-login',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -28,6 +33,7 @@ export class LoginComponent {
   protected readonly isSubmitting = this.submitting.asReadonly();
   protected readonly errorMessage = this.failure.asReadonly();
   protected readonly showMockHints = !environment.production;
+  protected readonly usesLiveApi = !environment.useMockApi;
 
   protected readonly form = this.fb.group({
     username: this.fb.control('', [Validators.required]),
@@ -35,10 +41,9 @@ export class LoginComponent {
   });
 
   /** Dev affordance so each role is reachable without guessing. */
-  protected readonly hints = mockCredentials().map((credential) => ({
+  protected readonly hints: readonly LoginHint[] = mockCredentials().map((credential) => ({
     username: credential.username,
     role: roleLabel(credential.role),
-	password: credential.password
   }));
 
   protected submit(): void {
@@ -68,12 +73,10 @@ export class LoginComponent {
       });
   }
 
-  protected fillHint(hint: any): void {
-    //this.form.patchValue({ hint.username });
-	this.form.patchValue({
-      username: hint.username,
-      password: hint.password
-    });
+  /** Looks the password up on demand so it is never bound into the template. */
+  protected fillHint(hint: LoginHint): void {
+    const credential = mockCredentials().find((c) => c.username === hint.username);
+    this.form.patchValue({ username: hint.username, password: credential?.password ?? '' });
   }
 
   private returnUrl(): string | null {

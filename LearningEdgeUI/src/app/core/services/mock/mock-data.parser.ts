@@ -6,8 +6,8 @@ import type {
   AssignmentStatus,
   Training,
   TrainingAssignment,
+  TrainingFile,
   TrainingResult,
-  TrainingStatus,
 } from '../../models/training';
 import type { UserDto } from '../../models/user';
 import { UserRole, isUserRole } from '../../models/user-role';
@@ -28,7 +28,9 @@ const RELATIVE_DATE = /^([+-]?\d+)d$/;
  */
 export function resolveDate(value: unknown, field: string, now: Date = new Date()): string {
   if (typeof value !== 'string' || value.trim().length === 0) {
-    throw new MockDataError(`${field} must be an ISO date string or a relative offset like "+14d".`);
+    throw new MockDataError(
+      `${field} must be an ISO date string or a relative offset like "+14d".`,
+    );
   }
 
   const match = RELATIVE_DATE.exec(value.trim());
@@ -62,7 +64,7 @@ export function parseMockDataset(raw: unknown, now: Date = new Date()): MockData
     ),
     users: collection(root, 'users').map((entry, i) => parseUser(entry, `users[${i}]`)),
     categories: collection(root, 'categories').map((entry, i) =>
-      parseCategory(entry, `categories[${i}]`, now),
+      parseCategory(entry, `categories[${i}]`),
     ),
     trainings: collection(root, 'trainings').map((entry, i) =>
       parseTraining(entry, `trainings[${i}]`, now),
@@ -70,7 +72,9 @@ export function parseMockDataset(raw: unknown, now: Date = new Date()): MockData
     assignments: collection(root, 'assignments').map((entry, i) =>
       parseAssignment(entry, `assignments[${i}]`, now),
     ),
-    results: collection(root, 'results').map((entry, i) => parseResult(entry, `results[${i}]`, now)),
+    results: collection(root, 'results').map((entry, i) =>
+      parseResult(entry, `results[${i}]`, now),
+    ),
     messages: collection(root, 'messages').map((entry, i) =>
       parseMessage(entry, `messages[${i}]`, now),
     ),
@@ -180,31 +184,42 @@ function parseUser(entry: unknown, field: string): UserDto {
   };
 }
 
-function parseCategory(entry: unknown, field: string, now: Date): Category {
+function parseCategory(entry: unknown, field: string): Category {
   const record = asRecord(entry, field);
   return {
     id: str(record, 'id', field),
     organizationId: str(record, 'organizationId', field),
     name: str(record, 'name', field),
     description: optionalStr(record, 'description'),
-    trainingCount: num(record, 'trainingCount', field),
-    createdAt: resolveDate(record['createdAt'], `${field}.createdAt`, now),
+    isActive: bool(record, 'isActive', field),
   };
 }
 
-const TRAINING_STATUSES: readonly TrainingStatus[] = ['draft', 'published', 'archived'];
-
 function parseTraining(entry: unknown, field: string, now: Date): Training {
   const record = asRecord(entry, field);
+  const files = record['files'] ?? [];
+  if (!Array.isArray(files)) {
+    throw new MockDataError(`${field}.files must be an array.`);
+  }
   return {
     id: str(record, 'id', field),
     organizationId: str(record, 'organizationId', field),
     categoryId: str(record, 'categoryId', field),
-    title: str(record, 'title', field),
+    name: str(record, 'name', field),
     description: optionalStr(record, 'description'),
-    status: oneOf(record, 'status', TRAINING_STATUSES, field),
-    durationMinutes: num(record, 'durationMinutes', field),
-    passMark: num(record, 'passMark', field),
+    isActive: bool(record, 'isActive', field),
+    files: files.map((file, i) => parseTrainingFile(file, `${field}.files[${i}]`, now)),
+  };
+}
+
+function parseTrainingFile(entry: unknown, field: string, now: Date): TrainingFile {
+  const record = asRecord(entry, field);
+  return {
+    id: str(record, 'id', field),
+    fileName: str(record, 'fileName', field),
+    contentType: str(record, 'contentType', field),
+    sizeBytes: num(record, 'sizeBytes', field),
+    uploadedByUserId: str(record, 'uploadedByUserId', field),
     createdAt: resolveDate(record['createdAt'], `${field}.createdAt`, now),
   };
 }

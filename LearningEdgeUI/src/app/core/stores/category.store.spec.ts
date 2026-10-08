@@ -15,8 +15,7 @@ const sample: Category = {
   organizationId: ORG_A,
   name: 'Workplace Safety',
   description: '',
-  trainingCount: 2,
-  createdAt: new Date().toISOString(),
+  isActive: true,
 };
 
 function setup(activeOrganizationId: string | null = ORG_A) {

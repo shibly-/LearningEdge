@@ -1,20 +1,27 @@
 import { UserRole } from '../app/core/models/user-role';
 
 /**
- * A dev-only login. `organizationId` is null for platform scope (SysAdmin).
+ * A dev-only login. The password is checked in the browser.
+ *
+ * With `useMockApi: false` the login is matched to the API user with the same
+ * `email`, and that record's id, role and organization are used; `userId` and
+ * `organizationId` below then only matter for mock data. A SysAdmin login with
+ * no matching API user still signs in, so an empty database can be seeded.
  */
 export interface MockCredential {
   readonly username: string;
   readonly password: string;
   readonly role: UserRole;
+  /** Mock data only. null for platform scope (SysAdmin). */
   readonly organizationId: string | null;
   /**
-   * Id of the matching record in public/mock-data/tms-sample-data.json. Without
-   * it the session has an identity no sample row points at, so the learner and
-   * instructor screens would render empty.
+   * Mock data only: id of the matching record in
+   * public/mock-data/tms-sample-data.json, so the learner and instructor
+   * screens have sample rows to show.
    */
   readonly userId?: string;
   readonly displayName?: string;
+  /** Required for every non-SysAdmin login when using the live API. */
   readonly email?: string;
 }
 
@@ -23,7 +30,11 @@ export interface AppEnvironment {
   /** Origin only. Path versioning is applied by core/http/api-paths.ts. */
   readonly apiBaseUrl: string;
   readonly apiVersion: string;
-  /** Serves every repository from an in-memory adapter. */
+  /**
+   * true: organizations, users, categories and trainings come from the sample
+   * data. false: they come from the API. Assignments, messages and processing
+   * are in-memory either way — the API has no endpoints for them yet.
+   */
   readonly useMockApi: boolean;
   /** Swaps MockAuthProvider for OidcAuthProvider. */
   readonly useOidc: boolean;

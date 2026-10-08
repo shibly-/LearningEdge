@@ -126,24 +126,21 @@ describe('parseMockDataset', () => {
     expect(dataset.assignments[0].dueAt).toBeNull();
   });
 
-  it('rejects a status outside the allowed set', () => {
+  it('rejects a training whose isActive is not a boolean', () => {
     const invalid = {
       trainings: [
         {
           id: 'trn-a1',
           organizationId: 'org-a',
           categoryId: 'cat-a1',
-          title: 'Forklift Safety',
+          name: 'Forklift Safety',
           description: '',
-          status: 'retired',
-          durationMinutes: 45,
-          passMark: 80,
-          createdAt: '0d',
+          isActive: 'yes',
         },
       ],
     };
 
-    expect(() => parseMockDataset(invalid, NOW)).toThrow(/must be one of: draft, published/);
+    expect(() => parseMockDataset(invalid, NOW)).toThrow(/isActive/);
   });
 });
 

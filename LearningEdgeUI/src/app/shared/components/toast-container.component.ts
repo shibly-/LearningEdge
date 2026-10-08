@@ -1,27 +1,43 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { ToastService } from '../../core/services/toast.service';
 
-/** aria-live="polite" so screen readers announce toasts without stealing focus. */
+/**
+ * Errors go in an assertive alert region so they interrupt; everything else is
+ * announced politely. Neither steals focus.
+ */
 @Component({
   selector: 'app-toast-container',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="stack" role="status" aria-live="polite" aria-atomic="false">
-      @for (toast of toasts(); track toast.id) {
-        <div class="toast" [class]="'kind-' + toast.kind">
-          <span class="message">{{ toast.message }}</span>
-          <button
-            type="button"
-            class="dismiss"
-            [attr.aria-label]="'Dismiss: ' + toast.message"
-            (click)="service.dismiss(toast.id)"
-          >
-            &times;
-          </button>
-        </div>
-      }
+    <div class="stack">
+      <div class="region" role="alert" aria-live="assertive" aria-atomic="false">
+        @for (toast of errors(); track toast.id) {
+          <ng-container *ngTemplateOutlet="item; context: { $implicit: toast }" />
+        }
+      </div>
+      <div class="region" role="status" aria-live="polite" aria-atomic="false">
+        @for (toast of others(); track toast.id) {
+          <ng-container *ngTemplateOutlet="item; context: { $implicit: toast }" />
+        }
+      </div>
     </div>
+
+    <ng-template #item let-toast>
+      <div class="toast" [class]="'kind-' + toast.kind">
+        <span class="message">{{ toast.message }}</span>
+        <button
+          type="button"
+          class="dismiss"
+          [attr.aria-label]="'Dismiss: ' + toast.message"
+          (click)="service.dismiss(toast.id)"
+        >
+          &times;
+        </button>
+      </div>
+    </ng-template>
   `,
+  imports: [NgTemplateOutlet],
   styles: `
     .stack {
       position: fixed;
@@ -32,6 +48,10 @@ import { ToastService } from '../../core/services/toast.service';
       flex-direction: column;
       gap: 10px;
       max-width: min(420px, calc(100vw - 32px));
+    }
+
+    .region {
+      display: contents;
     }
 
     .toast {
@@ -85,5 +105,10 @@ import { ToastService } from '../../core/services/toast.service';
 })
 export class ToastContainerComponent {
   protected readonly service = inject(ToastService);
-  protected readonly toasts = this.service.toasts;
+  protected readonly errors = computed(() =>
+    this.service.toasts().filter((toast) => toast.kind === 'error'),
+  );
+  protected readonly others = computed(() =>
+    this.service.toasts().filter((toast) => toast.kind !== 'error'),
+  );
 }

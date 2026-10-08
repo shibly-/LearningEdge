@@ -106,13 +106,48 @@ export class ModalShellComponent implements AfterViewInit, OnDestroy {
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly previouslyFocused = document.activeElement as HTMLElement | null;
 
+  /** Elements this dialog made inert, so only those are restored on close. */
+  private readonly inerted: HTMLElement[] = [];
+
   ngAfterViewInit(): void {
-    const first = this.focusable()[0] ?? this.panel().nativeElement;
+    this.inertBackground();
+    const panel = this.panel().nativeElement;
+    // Land on the first field rather than the header's close button.
+    const body = panel.querySelector<HTMLElement>('.body');
+    const first =
+      this.focusable().find((element) => body?.contains(element)) ?? this.focusable()[0] ?? panel;
     first.focus();
   }
 
   ngOnDestroy(): void {
+    for (const element of this.inerted) {
+      element.inert = false;
+    }
     this.previouslyFocused?.focus();
+  }
+
+  /**
+   * Makes every sibling along the path to <body> inert. Toasts stay live so
+   * save errors are still announced and can be dismissed.
+   */
+  private inertBackground(): void {
+    let node: HTMLElement | null = this.host.nativeElement as HTMLElement;
+    while (node !== null && node !== document.body) {
+      const parent: HTMLElement | null = node.parentElement;
+      for (const sibling of Array.from(parent?.children ?? [])) {
+        if (
+          sibling !== node &&
+          sibling instanceof HTMLElement &&
+          !sibling.inert &&
+          sibling.tagName !== 'APP-TOAST-CONTAINER' &&
+          sibling.tagName !== 'SCRIPT'
+        ) {
+          sibling.inert = true;
+          this.inerted.push(sibling);
+        }
+      }
+      node = parent;
+    }
   }
 
   protected onTab(event: Event): void {
