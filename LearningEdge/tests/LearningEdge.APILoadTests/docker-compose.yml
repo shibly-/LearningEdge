@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  k6:
+    image: grafana/k6:latest
+    container_name: learning-edge-api-load-test-by-k6
+    volumes:
+      - ./scripts:/scripts
+    working_dir: /scripts
+    entrypoint: ["k6"]

@@ -31,5 +31,20 @@ public class TestAsyncQueryProvider<TEntity> : IAsyncQueryProvider
         => new TestAsyncEnumerable<TResult>(expression);
 
     public TResult ExecuteAsync<TResult>(Expression expression, CancellationToken cancellationToken)
-        => Execute<TResult>(expression);
+    {
+        if (!typeof(TResult).IsGenericType)
+        {
+            throw new InvalidOperationException($"Expected a Task result but received {typeof(TResult).Name}.");
+        }
+
+        var resultType = typeof(TResult).GetGenericArguments()[0];
+        var executionResult = typeof(IQueryProvider)
+            .GetMethod(nameof(IQueryProvider.Execute), 1, [typeof(Expression)])!
+            .MakeGenericMethod(resultType)
+            .Invoke(_inner, [expression]);
+
+        return (TResult)typeof(Task).GetMethod(nameof(Task.FromResult))!
+            .MakeGenericMethod(resultType)
+            .Invoke(null, [executionResult])!;
+    }
 }

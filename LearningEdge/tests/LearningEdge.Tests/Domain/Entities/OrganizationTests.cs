@@ -41,6 +41,17 @@ public class OrganizationTests
     }
 
     [Fact]
+    public void Update_ShouldReplaceNameAndDescription()
+    {
+        var org = new Organization("My Org", "Before");
+        org.Update("Renamed", "After");
+
+        Assert.Equal("Renamed", org.Name);
+        Assert.Equal("After", org.Description);
+        Assert.NotNull(org.UpdatedAt);
+    }
+
+    [Fact]
     public void Users_ShouldBeEmpty_OnInitialization()
     {
         var org = new Organization("My Org");

@@ -24,4 +24,14 @@ public class User: BaseEntity<Guid>
         Role = Enum.IsDefined(typeof(UserRole), role) ? role : UserRole.Learner;
         OrganizationId = organizationId;
     }
+
+    public void Update(string firstName, string lastName, string email, UserRole role, Guid organizationId)
+    {
+        FirstName = firstName ?? throw new ArgumentNullException(nameof(firstName));
+        LastName = lastName ?? string.Empty;
+        Email = email ?? throw new ArgumentNullException(nameof(email));
+        Role = Enum.IsDefined(typeof(UserRole), role) ? role : UserRole.Learner;
+        OrganizationId = organizationId;
+        MarkUpdated();
+    }
 }

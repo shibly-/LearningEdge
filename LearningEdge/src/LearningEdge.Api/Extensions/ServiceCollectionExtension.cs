@@ -2,6 +2,7 @@
 using Asp.Versioning.ApiExplorer;
 using FluentValidation;
 using LearningEdge.Application;
+using LearningEdge.Application.Common.Behaviors;
 using LearningEdge.Infrastructure;
 using LearningEdge.Infrastructure.Persistence;
 using Microsoft.AspNetCore.OpenApi;
@@ -31,8 +32,11 @@ public static class ServiceCollectionExtension
 
     public static IServiceCollection AddMediatrMapperFluentValidation(this IServiceCollection services) 
     {
-        // MediatR → scans Application assembly for handlers
-        services.AddMediatR(config => config.RegisterServicesFromAssembly(typeof(AssemblyMarker).Assembly));
+        services.AddMediatR(config =>
+        {
+            config.RegisterServicesFromAssembly(typeof(AssemblyMarker).Assembly);
+            config.AddOpenBehavior(typeof(ValidationBehavior<,>));
+        });
 
         // AutoMapper → scans Application assembly for profiles
         services.AddAutoMapper(typeof(AssemblyMarker).Assembly);
@@ -43,28 +47,47 @@ public static class ServiceCollectionExtension
         return services;
     }
 
-    public static IServiceCollection AddApplicationDbContext(this IServiceCollection services, ConfigurationManager configuration)
+    public static IServiceCollection AddApplicationDbContext(
+        this IServiceCollection services,
+        ConfigurationManager configuration,
+        IWebHostEnvironment environment)
     {
+        // Not stored in appsettings: comes from user secrets locally and from the environment in Docker.
+        var connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException(
+                "Connection string 'DefaultConnection' is not configured. Set it with " +
+                "'dotnet user-secrets set ConnectionStrings:DefaultConnection <value>' or the " +
+                "ConnectionStrings__DefaultConnection environment variable.");
+
         // Register DbContext (Infrastructure)
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(
-                configuration.GetConnectionString("DefaultConnection"), 
+                connectionString, 
                 opts => { opts.MigrationsAssembly("LearningEdge.Infrastructure.Migrations"); }
             )
         );
 
-        // Register IApplicationDbContext for DI    
-        services.AddInfrastructure();
+        // Relative paths are resolved against the content root.
+        var fileStorageRoot = Path.Combine(
+            environment.ContentRootPath,
+            configuration["FileStorage:RootPath"] ?? "uploads");
+
+        // Register IApplicationDbContext and IFileStorage for DI
+        services.AddInfrastructure(fileStorageRoot);
 
         return services;
     }
     public static IServiceCollection AddOpenApiAndApiVersioning(this IServiceCollection services)
     {
-        // We don't need to customize the API versioning options for this example as we are using query string versioning.
         services.AddOpenApi("v1");
         services.AddOpenApi("v2");
 
-        services.AddApiVersioning()
+        services.AddApiVersioning(options =>
+        {
+            options.ReportApiVersions = true;
+            options.ApiVersionReader = new UrlSegmentApiVersionReader();
+        })
+        .AddMvc()
         .AddApiExplorer(options =>
         {
             options.GroupNameFormat = "'v'VVV";

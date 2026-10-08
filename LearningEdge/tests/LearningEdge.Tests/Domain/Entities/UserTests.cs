@@ -44,6 +44,22 @@ public class UserTests
         Assert.Equal(UserRole.Learner, user.Role);
     }
 
+    [Fact]
+    public void Update_ShouldReplaceProfileAndMarkUpdated()
+    {
+        var organizationId = Guid.NewGuid();
+        var user = new User("Harry", "Potter", "harry.potter@test.com", UserRole.Learner, Guid.NewGuid());
+
+        user.Update("Hermione", "Granger", "hermione.granger@test.com", UserRole.Instructor, organizationId);
+
+        Assert.Equal("Hermione", user.FirstName);
+        Assert.Equal("Granger", user.LastName);
+        Assert.Equal("hermione.granger@test.com", user.Email);
+        Assert.Equal(UserRole.Instructor, user.Role);
+        Assert.Equal(organizationId, user.OrganizationId);
+        Assert.NotNull(user.UpdatedAt);
+    }
+
     [Theory]
     [InlineData(UserRole.Learner)]
     [InlineData(UserRole.Instructor)]

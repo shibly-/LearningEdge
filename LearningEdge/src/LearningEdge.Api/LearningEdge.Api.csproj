@@ -5,6 +5,7 @@
 	<Nullable>enable</Nullable>
 	<ImplicitUsings>enable</ImplicitUsings>
 	<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+	<UserSecretsId>learningedge-api-3f6c2b1e-8d4a-4f7e-9a51-2c7d0e6b9f14</UserSecretsId>
   </PropertyGroup>
 	
   <ItemGroup>
@@ -37,6 +38,8 @@
 	<PackageReference Include="Microsoft.Extensions.Configuration" />
 	<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
 	<PackageReference Include="Serilog.AspNetCore" />
+	<PackageReference Include="Serilog.Enrichers.Environment" />
+	<PackageReference Include="Serilog.Enrichers.Thread" />
 	<PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
   </ItemGroup>	
 

@@ -1,51 +1,45 @@
-﻿using LearningEdge.Infrastructure.Persistence;
+﻿using System.Text.Json;
+using LearningEdge.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 namespace LearningEdge.Api.Extensions;
 
-public static class WebApplicationExtensions   
+public static class WebApplicationExtensions
 {
-
-    public static WebApplication UseAppDbContextWithDataSeeding(this WebApplication app)
+    public static async Task MigrateDatabaseAsync(this WebApplication app)
     {
         // Microsoft.Extensions.ApiDescription.Server starts the app at build time
         // to generate OpenAPI documents. There is no SQL Server in that process.
         var entryAssemblyName = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name;
         if (string.Equals(entryAssemblyName, "GetDocument.Insider", StringComparison.Ordinal))
         {
-            return app;
+            return;
         }
-
-        using var scope = app.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
-            .CreateLogger("Startup");
 
         const int maxAttempts = 15;
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             try
             {
-                context.Database.EnsureCreated();
-                break;
+                using var scope = app.Services.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await context.Database.MigrateAsync();
+                app.Logger.LogInformation("Database migrations applied.");
+                return;
             }
             catch (Exception ex) when (attempt < maxAttempts)
             {
-                logger.LogWarning(
+                app.Logger.LogWarning(
                     ex,
                     "Database is not ready (attempt {Attempt}/{MaxAttempts}). Retrying in 2 seconds...",
                     attempt,
                     maxAttempts);
-                Thread.Sleep(TimeSpan.FromSeconds(2));
+                await Task.Delay(TimeSpan.FromSeconds(2));
             }
         }
-
-        //if (app.Environment.IsDevelopment())
-        //{
-            //await app.Services.InitializeDatabaseAsync();
-        //}
-
-        return app;
     }
 
     public static WebApplication UseOpenApiWithVersioning(this WebApplication app)
@@ -65,12 +59,39 @@ public static class WebApplicationExtensions
 
     public static WebApplication UseCustomMiddlewarePipeline(this WebApplication app)
     {
+        app.UseExceptionHandler(errorApp =>
+        {
+            errorApp.Run(async context =>
+            {
+                var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+                var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("LearningEdge.Api.ExceptionHandler");
+                logger.LogError(
+                    exception,
+                    "Unhandled exception while processing {Method} {Path}",
+                    context.Request.Method,
+                    context.Request.Path);
+
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                context.Response.ContentType = "application/problem+json";
+                var problem = new ProblemDetails
+                {
+                    Status = StatusCodes.Status500InternalServerError,
+                    Title = "An unexpected error occurred."
+                };
+                await JsonSerializer.SerializeAsync(
+                    context.Response.Body,
+                    problem,
+                    new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            });
+        });
+
         app.UseSerilogRequestLogging()
             .UseHttpsRedirection()
+            .UseCors("AllowAngularApp")
             .UseAuthorization()
             .UseRateLimiter();
 
         return app;
     }
-
 }
