@@ -11,6 +11,7 @@ import { OrganizationContextService } from '../services/organization-context.ser
 import { ToastService } from '../services/toast.service';
 import {
   TrainingRepository,
+  type RemoveTrainingFileRequest,
   type UploadTrainingFilesRequest,
 } from '../services/training.repository';
 import { AsyncCollectionStore, describeError } from './async-collection.store';
@@ -26,6 +27,9 @@ export class TrainingStore extends AsyncCollectionStore<Training> {
 
   private readonly uploadingState = signal(false);
   readonly isUploading = this.uploadingState.asReadonly();
+
+  private readonly removingFile = signal<string | null>(null);
+  readonly removingFileId = this.removingFile.asReadonly();
 
   readonly active = computed(() => this.items().filter((t) => t.isActive));
   readonly inactive = computed(() => this.items().filter((t) => !t.isActive));
@@ -119,6 +123,37 @@ export class TrainingStore extends AsyncCollectionStore<Training> {
             );
           }
           onUploaded(files);
+        },
+        error: (error: unknown) => this.toast.error(describeError(error)),
+      });
+  }
+
+  removeFile(request: RemoveTrainingFileRequest, onRemoved: () => void): void {
+    if (this.removingFile() !== null) {
+      return;
+    }
+    this.removingFile.set(request.fileId);
+
+    this.repository
+      .removeFile(request)
+      .pipe(
+        finalize(() => this.removingFile.set(null)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: () => {
+          this.toast.success('File removed.');
+          const training = this.findById(request.trainingId);
+          if (training !== undefined) {
+            this.upsert(
+              {
+                ...training,
+                files: training.files.filter((file) => file.id !== request.fileId),
+              },
+              (existing) => existing.id === training.id,
+            );
+          }
+          onRemoved();
         },
         error: (error: unknown) => this.toast.error(describeError(error)),
       });

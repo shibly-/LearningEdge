@@ -27,7 +27,7 @@ import { StatCardComponent } from '../../shared/components/stat-card.component';
   ],
   template: `
     <app-page-header title="Dashboard" subtitle="Organization overview">
-      <a class="le-btn le-btn-secondary" routerLink="/users">Users & staff</a>
+      <a class="le-btn le-btn-secondary" routerLink="/users">Users & Staff</a>
       <a class="le-btn" routerLink="/trainings">Trainings</a>
     </app-page-header>
 

@@ -13,9 +13,9 @@ const ORG_B: OrganizationDto = { id: 'org-b', name: 'Contoso', description: '' }
 
 const admin: UserDto = {
   id: 'api-admin',
-  firstName: 'Ayesha',
-  lastName: 'Rahman',
-  email: 'Ayesha.Rahman@northwind.example.com',
+  firstName: 'Mark',
+  lastName: 'Price',
+  email: 'mark.price@simplelearn.com',
   role: UserRole.OrgAdmin,
   organizationId: ORG_A.id,
 };
@@ -23,11 +23,11 @@ const admin: UserDto = {
 function login(overrides: Partial<AuthUser> = {}): AuthUser {
   return {
     id: 'user-a1',
-    username: 'testadmin',
+    username: 'mark.price@simplelearn.com',
     displayName: 'Configured name',
-    email: 'ayesha.rahman@northwind.example.com',
+    email: 'mark.price@simplelearn.com',
     role: UserRole.OrgAdmin,
-    organizationId: '11111111-1111-1111-1111-111111111111',
+    organizationId: 'dcd9946b-908d-459e-85c2-66b590c50ad2',
     accessToken: null,
     ...overrides,
   };
@@ -56,8 +56,8 @@ describe('ApiIdentityResolver', () => {
 
     expect(user.id).toBe('api-admin');
     expect(user.organizationId).toBe(ORG_A.id);
-    expect(user.displayName).toBe('Ayesha Rahman');
-    expect(user.username).toBe('testadmin');
+    expect(user.displayName).toBe('Mark Price');
+    expect(user.username).toBe('mark.price@simplelearn.com');
   });
 
   it('takes the role from the API record', async () => {

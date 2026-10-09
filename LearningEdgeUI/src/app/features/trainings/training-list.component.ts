@@ -1,7 +1,10 @@
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { TRAINING_LIMITS, type Training } from '../../core/models/training';
+import { AuthService } from '../../core/auth/auth.service';
+import { TRAINING_LIMITS, type Training, type TrainingFile } from '../../core/models/training';
+import { UserRole } from '../../core/models/user-role';
 import { OrganizationContextService } from '../../core/services/organization-context.service';
 import { CategoryStore } from '../../core/stores/category.store';
 import { TrainingStore } from '../../core/stores/training.store';
@@ -23,6 +26,8 @@ type Editor = null | 'new' | Training;
   selector: 'app-training-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    DatePipe,
+    DecimalPipe,
     ReactiveFormsModule,
     RouterLink,
     BadgeComponent,
@@ -44,6 +49,7 @@ export class TrainingListComponent {
 
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly context = inject(OrganizationContextService);
+  private readonly auth = inject(AuthService);
   private readonly filter = signal<ActiveFilter>('all');
 
   protected readonly editor = signal<Editor>(null);
@@ -51,6 +57,17 @@ export class TrainingListComponent {
     const editor = this.editor();
     return editor !== null && editor !== 'new';
   });
+  /** Store copy of the training being edited, so a removed file disappears immediately. */
+  protected readonly editing = computed(() => {
+    const editor = this.editor();
+    if (editor === null || editor === 'new') {
+      return null;
+    }
+    return this.store.findById(editor.id) ?? editor;
+  });
+  protected readonly canRemoveFiles = computed(() =>
+    this.auth.hasAnyRole([UserRole.OrgAdmin, UserRole.SysAdmin]),
+  );
   protected readonly filesFor = signal<Training | null>(null);
   protected readonly activeFilter = this.filter.asReadonly();
 
@@ -119,6 +136,24 @@ export class TrainingListComponent {
 
   protected close(): void {
     this.editor.set(null);
+  }
+
+  protected removeFile(training: Training, file: TrainingFile): void {
+    const user = this.auth.currentUser();
+    if (user === null) {
+      return;
+    }
+
+    this.store.removeFile(
+      {
+        organizationId: training.organizationId,
+        categoryId: training.categoryId,
+        trainingId: training.id,
+        fileId: file.id,
+        removedByUserId: user.id,
+      },
+      () => undefined,
+    );
   }
 
   protected submit(): void {

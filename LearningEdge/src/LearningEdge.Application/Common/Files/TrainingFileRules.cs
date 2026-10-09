@@ -2,8 +2,8 @@ namespace LearningEdge.Application.Common.Files;
 
 public static class TrainingFileRules
 {
-    public const int MaxFilesPerUpload = 10;
-    public const long MaxFileBytes = 20L * 1024 * 1024;
+    public const int MaxFilesPerUpload = 5;
+    public const long MaxFileBytes = 50L * 1024 * 1024;
     public const long MaxTotalBytes = 100L * 1024 * 1024;
     public const int MaxFileNameLength = 255;
 

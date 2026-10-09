@@ -215,6 +215,112 @@ public class TrainingCommandHandlersTests
     }
 
     [Fact]
+    public async Task Remove_SoftDeletesTheRow_AndDeletesStoredBytes()
+    {
+        await using var context = CreateContext();
+        var (organization, category, training) = await SeedTrainingAsync(context);
+        var admin = await SeedUserAsync(context, UserRole.OrgAdmin, organization.Id);
+        var handler = CreateHandler(context);
+        var uploaded = await handler.Handle(
+            new UploadTrainingFilesCommand(category.Id, training.Id, admin.Id,
+            [
+                Upload("notes.txt", "hello"),
+                Upload("guide.pdf", "%PDF-1.7")
+            ]),
+            CancellationToken.None);
+        var target = uploaded.Data!.Single(file => file.FileName == "notes.txt");
+        context.ChangeTracker.Clear();
+
+        var result = await handler.Handle(
+            new RemoveTrainingFileCommand(category.Id, training.Id, target.Id, admin.Id),
+            CancellationToken.None);
+
+        Assert.True(result.Success, result.Error);
+        Assert.Equal(target.Id, result.Data);
+        context.ChangeTracker.Clear();
+
+        Assert.Equal(1, await context.TrainingFiles.CountAsync(file => file.TrainingId == training.Id));
+        var deleted = await context.TrainingFiles.IgnoreQueryFilters().SingleAsync(file => file.Id == target.Id);
+        Assert.True(deleted.IsDeleted);
+        Assert.NotNull(deleted.UpdatedAt);
+        Assert.Single(_storage.Files);
+        Assert.DoesNotContain(_storage.Files.Keys, key => key == deleted.StorageKey);
+
+        var loaded = await new TrainingQueryHandlers(context, CreateMapper())
+            .Handle(new GetTrainingByIdQuery(category.Id, training.Id), CancellationToken.None);
+        Assert.DoesNotContain(loaded.Data!.Files, file => file.Id == target.Id);
+        Assert.Contains(loaded.Data.Files, file => file.FileName == "guide.pdf");
+    }
+
+    [Fact]
+    public async Task Remove_IsForbidden_ForLearner()
+    {
+        await using var context = CreateContext();
+        var (organization, category, training) = await SeedTrainingAsync(context);
+        var admin = await SeedUserAsync(context, UserRole.OrgAdmin, organization.Id);
+        var learner = await SeedUserAsync(context, UserRole.Learner, organization.Id);
+        var handler = CreateHandler(context);
+        var uploaded = await handler.Handle(
+            new UploadTrainingFilesCommand(category.Id, training.Id, admin.Id, [Upload("notes.txt", "hello")]),
+            CancellationToken.None);
+        var fileId = uploaded.Data!.Single().Id;
+        context.ChangeTracker.Clear();
+
+        var result = await handler.Handle(
+            new RemoveTrainingFileCommand(category.Id, training.Id, fileId, learner.Id),
+            CancellationToken.None);
+
+        Assert.Equal(ResultErrorKind.Forbidden, result.Kind);
+        Assert.Equal(1, await context.TrainingFiles.CountAsync());
+        Assert.Single(_storage.Files);
+    }
+
+    [Fact]
+    public async Task Remove_ReturnsNotFound_WhenFileIsOnAnotherTraining()
+    {
+        await using var context = CreateContext();
+        var (organization, category, training) = await SeedTrainingAsync(context);
+        var other = new Training(category.Id, "Other course");
+        context.Trainings.Add(other);
+        await context.SaveChangesAsync();
+        var admin = await SeedUserAsync(context, UserRole.OrgAdmin, organization.Id);
+        var handler = CreateHandler(context);
+        var uploaded = await handler.Handle(
+            new UploadTrainingFilesCommand(category.Id, training.Id, admin.Id, [Upload("notes.txt", "hello")]),
+            CancellationToken.None);
+        var fileId = uploaded.Data!.Single().Id;
+        context.ChangeTracker.Clear();
+
+        var result = await handler.Handle(
+            new RemoveTrainingFileCommand(category.Id, other.Id, fileId, admin.Id),
+            CancellationToken.None);
+
+        Assert.Equal(ResultErrorKind.NotFound, result.Kind);
+        Assert.Equal(1, await context.TrainingFiles.CountAsync());
+        Assert.Single(_storage.Files);
+    }
+
+    [Fact]
+    public async Task Remove_ReturnsNotFound_WhenTrainingIsNotInCategory()
+    {
+        await using var context = CreateContext();
+        var (organization, category, training) = await SeedTrainingAsync(context);
+        var admin = await SeedUserAsync(context, UserRole.OrgAdmin, organization.Id);
+        var handler = CreateHandler(context);
+        var uploaded = await handler.Handle(
+            new UploadTrainingFilesCommand(category.Id, training.Id, admin.Id, [Upload("notes.txt", "hello")]),
+            CancellationToken.None);
+        context.ChangeTracker.Clear();
+
+        var result = await handler.Handle(
+            new RemoveTrainingFileCommand(Guid.NewGuid(), training.Id, uploaded.Data!.Single().Id, admin.Id),
+            CancellationToken.None);
+
+        Assert.Equal(ResultErrorKind.NotFound, result.Kind);
+        Assert.Single(_storage.Files);
+    }
+
+    [Fact]
     public async Task GetById_IncludesUploadedFiles()
     {
         await using var context = CreateContext();

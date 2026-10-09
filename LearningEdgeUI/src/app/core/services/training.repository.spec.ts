@@ -110,6 +110,26 @@ describe('HttpTrainingRepository', () => {
     await result;
   });
 
+  it('deletes a file with the acting user id', async () => {
+    const result = firstValueFrom(
+      repository.removeFile({
+        organizationId: ORG,
+        categoryId: 'cat-1',
+        trainingId: 'trn-1',
+        fileId: 'file-1',
+        removedByUserId: 'user-1',
+      }),
+    );
+
+    const request = http.expectOne(
+      `${apiPaths.training.file('cat-1', 'trn-1', 'file-1')}?removedByUserId=user-1`,
+    );
+    expect(request.request.method).toBe('DELETE');
+    request.flush('', { status: 204, statusText: 'No Content' });
+
+    await result;
+  });
+
   it('maps a 403 ProblemDetails to a forbidden failure carrying its detail', async () => {
     const result = firstValueFrom(
       repository.uploadFiles({
@@ -202,6 +222,39 @@ describe('MockTrainingRepository', () => {
     expect(added).toHaveLength(1);
     expect(added[0].fileName).toBe('guide.docx');
     expect(added[0].sizeBytes).toBe(2048);
+    expect(db.trainings[0].files).toHaveLength(1);
+  });
+
+  it('drops a removed file and leaves the others', async () => {
+    db.trainings = [{ ...training, files: [sampleFile, { ...sampleFile, id: 'f-2', fileName: 'b.txt' }] }];
+
+    await settle(
+      repository.removeFile({
+        organizationId: ORG,
+        categoryId: 'cat-1',
+        trainingId: 'trn-1',
+        fileId: 'f-1',
+        removedByUserId: 'user-1',
+      }),
+    );
+
+    expect(db.trainings[0].files.map((file) => file.id)).toEqual(['f-2']);
+  });
+
+  it('rejects removal when the file is not on the training', async () => {
+    db.trainings = [{ ...training, files: [sampleFile] }];
+
+    await expect(
+      settle(
+        repository.removeFile({
+          organizationId: ORG,
+          categoryId: 'cat-1',
+          trainingId: 'trn-1',
+          fileId: 'missing',
+          removedByUserId: 'user-1',
+        }),
+      ),
+    ).rejects.toMatchObject({ kind: 'not-found' });
     expect(db.trainings[0].files).toHaveLength(1);
   });
 

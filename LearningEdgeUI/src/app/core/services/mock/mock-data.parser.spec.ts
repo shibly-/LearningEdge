@@ -46,9 +46,9 @@ describe('parseMockDataset', () => {
         users: [
           {
             id: 'user-a1',
-            firstName: 'Ayesha',
-            lastName: 'Rahman',
-            email: 'ayesha@example.com',
+            firstName: 'Mark',
+            lastName: 'Price',
+            email: 'Mark@example.com',
             role: 3,
             organizationId: 'org-a',
           },
@@ -65,9 +65,9 @@ describe('parseMockDataset', () => {
       users: [
         {
           id: 'user-a1',
-          firstName: 'Ayesha',
-          lastName: 'Rahman',
-          email: 'ayesha@example.com',
+          firstName: 'Mark',
+          lastName: 'Price',
+          email: 'Mark@example.com',
           role: 9,
           organizationId: 'org-a',
         },

@@ -28,3 +28,10 @@ public record UploadTrainingFilesCommand(
     Guid UploadedByUserId,
     IReadOnlyList<TrainingFileUpload> Files
 ) : IRequest<Result<IReadOnlyList<TrainingFileDTO>>>;
+
+public record RemoveTrainingFileCommand(
+    Guid CategoryId,
+    Guid TrainingId,
+    Guid FileId,
+    Guid RemovedByUserId
+) : IRequest<Result<Guid>>;

@@ -19,7 +19,7 @@ import { StatCardComponent } from '../../shared/components/stat-card.component';
     ErrorStateComponent,
   ],
   template: `
-    <app-page-header title="Platform overview" subtitle="Super Admin scope — all organizations">
+    <app-page-header title="Platform Overview" subtitle="Super Admin scope — all organizations">
       <a class="le-btn" routerLink="/platform/organizations">Manage organizations</a>
     </app-page-header>
 

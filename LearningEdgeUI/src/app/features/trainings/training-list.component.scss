@@ -18,6 +18,47 @@
   font-weight: 400;
 }
 
+.uploaded {
+  margin-bottom: 16px;
+}
+
+.uploaded h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.files li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--le-border);
+}
+
+.name {
+  overflow-wrap: anywhere;
+}
+
+.file-meta {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.muted {
+  margin: 0;
+  color: var(--le-text-muted);
+  font-size: 0.85rem;
+}
+
 .prereq {
   margin: 0;
   color: var(--le-text-muted);

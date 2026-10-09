@@ -73,7 +73,7 @@ export const routes: Routes = [
         pathMatch: 'full',
         canActivate: [roleGuard],
         data: { roles: [UserRole.SysAdmin] },
-        title: 'Platform overview · LearningEdge',
+        title: 'Platform Overview · LearningEdge',
         loadComponent: () =>
           import('./features/super-admin/platform-dashboard.component').then(
             (m) => m.PlatformDashboardComponent,
@@ -124,7 +124,7 @@ export const routes: Routes = [
         path: 'platform/users',
         canActivate: [roleGuard],
         data: { roles: [UserRole.SysAdmin] },
-        title: 'Users & staff · LearningEdge',
+        title: 'Users & Staff · LearningEdge',
         loadComponent: () =>
           import('./features/super-admin/platform-user-list.component').then(
             (m) => m.PlatformUserListComponent,
@@ -137,7 +137,7 @@ export const routes: Routes = [
         pathMatch: 'full',
         canActivate: [roleGuard, tenantGuard],
         data: { roles: [UserRole.OrgAdmin] },
-        title: 'Users & staff · LearningEdge',
+        title: 'Users & Staff · LearningEdge',
         loadComponent: () =>
           import('./features/users/user-list.component').then((m) => m.UserListComponent),
       },
@@ -194,7 +194,7 @@ export const routes: Routes = [
         path: 'processing',
         canActivate: [roleGuard, tenantGuard],
         data: { roles: [UserRole.OrgAdmin, UserRole.Instructor] },
-        title: 'Material processing · LearningEdge',
+        title: 'Material Processing · LearningEdge',
         loadComponent: () =>
           import('./features/processing/material-upload.component').then(
             (m) => m.MaterialUploadComponent,

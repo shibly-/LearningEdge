@@ -8,7 +8,7 @@ import { TenantResetBus } from '../services/tenant-reset-bus';
 import { ToastService } from '../services/toast.service';
 import { CategoryStore } from './category.store';
 
-const ORG_A = '11111111-1111-1111-1111-111111111111';
+const ORG_A = 'dcd9946b-908d-459e-85c2-66b590c50ad2';
 
 const sample: Category = {
   id: 'cat-1',

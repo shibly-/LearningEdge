@@ -22,6 +22,14 @@ export interface UploadTrainingFilesRequest {
   readonly files: readonly File[];
 }
 
+export interface RemoveTrainingFileRequest {
+  readonly organizationId: string;
+  readonly categoryId: string;
+  readonly trainingId: string;
+  readonly fileId: string;
+  readonly removedByUserId: string;
+}
+
 export abstract class TrainingRepository {
   abstract listByOrganization(organizationId: string): Observable<readonly Training[]>;
   abstract listByCategory(
@@ -36,6 +44,7 @@ export abstract class TrainingRepository {
   abstract create(command: CreateTrainingCommand): Observable<string>;
   abstract update(command: UpdateTrainingCommand): Observable<Training>;
   abstract uploadFiles(request: UploadTrainingFilesRequest): Observable<readonly TrainingFile[]>;
+  abstract removeFile(request: RemoveTrainingFileRequest): Observable<void>;
 }
 
 /** TrainingDTO as the API returns it: no organizationId. */
@@ -98,6 +107,11 @@ export class HttpTrainingRepository extends TrainingRepository {
       apiPaths.training.files(request.categoryId, request.trainingId),
       form,
     );
+  }
+
+  override removeFile(request: RemoveTrainingFileRequest): Observable<void> {
+    const url = `${apiPaths.training.file(request.categoryId, request.trainingId, request.fileId)}?removedByUserId=${encodeURIComponent(request.removedByUserId)}`;
+    return this.api.delete(url);
   }
 }
 
@@ -214,6 +228,31 @@ export class MockTrainingRepository extends TrainingRepository {
     }));
     this.replace({ ...training, files: [...training.files, ...added] });
     return of(added).pipe(delay(MOCK_LATENCY_MS));
+  }
+
+  override removeFile(request: RemoveTrainingFileRequest): Observable<void> {
+    const training = this.db.trainings.find(
+      (t) =>
+        t.id === request.trainingId &&
+        t.categoryId === request.categoryId &&
+        t.organizationId === request.organizationId,
+    );
+    if (training === undefined) {
+      return throwError(
+        () => new ApiFailure('not-found', `No training found with Id ${request.trainingId}.`, 404),
+      );
+    }
+    if (!training.files.some((file) => file.id === request.fileId)) {
+      return throwError(
+        () => new ApiFailure('not-found', `No file found with Id ${request.fileId}.`, 404),
+      );
+    }
+
+    this.replace({
+      ...training,
+      files: training.files.filter((file) => file.id !== request.fileId),
+    });
+    return of(undefined).pipe(delay(MOCK_LATENCY_MS));
   }
 
   private replace(training: Training): void {

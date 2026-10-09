@@ -15,7 +15,8 @@ namespace LearningEdge.Application.Handlers.Trainings;
 public class TrainingCommandHandlers :
     IRequestHandler<CreateTrainingCommand, Result<Guid>>,
     IRequestHandler<UpdateTrainingCommand, Result<TrainingDTO>>,
-    IRequestHandler<UploadTrainingFilesCommand, Result<IReadOnlyList<TrainingFileDTO>>>
+    IRequestHandler<UploadTrainingFilesCommand, Result<IReadOnlyList<TrainingFileDTO>>>,
+    IRequestHandler<RemoveTrainingFileCommand, Result<Guid>>
 {
     private readonly IApplicationDbContext _appDbContext;
     private readonly IMapper _mapper;
@@ -178,6 +179,54 @@ public class TrainingCommandHandlers :
         }
 
         return Result<IReadOnlyList<TrainingFileDTO>>.Ok(_mapper.Map<List<TrainingFileDTO>>(added));
+    }
+
+    public async Task<Result<Guid>> Handle(RemoveTrainingFileCommand request, CancellationToken cancellationToken)
+    {
+        // Include is ignored inside a projection, so resolve the organization first, then load files.
+        var organizationId = await (
+                from training in _appDbContext.Trainings
+                join category in _appDbContext.Categories on training.CategoryId equals category.Id
+                where training.Id == request.TrainingId && training.CategoryId == request.CategoryId
+                select (Guid?)category.OrganizationId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (organizationId is null)
+        {
+            return Result<Guid>.NotFound(
+                $"No training found with Id {request.TrainingId} in category {request.CategoryId}.");
+        }
+
+        var actor = await _appDbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(user => user.Id == request.RemovedByUserId, cancellationToken);
+
+        var isAdmin = actor is not null
+            && (actor.Role == UserRole.SysAdmin
+                || (actor.Role == UserRole.OrgAdmin && actor.OrganizationId == organizationId));
+
+        if (!isAdmin)
+        {
+            return Result<Guid>.Forbidden(
+                "Only an organization admin or system admin can remove training files.");
+        }
+
+        var trainingEntity = await _appDbContext.Trainings
+            .Include(candidate => candidate.Files)
+            .FirstAsync(candidate => candidate.Id == request.TrainingId, cancellationToken);
+
+        var file = trainingEntity.RemoveFile(request.FileId);
+        if (file is null)
+        {
+            return Result<Guid>.NotFound(
+                $"No file found with Id {request.FileId} on training {request.TrainingId}.");
+        }
+
+        // Drop the bytes first. Delete is idempotent, so a failed save can be retried.
+        await _fileStorage.DeleteAsync(file.StorageKey, cancellationToken);
+        await _appDbContext.SaveChangesAsync(cancellationToken);
+
+        return Result<Guid>.Ok(file.Id);
     }
 
     private static string NameTakenMessage(string name) =>

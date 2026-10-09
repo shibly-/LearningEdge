@@ -25,7 +25,7 @@ describe('validateTrainingFiles', () => {
 
   it('enforces the per-file and per-request limits', () => {
     expect(validateTrainingFiles([file('big.pdf', TRAINING_FILE_RULES.maxFileBytes + 1)])).toMatch(
-      /larger than 20 MB/,
+      /larger than 50 MB/,
     );
 
     const tooMany = Array.from({ length: TRAINING_FILE_RULES.maxFiles + 1 }, (_, i) =>

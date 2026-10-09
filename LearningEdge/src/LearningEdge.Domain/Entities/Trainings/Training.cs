@@ -34,4 +34,20 @@ public sealed class Training : BaseEntity<Guid>
         _files.Add(file);
         return file;
     }
+
+    /// <summary>
+    /// Soft-deletes the file so it drops out of queries. The row stays on <c>TrainingFile</c>.
+    /// Returns null when this training does not have that file.
+    /// </summary>
+    public TrainingFile? RemoveFile(Guid fileId)
+    {
+        var file = _files.FirstOrDefault(candidate => candidate.Id == fileId);
+        if (file is null)
+        {
+            return null;
+        }
+
+        file.SoftDelete();
+        return file;
+    }
 }

@@ -1,4 +1,5 @@
 using LearningEdge.Api.Extensions;
+using MassTransit;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 
@@ -31,7 +32,26 @@ try
         .AddLoggingService(builder.Configuration)
         .AddRateLimiterService()
         .AddControllers();
-               
+
+
+    // Configure MassTransit with RabbitMQ
+    //builder.Services.AddMassTransit(x =>
+    //{
+    //    // Automatically register all consumers in the executing assembly
+    //    x.AddConsumers(typeof(Program).Assembly);
+
+    //    x.UsingRabbitMq((context, cfg) =>
+    //    {
+    //        cfg.Host("localhost", "/", h =>
+    //        {
+    //            h.Username("guest");
+    //            h.Password("guest");
+    //        });
+    //    });
+    //});
+
+    //builder.Services.AddMassTransitHostedService();
+
 
     // Build the application
     var app = builder.Build();

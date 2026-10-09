@@ -12,7 +12,7 @@ import {
   imports: [PlatformUserDirectoryComponent],
   template: `
     <app-platform-user-directory
-      heading="Users & staff"
+      heading="Users & Staff"
       subtitle="Staff and trainees across all organizations."
       [scopes]="scopes"
     />

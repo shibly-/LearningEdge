@@ -12,7 +12,7 @@ import {
   imports: [RouterLink, PlatformUserDirectoryComponent],
   template: `
     <app-platform-user-directory
-      heading="Organization admins"
+      heading="Organization Admins"
       subtitle="Administrators of every organization on the platform."
       emptyMessage="No organization admins yet. Add one to let a tenant manage its own users."
       [scopes]="scopes"

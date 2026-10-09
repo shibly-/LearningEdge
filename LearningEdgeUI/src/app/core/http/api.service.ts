@@ -41,6 +41,16 @@ export class ApiService {
   postForm<TResult>(url: string, form: FormData): Observable<TResult> {
     return this.http.post<TResult>(url, form).pipe(catchError(toApiFailure));
   }
+
+  /** Delete endpoints return 204 with an empty body. */
+  delete(url: string): Observable<void> {
+    return this.http
+      .delete(url, { observe: 'response', responseType: 'text' })
+      .pipe(
+        map(() => undefined),
+        catchError(toApiFailure),
+      );
+  }
 }
 
 function readCreatedId(body: unknown): string {

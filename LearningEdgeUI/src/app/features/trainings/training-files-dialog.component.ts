@@ -15,6 +15,7 @@ import {
   TRAINING_FILE_RULES,
   validateTrainingFiles,
   type Training,
+  type TrainingFile,
 } from '../../core/models/training';
 import { UserRole } from '../../core/models/user-role';
 import { TrainingStore } from '../../core/stores/training.store';
@@ -37,9 +38,26 @@ const UPLOAD_ROLES: readonly UserRole[] = [UserRole.OrgAdmin, UserRole.SysAdmin]
           @for (file of current().files; track file.id) {
             <li>
               <span class="name">{{ file.fileName }}</span>
-              <span class="muted">
-                {{ file.sizeBytes / 1024 | number: '1.0-0' }} KB ·
-                {{ file.createdAt | date: 'mediumDate' }}
+              <span class="file-meta">
+                <span class="muted">
+                  {{ file.sizeBytes / 1024 | number: '1.0-0' }} KB ·
+                  {{ file.createdAt | date: 'mediumDate' }}
+                </span>
+                @if (canUpload()) {
+                  <button
+                    type="button"
+                    class="le-btn le-btn-danger le-btn-sm"
+                    [attr.aria-label]="'Remove ' + file.fileName"
+                    [disabled]="store.removingFileId() !== null || store.isUploading()"
+                    (click)="remove(file)"
+                  >
+                    @if (store.removingFileId() === file.id) {
+                      <app-spinner [size]="14" label="Removing" />
+                    } @else {
+                      <span>Remove</span>
+                    }
+                  </button>
+                }
               </span>
             </li>
           }
@@ -55,7 +73,7 @@ const UPLOAD_ROLES: readonly UserRole[] = [UserRole.OrgAdmin, UserRole.SysAdmin]
         >
           <h3 id="training-files-heading">Upload files</h3>
           <p class="muted">
-            PDF, DOCX or TXT · up to {{ rules.maxFiles }} files, 20 MB each, 100 MB in total.
+            PDF, DOCX or TXT · up to {{ rules.maxFiles }} files, 50 MB each, 100 MB in total.
           </p>
           <button type="button" class="le-btn le-btn-secondary" (click)="browse()">
             Choose files
@@ -76,10 +94,20 @@ const UPLOAD_ROLES: readonly UserRole[] = [UserRole.OrgAdmin, UserRole.SysAdmin]
 
         @if (selected().length > 0) {
           <ul class="files" aria-label="Selected files">
-            @for (file of selected(); track file.name) {
+            @for (file of selected(); track $index) {
               <li>
                 <span class="name">{{ file.name }}</span>
-                <span class="muted">{{ file.size / 1024 | number: '1.0-0' }} KB</span>
+                <span class="file-meta">
+                  <span class="muted">{{ file.size / 1024 | number: '1.0-0' }} KB</span>
+                  <button
+                    type="button"
+                    class="le-btn le-btn-secondary le-btn-sm"
+                    [attr.aria-label]="'Remove ' + file.name + ' from selection'"
+                    (click)="unselect($index)"
+                  >
+                    Remove
+                  </button>
+                </span>
               </li>
             }
           </ul>
@@ -96,7 +124,9 @@ const UPLOAD_ROLES: readonly UserRole[] = [UserRole.OrgAdmin, UserRole.SysAdmin]
           <button
             type="button"
             class="le-btn"
-            [disabled]="store.isUploading() || selected().length === 0"
+            [disabled]="
+              store.isUploading() || store.removingFileId() !== null || selected().length === 0
+            "
             (click)="upload()"
           >
             @if (store.isUploading()) {
@@ -121,10 +151,18 @@ const UPLOAD_ROLES: readonly UserRole[] = [UserRole.OrgAdmin, UserRole.SysAdmin]
 
     .files li {
       display: flex;
+      align-items: center;
       justify-content: space-between;
       gap: 12px;
       padding: 6px 0;
       border-bottom: 1px solid var(--le-border);
+    }
+
+    .file-meta {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      gap: 10px;
     }
 
     .name {
@@ -200,6 +238,32 @@ export class TrainingFilesDialogComponent {
   protected select(files: readonly File[]): void {
     this.selected.set(files);
     this.problem.set(validateTrainingFiles(files));
+  }
+
+  protected unselect(index: number): void {
+    const next = this.selected().filter((_, i) => i !== index);
+    this.selected.set(next);
+    this.problem.set(next.length === 0 ? null : validateTrainingFiles(next));
+  }
+
+  protected remove(file: TrainingFile): void {
+    const user = this.auth.currentUser();
+    if (user === null) {
+      this.problem.set('Sign in again to remove files.');
+      return;
+    }
+
+    const training = this.current();
+    this.store.removeFile(
+      {
+        organizationId: training.organizationId,
+        categoryId: training.categoryId,
+        trainingId: training.id,
+        fileId: file.id,
+        removedByUserId: user.id,
+      },
+      () => this.problem.set(null),
+    );
   }
 
   protected upload(): void {

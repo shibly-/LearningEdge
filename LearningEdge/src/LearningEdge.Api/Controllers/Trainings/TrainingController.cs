@@ -118,6 +118,35 @@ public class TrainingController : ControllerBase
         }
     }
 
+    // DELETE: api/v1/category/{categoryId}/training/{id}/files/{fileId}?removedByUserId=
+    [HttpDelete("{id:guid}/files/{fileId:guid}")]
+    [MapToApiVersion("1.0")]
+    [EndpointSummary("Remove a file from a training")]
+    [EndpointDescription(
+        "Soft-deletes the TrainingFile row (IsDeleted) and deletes the stored bytes. " +
+        "'removedByUserId' must be an OrgAdmin of the training's organization or a SysAdmin.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RemoveFile(
+        Guid categoryId,
+        Guid id,
+        Guid fileId,
+        [FromQuery] Guid removedByUserId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(
+            new RemoveTrainingFileCommand(categoryId, id, fileId, removedByUserId),
+            cancellationToken);
+        if (!result.Success)
+        {
+            return result.ToErrorResult();
+        }
+
+        return NoContent();
+    }
+
     // GET: api/v1/category/{categoryId}/training
     [HttpGet]
     [MapToApiVersion("1.0")]

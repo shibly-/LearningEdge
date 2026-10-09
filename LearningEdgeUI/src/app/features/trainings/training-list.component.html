@@ -147,6 +147,44 @@
           <span>Active</span>
         </label>
 
+        @if (editing(); as training) {
+          <section class="uploaded" aria-labelledby="training-uploaded-heading">
+            <h3 id="training-uploaded-heading">Uploaded files</h3>
+            @if (training.files.length === 0) {
+              <p class="muted">No files uploaded yet.</p>
+            } @else {
+              <ul class="files" aria-label="Uploaded files">
+                @for (file of training.files; track file.id) {
+                  <li>
+                    <span class="name">{{ file.fileName }}</span>
+                    <span class="file-meta">
+                      <span class="muted">
+                        {{ file.sizeBytes / 1024 | number: '1.0-0' }} KB ·
+                        {{ file.createdAt | date: 'mediumDate' }}
+                      </span>
+                      @if (canRemoveFiles()) {
+                        <button
+                          type="button"
+                          class="le-btn le-btn-danger le-btn-sm"
+                          [attr.aria-label]="'Remove ' + file.fileName"
+                          [disabled]="store.removingFileId() !== null"
+                          (click)="removeFile(training, file)"
+                        >
+                          @if (store.removingFileId() === file.id) {
+                            <app-spinner [size]="14" label="Removing" />
+                          } @else {
+                            <span>Remove</span>
+                          }
+                        </button>
+                      }
+                    </span>
+                  </li>
+                }
+              </ul>
+            }
+          </section>
+        }
+
         <div class="actions">
           <button type="button" class="le-btn le-btn-secondary" (click)="close()">Cancel</button>
           <button type="submit" class="le-btn" [disabled]="store.isSaving()">

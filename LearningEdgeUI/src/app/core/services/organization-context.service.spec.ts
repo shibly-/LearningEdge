@@ -6,7 +6,7 @@ import { AuthService } from '../auth/auth.service';
 import { OrganizationContextService } from './organization-context.service';
 import { TenantResetBus } from './tenant-reset-bus';
 
-const ORG_A = '11111111-1111-1111-1111-111111111111';
+const ORG_A = 'dcd9946b-908d-459e-85c2-66b590c50ad2';
 const ORG_B = '22222222-2222-2222-2222-222222222222';
 
 function userWith(role: UserRole, organizationId: string | null): AuthUser {

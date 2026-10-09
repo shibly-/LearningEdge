@@ -70,3 +70,18 @@ public class UploadTrainingFilesCommandValidator : AbstractValidator<UploadTrain
         });
     }
 }
+
+public class RemoveTrainingFileCommandValidator : AbstractValidator<RemoveTrainingFileCommand>
+{
+    public RemoveTrainingFileCommandValidator()
+    {
+        RuleFor(x => x.CategoryId)
+            .NotEmpty().WithMessage("Category id is required.");
+        RuleFor(x => x.TrainingId)
+            .NotEmpty().WithMessage("Training id is required.");
+        RuleFor(x => x.FileId)
+            .NotEmpty().WithMessage("File id is required.");
+        RuleFor(x => x.RemovedByUserId)
+            .NotEmpty().WithMessage("User id is required.");
+    }
+}

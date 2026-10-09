@@ -43,8 +43,8 @@ export const TRAINING_LIMITS = { name: 100, description: 500 } as const;
 /** Mirrors TrainingFileRules on the server. */
 export const TRAINING_FILE_RULES = {
   extensions: ['.pdf', '.docx', '.txt'],
-  maxFiles: 10,
-  maxFileBytes: 20 * 1024 * 1024,
+  maxFiles: 5,
+  maxFileBytes: 50 * 1024 * 1024,
   maxTotalBytes: 100 * 1024 * 1024,
 } as const;
 
@@ -65,7 +65,7 @@ export function validateTrainingFiles(files: readonly File[]): string | null {
       return `${file.name} is empty.`;
     }
     if (file.size > TRAINING_FILE_RULES.maxFileBytes) {
-      return `${file.name} is larger than 20 MB.`;
+      return `${file.name} is larger than 50 MB.`;
     }
   }
   const total = files.reduce((sum, file) => sum + file.size, 0);
