@@ -163,7 +163,10 @@ export class TrainingStore extends AsyncCollectionStore<Training> {
       });
   }
 
-  extractFile(request: ExtractTrainingFileRequest): void {
+  extractFile(
+    request: ExtractTrainingFileRequest,
+    onExtracted: (files: readonly TrainingFile[]) => void,
+  ): void {
     if (this.extractingFile() !== null) {
       return;
     }
@@ -176,7 +179,17 @@ export class TrainingStore extends AsyncCollectionStore<Training> {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        next: () => this.toast.success(`Extract started for "${request.fileName}".`),
+        next: (files) => {
+          this.toast.success(`Extract started for "${request.fileName}".`);
+          const training = this.findById(request.trainingId);
+          if (training !== undefined) {
+            this.upsert(
+              { ...training, files },
+              (existing) => existing.id === training.id,
+            );
+          }
+          onExtracted(files);
+        },
         error: (error: unknown) => this.toast.error(describeError(error)),
       });
   }

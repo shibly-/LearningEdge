@@ -1,12 +1,35 @@
-/** A file attached to a training. */
+/** A file attached to a training. Mirrors TrainingFileDTO. */
 export interface TrainingFile {
   readonly id: string;
   readonly fileName: string;
   readonly contentType: string;
   readonly sizeBytes: number;
   readonly uploadedByUserId: string;
+  readonly isFileExtracted: boolean;
+  readonly isMCQGenerated: boolean;
+  readonly isFileExtractionStarted: boolean;
+  readonly isMCQGenerationStarted: boolean;
+  readonly isFileExtractionFailed: boolean;
+  readonly isMCQGenerationFailed: boolean;
+  readonly fileExtractionFailureMessage: string;
+  readonly mcqGenerationFailureMessage: string;
   readonly createdAt: string;
 }
+
+/** Status flags on a file before extract or MCQ generation has been requested. */
+export const TRAINING_FILE_IDLE = {
+  isFileExtracted: false,
+  isMCQGenerated: false,
+  isFileExtractionStarted: false,
+  isMCQGenerationStarted: false,
+  isFileExtractionFailed: false,
+  isMCQGenerationFailed: false,
+  fileExtractionFailureMessage: '',
+  mcqGenerationFailureMessage: '',
+} as const satisfies Omit<
+  TrainingFile,
+  'id' | 'fileName' | 'contentType' | 'sizeBytes' | 'uploadedByUserId' | 'createdAt'
+>;
 
 /** GET /api/v1/category/{categoryId}/training -> TrainingDTO[] */
 export interface Training {

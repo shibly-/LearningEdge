@@ -1,0 +1,14 @@
+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
+
+
+dotnet nuget add source "https://nuget.pkg.github.com/shibly-/index.json" --name "GitHub" --username "shibly-" --password "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" --store-password-in-clear-text
+  
+dotnet nuget push "bin/Release/LearningEdge.Messaging.Contracts.1.0.0.nupkg" --source "GitHub" --api-key "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" --skip-duplicate
+
+
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <add key="GitHub" value="https://nuget.pkg.github.com/shibly-/index.json" />    
+  </packageSources>
+</configuration>

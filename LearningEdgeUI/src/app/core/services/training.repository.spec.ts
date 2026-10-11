@@ -5,7 +5,7 @@ import { firstValueFrom, type Observable } from 'rxjs';
 import { ApiFailure } from '../http/api-result';
 import { apiPaths } from '../http/api-paths';
 import type { Category } from '../models/category';
-import type { Training } from '../models/training';
+import { TRAINING_FILE_IDLE, type Training } from '../models/training';
 import { MockDb } from './mock/mock-db';
 import { HttpTrainingRepository, MockTrainingRepository } from './training.repository';
 
@@ -125,9 +125,10 @@ describe('HttpTrainingRepository', () => {
       `${apiPaths.training.extract('cat-1', 'trn-1', 'file-1')}?requestedByUserId=user-1`,
     );
     expect(request.request.method).toBe('GET');
-    request.flush({ message: 'File extract event published' });
+    const files = [{ ...sampleFile, isFileExtractionStarted: true }];
+    request.flush(files);
 
-    await expect(result).resolves.toEqual({ message: 'File extract event published' });
+    await expect(result).resolves.toEqual(files);
   });
 
   it('deletes a file with the acting user id', async () => {
@@ -258,8 +259,8 @@ describe('MockTrainingRepository', () => {
       }),
     );
 
-    expect(response.message).toBe('File extract event published');
-    expect(db.trainings[0].files).toHaveLength(1);
+    expect(response).toEqual([{ ...sampleFile, isFileExtractionStarted: true }]);
+    expect(db.trainings[0].files[0].isFileExtractionStarted).toBe(true);
   });
 
   it('rejects extract when the file is not on the training', async () => {
@@ -326,6 +327,7 @@ describe('MockTrainingRepository', () => {
 });
 
 const sampleFile = {
+  ...TRAINING_FILE_IDLE,
   id: 'f-1',
   fileName: 'a.pdf',
   contentType: 'application/pdf',

@@ -187,9 +187,9 @@ public class TrainingController : ControllerBase
     // GET: api/v1/category/{categoryId}/training/{id}/extract/{fileId}?requestedByUserId=
     [HttpGet("{id:guid}/extract/{fileId:guid}")]
     [MapToApiVersion("1.0")]
-    [ProducesResponseType(typeof(IExtractRequestSubmitted), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IReadOnlyList<TrainingFileDTO>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<IExtractRequestSubmitted>> Extract(
+    public async Task<ActionResult<IReadOnlyList<TrainingFileDTO>>> Extract(
         Guid categoryId,
         Guid id,
         Guid fileId,

@@ -51,8 +51,21 @@ h2 {
   padding-bottom: 0;
 }
 
+.file-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
 .name {
   overflow-wrap: anywhere;
+}
+
+.failure {
+  margin: 0;
+  color: var(--le-danger);
+  font-size: 0.85rem;
 }
 
 .file-meta {

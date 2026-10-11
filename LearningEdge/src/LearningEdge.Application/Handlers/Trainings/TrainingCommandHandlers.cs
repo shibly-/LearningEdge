@@ -300,7 +300,8 @@ public class TrainingCommandHandlers :
 
         await _appDbContext.SaveChangesAsync(cancellationToken);
 
-        return Result<IReadOnlyList<TrainingFileDTO>>.Ok(_mapper.Map<List<TrainingFileDTO>>(trainingEntity));
+        return Result<IReadOnlyList<TrainingFileDTO>>.Ok(
+            _mapper.Map<List<TrainingFileDTO>>(trainingEntity.Files));
     }
 
     private static string NameTakenMessage(string name) =>

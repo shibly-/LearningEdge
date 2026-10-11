@@ -150,6 +150,10 @@ namespace LearningEdge.Infrastructure.Migrations.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("FileExtractionFailureMessage")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -161,14 +165,24 @@ namespace LearningEdge.Infrastructure.Migrations.Migrations
                     b.Property<bool>("IsFileExtracted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsFileExtractionFailed")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsFileExtractionStarted")
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsMCQGenerated")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsMCQGenerationFailed")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsMCQGenerationStarted")
                         .HasColumnType("bit");
+
+                    b.Property<string>("MCQGenerationFailureMessage")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint");

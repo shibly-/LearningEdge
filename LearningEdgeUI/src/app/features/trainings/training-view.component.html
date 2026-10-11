@@ -43,26 +43,36 @@
           <ul class="files">
             @for (file of current.files; track file.id) {
               <li>
-                <span class="name">{{ file.fileName }}</span>
+                <div class="file-copy">
+                  <span class="name">{{ file.fileName }}</span>
+                  @if (file.isFileExtractionFailed && file.fileExtractionFailureMessage) {
+                    <p class="failure">{{ file.fileExtractionFailureMessage }}</p>
+                  }
+                </div>
                 <span class="file-meta">
                   <span class="muted">
                     {{ file.sizeBytes / 1024 | number: '1.0-0' }} KB ·
                     {{ file.createdAt | date: 'mediumDate' }}
                   </span>
-                  <button
-                    type="button"
-                    class="le-btn le-btn-sm"
-                    [attr.aria-label]="'Extract ' + file.fileName"
-                    [disabled]="store.extractingFileId() !== null"
-                    (click)="extract(file)"
-                  >
-                    @if (store.extractingFileId() === file.id) {
-                      <app-spinner [size]="14" label="Extracting" />
-                      <span>Extracting…</span>
-                    } @else {
-                      <span>Extract</span>
-                    }
-                  </button>
+                  @if (extractionBadge(file); as badge) {
+                    <app-badge [status]="badge.status" [text]="badge.text" />
+                  }
+                  @if (canRequestExtract(file)) {
+                    <button
+                      type="button"
+                      class="le-btn le-btn-sm"
+                      [attr.aria-label]="'Extract ' + file.fileName"
+                      [disabled]="store.extractingFileId() !== null"
+                      (click)="extract(file)"
+                    >
+                      @if (store.extractingFileId() === file.id) {
+                        <app-spinner [size]="14" label="Extracting" />
+                        <span>Extracting…</span>
+                      } @else {
+                        <span>Extract</span>
+                      }
+                    </button>
+                  }
                 </span>
               </li>
             }

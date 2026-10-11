@@ -5,6 +5,7 @@ import { ApiFailure } from '../http/api-result';
 import { apiPaths } from '../http/api-paths';
 import type { Category } from '../models/category';
 import {
+  TRAINING_FILE_IDLE,
   validateTrainingFiles,
   type CreateTrainingCommand,
   type Training,
@@ -39,10 +40,6 @@ export interface ExtractTrainingFileRequest {
   readonly fileName: string;
 }
 
-export interface FileExtractResponse {
-  readonly message: string;
-}
-
 export abstract class TrainingRepository {
   abstract listByOrganization(organizationId: string): Observable<readonly Training[]>;
   abstract listByCategory(
@@ -58,7 +55,7 @@ export abstract class TrainingRepository {
   abstract update(command: UpdateTrainingCommand): Observable<Training>;
   abstract uploadFiles(request: UploadTrainingFilesRequest): Observable<readonly TrainingFile[]>;
   abstract removeFile(request: RemoveTrainingFileRequest): Observable<void>;
-  abstract extractFile(request: ExtractTrainingFileRequest): Observable<FileExtractResponse>;
+  abstract extractFile(request: ExtractTrainingFileRequest): Observable<readonly TrainingFile[]>;
 }
 
 /** TrainingDTO as the API returns it: no organizationId. */
@@ -128,9 +125,9 @@ export class HttpTrainingRepository extends TrainingRepository {
     return this.api.delete(url);
   }
 
-  override extractFile(request: ExtractTrainingFileRequest): Observable<FileExtractResponse> {
+  override extractFile(request: ExtractTrainingFileRequest): Observable<readonly TrainingFile[]> {
     const url = `${apiPaths.training.extract(request.categoryId, request.trainingId, request.fileId)}?requestedByUserId=${encodeURIComponent(request.requestedByUserId)}`;
-    return this.api.get<FileExtractResponse>(url);
+    return this.api.get<readonly TrainingFile[]>(url);
   }
 }
 
@@ -238,6 +235,7 @@ export class MockTrainingRepository extends TrainingRepository {
 
     const now = new Date().toISOString();
     const added: TrainingFile[] = request.files.map((file) => ({
+      ...TRAINING_FILE_IDLE,
       id: this.db.nextGuid(),
       fileName: file.name,
       contentType: CONTENT_TYPES[file.name.split('.').pop()?.toLowerCase() ?? ''] ?? 'text/plain',
@@ -274,7 +272,7 @@ export class MockTrainingRepository extends TrainingRepository {
     return of(undefined).pipe(delay(MOCK_LATENCY_MS));
   }
 
-  override extractFile(request: ExtractTrainingFileRequest): Observable<FileExtractResponse> {
+  override extractFile(request: ExtractTrainingFileRequest): Observable<readonly TrainingFile[]> {
     const training = this.db.trainings.find(
       (t) => t.id === request.trainingId && t.categoryId === request.categoryId,
     );
@@ -284,7 +282,22 @@ export class MockTrainingRepository extends TrainingRepository {
       );
     }
 
-    return of({ message: 'File extract event published' }).pipe(delay(MOCK_LATENCY_MS));
+    const files = training.files.map((file) =>
+      file.id === request.fileId
+        ? {
+            ...file,
+            isFileExtractionStarted: true,
+            isFileExtractionFailed: false,
+            isMCQGenerated: false,
+            isMCQGenerationStarted: false,
+            isMCQGenerationFailed: false,
+            fileExtractionFailureMessage: '',
+            mcqGenerationFailureMessage: '',
+          }
+        : file,
+    );
+    this.replace({ ...training, files });
+    return of(files).pipe(delay(MOCK_LATENCY_MS));
   }
 
   private replace(training: Training): void {

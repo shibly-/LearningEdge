@@ -103,13 +103,40 @@ export class TrainingViewComponent {
       return;
     }
 
-    this.store.extractFile({
-      categoryId: training.categoryId,
-      trainingId: training.id,
-      fileId: file.id,
-      requestedByUserId: user.id,
-      fileName: file.fileName,
-    });
+    this.store.extractFile(
+      {
+        categoryId: training.categoryId,
+        trainingId: training.id,
+        fileId: file.id,
+        requestedByUserId: user.id,
+        fileName: file.fileName,
+      },
+      (files) => {
+        const current = this.trainingState();
+        if (current === null) {
+          return;
+        }
+        this.trainingState.set({ ...current, files });
+      },
+    );
+  }
+
+  /** Extract can be requested again after a failure. A started or finished extract stays as-is. */
+  protected canRequestExtract(file: TrainingFile): boolean {
+    return !file.isFileExtracted && (!file.isFileExtractionStarted || file.isFileExtractionFailed);
+  }
+
+  protected extractionBadge(file: TrainingFile): { status: string; text: string } | null {
+    if (file.isFileExtracted) {
+      return { status: 'complete', text: 'Extracted' };
+    }
+    if (file.isFileExtractionFailed) {
+      return { status: 'failed', text: 'Extract failed' };
+    }
+    if (file.isFileExtractionStarted) {
+      return { status: 'parsing', text: 'Extracting' };
+    }
+    return null;
   }
 
   protected load(): void {

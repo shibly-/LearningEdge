@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LearningEdge.Domain\LearningEdge.Domain.csproj" />
-    <ProjectReference Include="..\LearningEdge.Messaging.Contracts\LearningEdge.Messaging.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -12,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+	<PackageReference Include="LearningEdge.Messaging.Contracts" />
 	<PackageReference Include="MediatR" />
 	<PackageReference Include="AutoMapper" />
 	<PackageReference Include="FluentValidation" />

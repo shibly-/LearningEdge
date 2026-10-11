@@ -1,5 +1,6 @@
 using LearningEdge.Api.Extensions;
 using MassTransit;
+using Microsoft.EntityFrameworkCore.Design.Internal;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 
@@ -54,6 +55,10 @@ try
 
             // Automatically configure endpoints for all registered consumers
             cfg.ConfigureEndpoints(context);
+
+            cfg.Durable = true;
+            cfg.AutoDelete = false;            
+            cfg.Exclusive = false;
         });
     });
 

@@ -143,6 +143,14 @@ function bool(record: Record<string, unknown>, key: string, field: string): bool
   return value;
 }
 
+/** Absent flags default to false so older mock files still load. */
+function optionalBool(record: Record<string, unknown>, key: string, field: string): boolean {
+  if (record[key] === undefined) {
+    return false;
+  }
+  return bool(record, key, field);
+}
+
 function oneOf<T extends string>(
   record: Record<string, unknown>,
   key: string,
@@ -220,6 +228,14 @@ function parseTrainingFile(entry: unknown, field: string, now: Date): TrainingFi
     contentType: str(record, 'contentType', field),
     sizeBytes: num(record, 'sizeBytes', field),
     uploadedByUserId: str(record, 'uploadedByUserId', field),
+    isFileExtracted: optionalBool(record, 'isFileExtracted', field),
+    isMCQGenerated: optionalBool(record, 'isMCQGenerated', field),
+    isFileExtractionStarted: optionalBool(record, 'isFileExtractionStarted', field),
+    isMCQGenerationStarted: optionalBool(record, 'isMCQGenerationStarted', field),
+    isFileExtractionFailed: optionalBool(record, 'isFileExtractionFailed', field),
+    isMCQGenerationFailed: optionalBool(record, 'isMCQGenerationFailed', field),
+    fileExtractionFailureMessage: optionalStr(record, 'fileExtractionFailureMessage'),
+    mcqGenerationFailureMessage: optionalStr(record, 'mcqGenerationFailureMessage'),
     createdAt: resolveDate(record['createdAt'], `${field}.createdAt`, now),
   };
 }
