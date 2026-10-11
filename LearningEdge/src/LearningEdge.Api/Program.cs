@@ -34,23 +34,28 @@ try
         .AddControllers();
 
 
-    // Configure MassTransit with RabbitMQ
-    //builder.Services.AddMassTransit(x =>
-    //{
-    //    // Automatically register all consumers in the executing assembly
-    //    x.AddConsumers(typeof(Program).Assembly);
+    // Register MassTransit
+    builder.Services.AddMassTransit(x =>
+    {
+        // 1. Register your consumers here (if you have any)
+        // x.AddConsumer<YourMessageConsumer>();
 
-    //    x.UsingRabbitMq((context, cfg) =>
-    //    {
-    //        cfg.Host("localhost", "/", h =>
-    //        {
-    //            h.Username("guest");
-    //            h.Password("guest");
-    //        });
-    //    });
-    //});
+        // 2. Configure the transport (e.g., RabbitMQ)
+        x.UsingRabbitMq((context, cfg) =>
+        {
+            // "rabbitmq" is the service name defined in docker-compose.yml
+            //cfg.Host("rabbitmq", "/", h =>
+            // when running the API outside of docker
+            cfg.Host("localhost", "/", h =>
+            {
+                h.Username("guest");
+                h.Password("guest");
+            });
 
-    //builder.Services.AddMassTransitHostedService();
+            // Automatically configure endpoints for all registered consumers
+            cfg.ConfigureEndpoints(context);
+        });
+    });
 
 
     // Build the application

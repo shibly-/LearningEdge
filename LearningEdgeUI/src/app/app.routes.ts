@@ -191,6 +191,16 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'trainings/:categoryId/:trainingId',
+        canActivate: [roleGuard, tenantGuard],
+        data: { roles: [UserRole.OrgAdmin, UserRole.Instructor] },
+        title: 'Training · LearningEdge',
+        loadComponent: () =>
+          import('./features/trainings/training-view.component').then(
+            (m) => m.TrainingViewComponent,
+          ),
+      },
+      {
         path: 'processing',
         canActivate: [roleGuard, tenantGuard],
         data: { roles: [UserRole.OrgAdmin, UserRole.Instructor] },

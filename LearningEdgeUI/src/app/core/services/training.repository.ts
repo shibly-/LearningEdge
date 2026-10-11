@@ -30,6 +30,19 @@ export interface RemoveTrainingFileRequest {
   readonly removedByUserId: string;
 }
 
+/** `fileName` is only used for the confirmation message; the API identifies the file by id. */
+export interface ExtractTrainingFileRequest {
+  readonly categoryId: string;
+  readonly trainingId: string;
+  readonly fileId: string;
+  readonly requestedByUserId: string;
+  readonly fileName: string;
+}
+
+export interface FileExtractResponse {
+  readonly message: string;
+}
+
 export abstract class TrainingRepository {
   abstract listByOrganization(organizationId: string): Observable<readonly Training[]>;
   abstract listByCategory(
@@ -45,6 +58,7 @@ export abstract class TrainingRepository {
   abstract update(command: UpdateTrainingCommand): Observable<Training>;
   abstract uploadFiles(request: UploadTrainingFilesRequest): Observable<readonly TrainingFile[]>;
   abstract removeFile(request: RemoveTrainingFileRequest): Observable<void>;
+  abstract extractFile(request: ExtractTrainingFileRequest): Observable<FileExtractResponse>;
 }
 
 /** TrainingDTO as the API returns it: no organizationId. */
@@ -112,6 +126,11 @@ export class HttpTrainingRepository extends TrainingRepository {
   override removeFile(request: RemoveTrainingFileRequest): Observable<void> {
     const url = `${apiPaths.training.file(request.categoryId, request.trainingId, request.fileId)}?removedByUserId=${encodeURIComponent(request.removedByUserId)}`;
     return this.api.delete(url);
+  }
+
+  override extractFile(request: ExtractTrainingFileRequest): Observable<FileExtractResponse> {
+    const url = `${apiPaths.training.extract(request.categoryId, request.trainingId, request.fileId)}?requestedByUserId=${encodeURIComponent(request.requestedByUserId)}`;
+    return this.api.get<FileExtractResponse>(url);
   }
 }
 
@@ -253,6 +272,19 @@ export class MockTrainingRepository extends TrainingRepository {
       files: training.files.filter((file) => file.id !== request.fileId),
     });
     return of(undefined).pipe(delay(MOCK_LATENCY_MS));
+  }
+
+  override extractFile(request: ExtractTrainingFileRequest): Observable<FileExtractResponse> {
+    const training = this.db.trainings.find(
+      (t) => t.id === request.trainingId && t.categoryId === request.categoryId,
+    );
+    if (training === undefined || !training.files.some((file) => file.id === request.fileId)) {
+      return throwError(
+        () => new ApiFailure('not-found', `No file found with Id ${request.fileId}.`, 404),
+      );
+    }
+
+    return of({ message: 'File extract event published' }).pipe(delay(MOCK_LATENCY_MS));
   }
 
   private replace(training: Training): void {

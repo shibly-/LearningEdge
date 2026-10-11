@@ -1,0 +1,24 @@
+
+1) Adding/Updating/Removing/Altering a column via EF Core
+
+-- 	at first, update your entity class  
+	Add/Update/Remove property to your model:
+
+	Example:
+	public class Training
+	{
+		public Guid Id { get; set; }
+		public string Name { get; set; }
+
+		// New field
+		public string Description { get; set; }
+	}
+
+2) Create a migration files: 
+
+dotnet ef migrations add First_Migration --project LearningEdge.Infrastructure.Migrations --startup-project LearningEdge.Api
+
+
+3) Update the MS SQL server for the above changes: 
+
+dotnet ef database update --project LearningEdge.Infrastructure.Migrations --startup-project LearningEdge.Api

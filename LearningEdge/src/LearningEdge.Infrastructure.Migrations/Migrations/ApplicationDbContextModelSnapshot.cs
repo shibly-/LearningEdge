@@ -158,6 +158,18 @@ namespace LearningEdge.Infrastructure.Migrations.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsFileExtracted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsFileExtractionStarted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsMCQGenerated")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsMCQGenerationStarted")
+                        .HasColumnType("bit");
+
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint");
 

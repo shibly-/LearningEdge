@@ -72,6 +72,13 @@
                 >
                   Files
                 </button>
+                <a
+                  class="le-btn le-btn-secondary le-btn-sm"
+                  [routerLink]="['/trainings', training.categoryId, training.id]"
+                  [attr.aria-label]="'View ' + training.name"
+                >
+                  View
+                </a>
                 <button
                   type="button"
                   class="le-btn le-btn-secondary le-btn-sm"

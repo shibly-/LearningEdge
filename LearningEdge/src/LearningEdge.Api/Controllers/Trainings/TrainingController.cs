@@ -4,6 +4,8 @@ using LearningEdge.Application.Common.Files;
 using LearningEdge.Application.Models.Commands.Trainings;
 using LearningEdge.Application.Models.DTOs;
 using LearningEdge.Application.Models.Queries.Trainings;
+using LearningEdge.Messaging.Contracts;
+using LearningEdge.Messaging.Contracts.Events;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,11 +19,12 @@ public class TrainingController : ControllerBase
     // Room for the multipart boundaries and form fields on top of the file bytes.
     private const long MaxUploadRequestBytes = TrainingFileRules.MaxTotalBytes + 1024 * 1024;
 
-    private readonly IMediator _mediator;
+    private readonly IMediator _mediator;    
 
+    // Publishing is optional so list and create keep working when the bus is not registered.
     public TrainingController(IMediator mediator)
     {
-        _mediator = mediator;
+        _mediator = mediator;        
     }
 
     // POST: api/v1/category/{categoryId}/training
@@ -172,6 +175,28 @@ public class TrainingController : ControllerBase
     public async Task<ActionResult<TrainingDTO>> GetById(Guid categoryId, Guid id, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new GetTrainingByIdQuery(categoryId, id), cancellationToken);
+        if (!result.Success)
+        {
+            return result.ToErrorResult();
+        }
+
+        return Ok(result.Data);
+    }
+
+
+    // GET: api/v1/category/{categoryId}/training/{id}/extract/{fileId}?requestedByUserId=
+    [HttpGet("{id:guid}/extract/{fileId:guid}")]
+    [MapToApiVersion("1.0")]
+    [ProducesResponseType(typeof(IExtractRequestSubmitted), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IExtractRequestSubmitted>> Extract(
+        Guid categoryId,
+        Guid id,
+        Guid fileId,
+        [FromQuery] Guid requestedByUserId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new UpdateTrainingInitiateFileExtractCommand(categoryId, id, fileId, requestedByUserId), cancellationToken);
         if (!result.Success)
         {
             return result.ToErrorResult();

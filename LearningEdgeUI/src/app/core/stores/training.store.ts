@@ -11,6 +11,7 @@ import { OrganizationContextService } from '../services/organization-context.ser
 import { ToastService } from '../services/toast.service';
 import {
   TrainingRepository,
+  type ExtractTrainingFileRequest,
   type RemoveTrainingFileRequest,
   type UploadTrainingFilesRequest,
 } from '../services/training.repository';
@@ -30,6 +31,9 @@ export class TrainingStore extends AsyncCollectionStore<Training> {
 
   private readonly removingFile = signal<string | null>(null);
   readonly removingFileId = this.removingFile.asReadonly();
+
+  private readonly extractingFile = signal<string | null>(null);
+  readonly extractingFileId = this.extractingFile.asReadonly();
 
   readonly active = computed(() => this.items().filter((t) => t.isActive));
   readonly inactive = computed(() => this.items().filter((t) => !t.isActive));
@@ -155,6 +159,24 @@ export class TrainingStore extends AsyncCollectionStore<Training> {
           }
           onRemoved();
         },
+        error: (error: unknown) => this.toast.error(describeError(error)),
+      });
+  }
+
+  extractFile(request: ExtractTrainingFileRequest): void {
+    if (this.extractingFile() !== null) {
+      return;
+    }
+    this.extractingFile.set(request.fileId);
+
+    this.repository
+      .extractFile(request)
+      .pipe(
+        finalize(() => this.extractingFile.set(null)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: () => this.toast.success(`Extract started for "${request.fileName}".`),
         error: (error: unknown) => this.toast.error(describeError(error)),
       });
   }

@@ -110,6 +110,26 @@ describe('HttpTrainingRepository', () => {
     await result;
   });
 
+  it('requests file extract with the acting user id', async () => {
+    const result = firstValueFrom(
+      repository.extractFile({
+        categoryId: 'cat-1',
+        trainingId: 'trn-1',
+        fileId: 'file-1',
+        requestedByUserId: 'user-1',
+        fileName: 'a.pdf',
+      }),
+    );
+
+    const request = http.expectOne(
+      `${apiPaths.training.extract('cat-1', 'trn-1', 'file-1')}?requestedByUserId=user-1`,
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush({ message: 'File extract event published' });
+
+    await expect(result).resolves.toEqual({ message: 'File extract event published' });
+  });
+
   it('deletes a file with the acting user id', async () => {
     const result = firstValueFrom(
       repository.removeFile({
@@ -223,6 +243,37 @@ describe('MockTrainingRepository', () => {
     expect(added[0].fileName).toBe('guide.docx');
     expect(added[0].sizeBytes).toBe(2048);
     expect(db.trainings[0].files).toHaveLength(1);
+  });
+
+  it('publishes an extract for a file on the training', async () => {
+    db.trainings = [{ ...training, files: [sampleFile] }];
+
+    const response = await settle(
+      repository.extractFile({
+        categoryId: 'cat-1',
+        trainingId: 'trn-1',
+        fileId: 'f-1',
+        requestedByUserId: 'user-1',
+        fileName: 'a.pdf',
+      }),
+    );
+
+    expect(response.message).toBe('File extract event published');
+    expect(db.trainings[0].files).toHaveLength(1);
+  });
+
+  it('rejects extract when the file is not on the training', async () => {
+    await expect(
+      settle(
+        repository.extractFile({
+          categoryId: 'cat-1',
+          trainingId: 'trn-1',
+          fileId: 'missing',
+          requestedByUserId: 'user-1',
+          fileName: 'a.pdf',
+        }),
+      ),
+    ).rejects.toMatchObject({ kind: 'not-found' });
   });
 
   it('drops a removed file and leaves the others', async () => {

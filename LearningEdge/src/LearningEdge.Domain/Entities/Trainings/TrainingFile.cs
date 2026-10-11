@@ -10,6 +10,14 @@ public sealed class TrainingFile : BaseEntity<Guid>
     public long SizeBytes { get; private set; }
     public string StorageKey { get; private set; }
     public Guid UploadedByUserId { get; private set; }
+    public bool IsFileExtracted { get; private set; }
+    public bool IsMCQGenerated { get; private set; }
+    public bool IsFileExtractionStarted { get; private set; }
+    public bool IsMCQGenerationStarted { get; private set; }
+    public bool IsFileExtractionFailed { get; private set; }
+    public bool IsMCQGenerationFailed { get; private set; }
+    public string FileExtractionFailureMessage { get; private set; } = string.Empty;
+    public string MCQGenerationFailureMessage { get; private set; } = string.Empty;
 
     internal TrainingFile(Guid trainingId, string fileName, string contentType, long sizeBytes, string storageKey, Guid uploadedByUserId)
     {
@@ -20,5 +28,46 @@ public sealed class TrainingFile : BaseEntity<Guid>
         SizeBytes = sizeBytes;
         StorageKey = storageKey ?? throw new ArgumentNullException(nameof(storageKey));
         UploadedByUserId = uploadedByUserId;
+        IsFileExtracted = false;
+        IsMCQGenerated = false;
+        IsFileExtractionStarted = false;
+        IsMCQGenerationStarted = false;
+        IsFileExtractionFailed = false;
+        IsMCQGenerationFailed = false;
+    }
+
+    public void MarkAsExtractionProcessStarted()
+    {
+        IsFileExtractionStarted = true;
+        
+        // reset other fields
+        IsFileExtractionFailed = false;
+        IsMCQGenerated = false;        
+        IsMCQGenerationStarted = false;
+        IsMCQGenerationFailed = false;
+
+        FileExtractionFailureMessage = string.Empty;
+        MCQGenerationFailureMessage = string.Empty;
+    }
+
+    public void MarkAsMCQGenerationProcessStarted()
+    {
+        IsMCQGenerationStarted = true;
+
+        // reset other fields        
+        IsMCQGenerated = false;
+        IsMCQGenerationFailed = false;
+
+        MCQGenerationFailureMessage = string.Empty;
+    }
+
+    public void MarkAsExtracted()
+    {
+        IsFileExtracted = true;
+    }
+
+    public void MarkAsMCQGenerated()
+    {   
+        IsMCQGenerated = true;
     }
 }

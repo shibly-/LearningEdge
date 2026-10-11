@@ -50,4 +50,56 @@ public sealed class Training : BaseEntity<Guid>
         file.SoftDelete();
         return file;
     }
+
+    public TrainingFile? FileExtractionIsInitiated(Guid fileId)
+    {
+        var file = _files.FirstOrDefault(candidate => candidate.Id == fileId);
+        if (file is null)
+        {
+            return null;
+        }
+
+        file.MarkAsExtractionProcessStarted();
+        MarkUpdated();
+        return file;
+    }
+
+    public TrainingFile? FileExtractionIsCompleted(Guid fileId)
+    {
+        var file = _files.FirstOrDefault(candidate => candidate.Id == fileId);
+        if (file is null)
+        {
+            return null;
+        }
+
+        file.MarkAsExtracted();
+        MarkUpdated();
+        return file;
+    }
+
+    public TrainingFile? MCQGenerationIsInitiated(Guid fileId)
+    {
+        var file = _files.FirstOrDefault(candidate => candidate.Id == fileId);
+        if (file is null)
+        {
+            return null;
+        }
+
+        file.MarkAsMCQGenerationProcessStarted();
+        MarkUpdated();
+        return file;
+    }
+
+    public TrainingFile? MCQGenerationIsCompleted(Guid fileId)
+    {
+        var file = _files.FirstOrDefault(candidate => candidate.Id == fileId);
+        if (file is null)
+        {
+            return null;
+        }
+
+        file.MarkAsMCQGenerated();
+        MarkUpdated();
+        return file;
+    }
 }

@@ -39,5 +39,7 @@ export const apiPaths = {
       `${base()}/category/${seg(categoryId)}/training/${seg(id)}/files`,
     file: (categoryId: string, trainingId: string, fileId: string) =>
       `${base()}/category/${seg(categoryId)}/training/${seg(trainingId)}/files/${seg(fileId)}`,
+    extract: (categoryId: string, trainingId: string, fileId: string) =>
+      `${base()}/category/${seg(categoryId)}/training/${seg(trainingId)}/extract/${seg(fileId)}`,
   },
 } as const;

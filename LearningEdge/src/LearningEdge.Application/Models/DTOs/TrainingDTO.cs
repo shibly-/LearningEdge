@@ -15,5 +15,13 @@ public record TrainingFileDTO(
     string ContentType,
     long SizeBytes,
     Guid UploadedByUserId,
+    bool IsFileExtracted,
+    bool IsMCQGenerated,
+    bool IsFileExtractionStarted,
+    bool IsMCQGenerationStarted,
+    bool IsFileExtractionFailed,
+    bool IsMCQGenerationFailed,
+    string FileExtractionFailureMessage,
+    string MCQGenerationFailureMessage,
     DateTime CreatedAt
 );

@@ -1,5 +1,6 @@
 using LearningEdge.Application.Common.Results;
 using LearningEdge.Application.Models.DTOs;
+using LearningEdge.Messaging.Contracts.Events;
 using MediatR;
 
 namespace LearningEdge.Application.Models.Commands.Trainings;
@@ -35,3 +36,10 @@ public record RemoveTrainingFileCommand(
     Guid FileId,
     Guid RemovedByUserId
 ) : IRequest<Result<Guid>>;
+
+public record UpdateTrainingInitiateFileExtractCommand(
+    Guid CategoryId,
+    Guid TrainingId,
+    Guid FileId,
+    Guid RequestedByUserId
+) : IRequest<Result<IReadOnlyList<TrainingFileDTO>>>;

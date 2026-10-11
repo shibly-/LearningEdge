@@ -13,6 +13,7 @@
     <Project Path="src/LearningEdge.Domain/LearningEdge.Domain.csproj" />
     <Project Path="src/LearningEdge.Infrastructure.Migrations/LearningEdge.Infrastructure.Migrations.csproj" Id="bbfdc0cc-089e-4c96-ad69-9cd19efa3c0f" />
     <Project Path="src/LearningEdge.Infrastructure/LearningEdge.Infrastructure.csproj" />
+    <Project Path="src/LearningEdge.Messaging.Contracts/LearningEdge.Messaging.Contracts.csproj" Id="cb775098-7cae-4dcd-8264-901469e6e4c1" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LearningEdge.Tests/LearningEdge.Tests.csproj" Id="59e4e3eb-3f47-4429-94fa-ad435851018d" />

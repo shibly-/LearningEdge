@@ -40,9 +40,7 @@
 	<PackageReference Include="Serilog.AspNetCore" />
 	<PackageReference Include="Serilog.Enrichers.Environment" />
 	<PackageReference Include="Serilog.Enrichers.Thread" />
-	<PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
-	<PackageReference Include="MassTransit" />
-    <PackageReference Include="MassTransit.RabbitMQ" />
+	<PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />	
   </ItemGroup>	
 
 </Project>

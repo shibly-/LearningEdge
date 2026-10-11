@@ -2,13 +2,17 @@ using AutoMapper;
 using LearningEdge.Application.Common.Exceptions;
 using LearningEdge.Application.Common.Files;
 using LearningEdge.Application.Common.Results;
+using LearningEdge.Application.Events;
 using LearningEdge.Application.Interfaces;
 using LearningEdge.Application.Models.Commands.Trainings;
 using LearningEdge.Application.Models.DTOs;
 using LearningEdge.Domain.Entities.Trainings;
+using LearningEdge.Messaging.Contracts.Events;
+using MassTransit;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using static LearningEdge.Domain.Common.Enums;
+using static System.Net.WebRequestMethods;
 
 namespace LearningEdge.Application.Handlers.Trainings;
 
@@ -16,17 +20,20 @@ public class TrainingCommandHandlers :
     IRequestHandler<CreateTrainingCommand, Result<Guid>>,
     IRequestHandler<UpdateTrainingCommand, Result<TrainingDTO>>,
     IRequestHandler<UploadTrainingFilesCommand, Result<IReadOnlyList<TrainingFileDTO>>>,
-    IRequestHandler<RemoveTrainingFileCommand, Result<Guid>>
+    IRequestHandler<RemoveTrainingFileCommand, Result<Guid>>,
+    IRequestHandler<UpdateTrainingInitiateFileExtractCommand, Result<IReadOnlyList<TrainingFileDTO>>>
 {
     private readonly IApplicationDbContext _appDbContext;
     private readonly IMapper _mapper;
     private readonly IFileStorage _fileStorage;
+    private readonly IPublishEndpoint? _publishEndpoint;
 
-    public TrainingCommandHandlers(IApplicationDbContext appDbContext, IMapper mapper, IFileStorage fileStorage)
+    public TrainingCommandHandlers(IApplicationDbContext appDbContext, IMapper mapper, IFileStorage fileStorage, IPublishEndpoint? publishEndpoint = null)
     {
         _appDbContext = appDbContext;
         _mapper = mapper;
         _fileStorage = fileStorage;
+        _publishEndpoint = publishEndpoint;
     }
 
     public async Task<Result<Guid>> Handle(CreateTrainingCommand request, CancellationToken cancellationToken)
@@ -227,6 +234,73 @@ public class TrainingCommandHandlers :
         await _appDbContext.SaveChangesAsync(cancellationToken);
 
         return Result<Guid>.Ok(file.Id);
+    }
+
+    public async Task<Result<IReadOnlyList<TrainingFileDTO>>> Handle(UpdateTrainingInitiateFileExtractCommand request, CancellationToken cancellationToken)
+    {
+        var organizationId = await (
+                 from training in _appDbContext.Trainings
+                 join category in _appDbContext.Categories on training.CategoryId equals category.Id
+                 where training.Id == request.TrainingId && training.CategoryId == request.CategoryId
+                 select (Guid?)category.OrganizationId)
+             .FirstOrDefaultAsync(cancellationToken);
+
+        if (organizationId is null)
+        {
+            return Result<IReadOnlyList<TrainingFileDTO>>.NotFound(
+                $"No training found with Id {request.TrainingId} in category {request.CategoryId}.");
+        }
+
+        var actor = await _appDbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(user => user.Id == request.RequestedByUserId, cancellationToken);
+
+        var isAdmin = actor is not null
+            && (actor.Role == UserRole.SysAdmin
+                || (actor.Role == UserRole.OrgAdmin && actor.OrganizationId == organizationId));
+
+        if (!isAdmin)
+        {
+            return Result<IReadOnlyList<TrainingFileDTO>>.Forbidden(
+                "Only an organization admin or system admin can request training extracts.");
+        }
+
+        var trainingEntity = await _appDbContext.Trainings
+            .Include(candidate => candidate.Files)
+            .FirstAsync(candidate => candidate.Id == request.TrainingId, cancellationToken);
+
+        // File extraction flag is enabled
+        var file = trainingEntity.FileExtractionIsInitiated(request.FileId);        
+        if (file is null)
+        {   
+            return Result<IReadOnlyList<TrainingFileDTO>>.NotFound(
+                $"No file found with File Id {request.FileId} on training {request.TrainingId}.");
+        }
+
+        // File will be soft deleted, so that no one can access it and remove it as the extract process will start through a designated microservice.
+        if (_publishEndpoint is null)
+        {
+            return Result<IReadOnlyList<TrainingFileDTO>>.NotFound(
+                $"No publish endpoint found for File Id {request.FileId} on training {request.TrainingId}.");
+        }
+
+        IExtractRequestSubmitted message = new ExtractRequestSubmitted (
+            FileId: request.FileId,
+            FileName: file.FileName,
+            ContentType: file.ContentType,
+            SizeBytes: file.SizeBytes,
+            CreatedAt: file.CreatedAt,
+            UploadedByUserId: file.UploadedByUserId,
+            RequestedByUserId: request.RequestedByUserId,
+            RequestedAt: DateTime.Now
+        );
+
+        // Publish the file extract event to RabbitMQ via MassTransit
+        await _publishEndpoint.Publish(message, cancellationToken);
+
+        await _appDbContext.SaveChangesAsync(cancellationToken);
+
+        return Result<IReadOnlyList<TrainingFileDTO>>.Ok(_mapper.Map<List<TrainingFileDTO>>(trainingEntity));
     }
 
     private static string NameTakenMessage(string name) =>

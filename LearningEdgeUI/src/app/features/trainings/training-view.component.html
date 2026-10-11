@@ -1,0 +1,74 @@
+<app-page-header [title]="headingText()" subtitle="Training details">
+  <a class="le-btn le-btn-secondary" routerLink="/trainings">Back to trainings</a>
+</app-page-header>
+
+@switch (state()) {
+  @case ('loading') {
+    <div class="le-card" style="padding: 18px">
+      <app-skeleton [count]="4" label="Loading training" />
+    </div>
+  }
+  @case ('error') {
+    <app-error-state [message]="errorMessage() ?? ''" (retry)="load()" />
+  }
+  @case ('missing') {
+    <app-empty-state
+      title="Training not found"
+      message="The record may have been removed, or the identifier in the URL is incorrect."
+    />
+  }
+  @case ('loaded') {
+    @if (training(); as current) {
+      <dl class="le-card detail">
+        <dt>Name</dt>
+        <dd>{{ current.name }}</dd>
+        <dt>Category</dt>
+        <dd>{{ categoryName() }}</dd>
+        <dt>Description</dt>
+        <dd>{{ current.description || '—' }}</dd>
+        <dt>Status</dt>
+        <dd>
+          <app-badge
+            [status]="current.isActive ? 'on' : 'off'"
+            [text]="current.isActive ? 'Active' : 'Inactive'"
+          />
+        </dd>
+      </dl>
+
+      <section class="le-card files-card" aria-labelledby="training-files-heading">
+        <h2 id="training-files-heading">Uploaded files</h2>
+        @if (current.files.length === 0) {
+          <p class="muted">No files uploaded yet.</p>
+        } @else {
+          <ul class="files">
+            @for (file of current.files; track file.id) {
+              <li>
+                <span class="name">{{ file.fileName }}</span>
+                <span class="file-meta">
+                  <span class="muted">
+                    {{ file.sizeBytes / 1024 | number: '1.0-0' }} KB ·
+                    {{ file.createdAt | date: 'mediumDate' }}
+                  </span>
+                  <button
+                    type="button"
+                    class="le-btn le-btn-sm"
+                    [attr.aria-label]="'Extract ' + file.fileName"
+                    [disabled]="store.extractingFileId() !== null"
+                    (click)="extract(file)"
+                  >
+                    @if (store.extractingFileId() === file.id) {
+                      <app-spinner [size]="14" label="Extracting" />
+                      <span>Extracting…</span>
+                    } @else {
+                      <span>Extract</span>
+                    }
+                  </button>
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    }
+  }
+}
