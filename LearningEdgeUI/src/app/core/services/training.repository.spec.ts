@@ -125,7 +125,7 @@ describe('HttpTrainingRepository', () => {
       `${apiPaths.training.extract('cat-1', 'trn-1', 'file-1')}?requestedByUserId=user-1`,
     );
     expect(request.request.method).toBe('GET');
-    const files = [{ ...sampleFile, isFileExtractionStarted: true }];
+    const files = [{ ...sampleFile, IsFileExtractionRequested: true }];
     request.flush(files);
 
     await expect(result).resolves.toEqual(files);
@@ -259,8 +259,8 @@ describe('MockTrainingRepository', () => {
       }),
     );
 
-    expect(response).toEqual([{ ...sampleFile, isFileExtractionStarted: true }]);
-    expect(db.trainings[0].files[0].isFileExtractionStarted).toBe(true);
+    expect(response).toEqual([{ ...sampleFile, IsFileExtractionRequested: true }]);
+    expect(db.trainings[0].files[0].IsFileExtractionRequested).toBe(true);
   });
 
   it('rejects extract when the file is not on the training', async () => {

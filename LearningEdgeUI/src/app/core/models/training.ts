@@ -7,6 +7,8 @@ export interface TrainingFile {
   readonly uploadedByUserId: string;
   readonly isFileExtracted: boolean;
   readonly isMCQGenerated: boolean;
+  readonly isFileExtractionRequested: boolean;
+  readonly isMCQGenerationRequested: boolean;
   readonly isFileExtractionStarted: boolean;
   readonly isMCQGenerationStarted: boolean;
   readonly isFileExtractionFailed: boolean;
@@ -20,6 +22,8 @@ export interface TrainingFile {
 export const TRAINING_FILE_IDLE = {
   isFileExtracted: false,
   isMCQGenerated: false,
+  isFileExtractionRequested: false,
+  isMCQGenerationRequested: false,
   isFileExtractionStarted: false,
   isMCQGenerationStarted: false,
   isFileExtractionFailed: false,

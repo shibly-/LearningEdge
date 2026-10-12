@@ -14,4 +14,5 @@ public interface IExtractRequestSubmitted
     Guid UploadedByUserId { get; }
     Guid RequestedByUserId { get; }
     DateTime RequestedAt { get; }
+    string? StorageKey { get; }
 }

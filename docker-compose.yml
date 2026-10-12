@@ -41,6 +41,31 @@ services:
     networks:
       - appnet
 
+  document-parser:
+    container_name: document-parser
+    build:
+      context: .
+      dockerfile: LearningEdgeMS/Dockerfile
+    volumes:
+      - uploads:/uploads
+      - km_documents:/km-documents
+    environment:
+      DOTNET_ENVIRONMENT: Docker
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__VirtualHost: /
+      RabbitMQ__Username: guest
+      RabbitMQ__Password: guest
+      FileStorage__RootPath: /uploads
+      KernelMemory__Qdrant__Endpoint: http://qdrant:6333
+      KernelMemory__DocumentStorageDirectory: /km-documents
+      KernelMemory__OpenAI__APIKey: ${OPENAI_API_KEY:-}
+    depends_on:
+      - rabbitmq
+      - qdrant
+    restart: on-failure
+    networks:
+      - appnet
+
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: sqlserver
@@ -90,8 +115,20 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - ./docker/rabbitmq/20-allow-guest.conf:/etc/rabbitmq/conf.d/20-allow-guest.conf:ro
     networks:
       - appnet  
+      
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - "6333:6333"   # REST API
+      - "6334:6334"   # gRPC API
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - appnet
 
 networks:
   appnet:
@@ -100,3 +137,5 @@ volumes:
   sqlvolume:
   uploads:
   rabbitmq_data:
+  qdrant_storage:
+  km_documents:

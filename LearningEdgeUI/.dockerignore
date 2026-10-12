@@ -1,0 +1,10 @@
+node_modules
+dist
+.angular
+out-tsc
+coverage
+.git
+.vscode
+*.log
+# Holds dev mock credentials and must never reach an image layer.
+src/environments/environment.development.ts

@@ -292,7 +292,8 @@ public class TrainingCommandHandlers :
             CreatedAt: file.CreatedAt,
             UploadedByUserId: file.UploadedByUserId,
             RequestedByUserId: request.RequestedByUserId,
-            RequestedAt: DateTime.Now
+            RequestedAt: DateTime.Now,
+            StorageKey: file.StorageKey
         );
 
         // Publish the file extract event to RabbitMQ via MassTransit

@@ -17,6 +17,8 @@ public record TrainingFileDTO(
     Guid UploadedByUserId,
     bool IsFileExtracted,
     bool IsMCQGenerated,
+    bool IsFileExtractionRequested,
+    bool IsMCQGenerationRequested,
     bool IsFileExtractionStarted,
     bool IsMCQGenerationStarted,
     bool IsFileExtractionFailed,

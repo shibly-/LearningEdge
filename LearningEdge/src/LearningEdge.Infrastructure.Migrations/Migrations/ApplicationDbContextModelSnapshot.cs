@@ -168,6 +168,9 @@ namespace LearningEdge.Infrastructure.Migrations.Migrations
                     b.Property<bool>("IsFileExtractionFailed")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsFileExtractionRequested")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsFileExtractionStarted")
                         .HasColumnType("bit");
 
@@ -175,6 +178,9 @@ namespace LearningEdge.Infrastructure.Migrations.Migrations
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsMCQGenerationFailed")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsMCQGenerationRequested")
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsMCQGenerationStarted")

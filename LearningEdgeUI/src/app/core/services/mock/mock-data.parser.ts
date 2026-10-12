@@ -230,6 +230,8 @@ function parseTrainingFile(entry: unknown, field: string, now: Date): TrainingFi
     uploadedByUserId: str(record, 'uploadedByUserId', field),
     isFileExtracted: optionalBool(record, 'isFileExtracted', field),
     isMCQGenerated: optionalBool(record, 'isMCQGenerated', field),
+    isFileExtractionRequested: optionalBool(record, 'isFileExtractionRequested', field),
+    isMCQGenerationRequested: optionalBool(record, 'isMCQGenerationRequested', field),
     isFileExtractionStarted: optionalBool(record, 'isFileExtractionStarted', field),
     isMCQGenerationStarted: optionalBool(record, 'isMCQGenerationStarted', field),
     isFileExtractionFailed: optionalBool(record, 'isFileExtractionFailed', field),

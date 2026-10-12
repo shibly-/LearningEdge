@@ -13,5 +13,6 @@ public record ExtractRequestSubmitted(
     DateTime CreatedAt,
     Guid UploadedByUserId,
     Guid RequestedByUserId,
-    DateTime RequestedAt
+    DateTime RequestedAt,
+    string? StorageKey
 ) : IExtractRequestSubmitted;

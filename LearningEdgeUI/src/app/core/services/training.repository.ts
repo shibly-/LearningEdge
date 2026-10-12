@@ -286,6 +286,8 @@ export class MockTrainingRepository extends TrainingRepository {
       file.id === request.fileId
         ? {
             ...file,
+            isFileExtractionRequested: true,
+            isMCQGenerationRequested: true,
             isFileExtractionStarted: true,
             isFileExtractionFailed: false,
             isMCQGenerated: false,

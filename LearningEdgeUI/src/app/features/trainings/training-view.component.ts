@@ -123,7 +123,7 @@ export class TrainingViewComponent {
 
   /** Extract can be requested again after a failure. A started or finished extract stays as-is. */
   protected canRequestExtract(file: TrainingFile): boolean {
-    return !file.isFileExtracted && (!file.isFileExtractionStarted || file.isFileExtractionFailed);
+    return !file.isFileExtracted && (!file.isFileExtractionRequested || file.isFileExtractionFailed);
   }
 
   protected extractionBadge(file: TrainingFile): { status: string; text: string } | null {
@@ -131,10 +131,10 @@ export class TrainingViewComponent {
       return { status: 'complete', text: 'Extracted' };
     }
     if (file.isFileExtractionFailed) {
-      return { status: 'failed', text: 'Extract failed' };
+      return { status: 'failed', text: 'Extract Failed' };
     }
-    if (file.isFileExtractionStarted) {
-      return { status: 'parsing', text: 'Extracting' };
+    if (file.isFileExtractionRequested) {
+      return { status: 'parsing', text: 'Extract Requested' };
     }
     return null;
   }

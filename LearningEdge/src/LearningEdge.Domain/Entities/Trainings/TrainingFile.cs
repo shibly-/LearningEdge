@@ -12,6 +12,8 @@ public sealed class TrainingFile : BaseEntity<Guid>
     public Guid UploadedByUserId { get; private set; }
     public bool IsFileExtracted { get; private set; }
     public bool IsMCQGenerated { get; private set; }
+    public bool IsFileExtractionRequested { get; private set; }
+    public bool IsMCQGenerationRequested { get; private set; }
     public bool IsFileExtractionStarted { get; private set; }
     public bool IsMCQGenerationStarted { get; private set; }
     public bool IsFileExtractionFailed { get; private set; }
@@ -30,6 +32,8 @@ public sealed class TrainingFile : BaseEntity<Guid>
         UploadedByUserId = uploadedByUserId;
         IsFileExtracted = false;
         IsMCQGenerated = false;
+        IsFileExtractionRequested = false;
+        IsMCQGenerationRequested = false;
         IsFileExtractionStarted = false;
         IsMCQGenerationStarted = false;
         IsFileExtractionFailed = false;
@@ -38,9 +42,10 @@ public sealed class TrainingFile : BaseEntity<Guid>
 
     public void MarkAsExtractionProcessStarted()
     {
-        IsFileExtractionStarted = true;
-        
+        IsFileExtractionRequested = true;
+
         // reset other fields
+        IsFileExtractionStarted = true;
         IsFileExtractionFailed = false;
         IsMCQGenerated = false;        
         IsMCQGenerationStarted = false;
@@ -52,9 +57,10 @@ public sealed class TrainingFile : BaseEntity<Guid>
 
     public void MarkAsMCQGenerationProcessStarted()
     {
-        IsMCQGenerationStarted = true;
+        IsMCQGenerationRequested = true;
 
         // reset other fields        
+        IsMCQGenerationStarted = false;
         IsMCQGenerated = false;
         IsMCQGenerationFailed = false;
 
