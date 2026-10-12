@@ -1,20 +1,25 @@
-﻿using LearningEdge.Messaging.Contracts.Events;
+﻿using LearningEdge.Application.Interfaces;
+using LearningEdge.Messaging.Contracts.Events;
 using MassTransit;
+using Microsoft.EntityFrameworkCore;
 //using Microsoft.KernelMemory;
 
-namespace LearningEdgeMS.DocumentParserService;
+namespace LearningEdgeMS.DocumentParserService.EventConsumers;
 
 public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmitted>
 {
+    private readonly IApplicationDbContext _appDbContext;
     //private readonly IKernelMemory _memory;
     private readonly DocumentParserSettings _settings;
-    private readonly ILogger<InitiateFileExtractConsumer> _logger;
+    private readonly ILogger<InitiateFileExtractConsumer> _logger;    
 
     public InitiateFileExtractConsumer(
+        IApplicationDbContext appDbContext,
         //IKernelMemory memory,
         DocumentParserSettings settings,
         ILogger<InitiateFileExtractConsumer> logger)
     {
+        _appDbContext = appDbContext;
         //_memory = memory;
         _settings = settings;
         _logger = logger;
@@ -34,6 +39,8 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
             "Starting extraction for {FileName} ({FileId})",
             fileName,
             message.FileId);
+
+        await MarkFileExtractionStartedAsync(message.FileId, context.CancellationToken);
 
         /*
         await using var content = File.OpenRead(filePath);
@@ -57,6 +64,20 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
             fileName,
             message.FileId,
             _settings.Index);
+    }
+
+    private async Task MarkFileExtractionStartedAsync(Guid fileId, CancellationToken cancellationToken)
+    {
+        var updated = await _appDbContext.TrainingFiles
+            .Where(file => file.Id == fileId)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(file => file.IsFileExtractionStarted, true),
+                cancellationToken);
+
+        if (updated == 0)
+        {
+            throw new InvalidOperationException($"No training file found with Id {fileId}.");
+        }
     }
 
     private string ResolveStoredFile(IExtractRequestSubmitted message)
