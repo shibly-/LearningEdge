@@ -136,9 +136,28 @@ services:
       - qdrant_storage:/qdrant/storage
     networks:
       - appnet
+      
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - appnet
+    volumes:
+      - ollama_data:/root/.ollama  # persist models
+    restart: unless-stopped
+    entrypoint: >
+      sh -c "
+      ollama serve &
+      sleep 5 &&
+      ollama pull llama3.1:8b &&
+      ollama pull qwen3-embedding:0.6b &&      
+      tail -f /dev/null
+      "  
 
 networks:
-  appnet:
+  appnet:    
 
 volumes:
   sqlvolume:
@@ -146,3 +165,4 @@ volumes:
   rabbitmq_data:
   qdrant_storage:
   km_documents:
+  ollama_data:

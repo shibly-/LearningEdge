@@ -56,9 +56,9 @@ try
             // Automatically configure endpoints for all registered consumers
             cfg.ConfigureEndpoints(context);
 
-            cfg.Durable = true;
-            cfg.AutoDelete = false;            
-            cfg.Exclusive = false;
+            //cfg.Durable = true;
+            //cfg.AutoDelete = false;            
+            //cfg.Exclusive = false;
         });
     });
 

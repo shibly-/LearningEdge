@@ -1,28 +1,43 @@
 ﻿using LearningEdge.Application.Interfaces;
+using LearningEdge.Infrastructure.Persistence;
 using LearningEdge.Messaging.Contracts.Events;
+using LearningEdgeMS.DocumentParserService.Services;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
-//using Microsoft.KernelMemory;
+using Qdrant.Client;
+using Qdrant.Client.Grpc;
+
 
 namespace LearningEdgeMS.DocumentParserService.EventConsumers;
 
 public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmitted>
 {
-    private readonly IApplicationDbContext _appDbContext;
-    //private readonly IKernelMemory _memory;
+    private readonly IConfiguration _configuration;
+    private readonly ApplicationDbContext _appDbContext;    
     private readonly DocumentParserSettings _settings;
-    private readonly ILogger<InitiateFileExtractConsumer> _logger;    
+    private readonly QdrantClient _qdrantClient;
+    private readonly DocumentParsingService _parserService;
+    private readonly EmbeddingService _embeddingService;
+    private readonly ILogger<InitiateFileExtractConsumer> _logger;
+    private readonly string _collectionName;
 
     public InitiateFileExtractConsumer(
-        IApplicationDbContext appDbContext,
-        //IKernelMemory memory,
+        IConfiguration configuration,
+        ApplicationDbContext appDbContext,        
         DocumentParserSettings settings,
+        DocumentParsingService parserService,
+        EmbeddingService embeddingService,
+        QdrantClient qdrantClient,
         ILogger<InitiateFileExtractConsumer> logger)
     {
-        _appDbContext = appDbContext;
-        //_memory = memory;
+        _configuration = configuration;
+        _collectionName = _configuration["VectorDB:Qdrant:CollectionName"] ?? "le_documents";
+        _appDbContext = appDbContext;        
         _settings = settings;
-        _logger = logger;
+        _qdrantClient = qdrantClient;
+        _parserService = parserService;
+        _embeddingService = embeddingService;
+        _logger = logger;        
     }
 
     public async Task Consume(ConsumeContext<IExtractRequestSubmitted> context)
@@ -33,37 +48,69 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
             ? Path.GetFileName(filePath)
             : message.FileName;
 
-        Console.WriteLine($"Received extract request for file {fileName} ({message.FileId}) uploaded by {message.UploadedByUserId}");
+        _logger.LogInformation($"Received extract request for file {fileName} ({message.FileId}) uploaded by {message.UploadedByUserId}");
 
-        _logger.LogInformation(
-            "Starting extraction for {FileName} ({FileId})",
-            fileName,
-            message.FileId);
+        // Check the file exists before proceeding
+        if (!File.Exists(filePath))
+        {
+            _logger.LogWarning("Target file not found: {filePath}", filePath);
+            return;
+        }
 
+        _logger.LogInformation("Starting extraction for {FileName} in {filePath} ({FileId})", fileName, filePath, message.FileId);
+
+        // Mark the file as being extracted
         await MarkFileExtractionStartedAsync(message.FileId, context.CancellationToken);
 
-        /*
-        await using var content = File.OpenRead(filePath);
-        var tags = new TagCollection();
-        tags.Add("fileId", message.FileId.ToString());
-        tags.Add("fileName", fileName);
-        tags.Add("uploadedBy", message.UploadedByUserId.ToString());
+        // Start the extraction process
+        try
+        {
+            _logger.LogInformation("Parsing file: {filePath}", filePath);
 
-        await _memory.ImportDocumentAsync(
-            content,
-            fileName,
-            documentId: message.FileId.ToString(),
-            tags: tags,
-            index: _settings.Index,
-            cancellationToken: context.CancellationToken);
+            // Extract raw text dynamically based on extension
+            string rawText = await _parserService.ExtractTextAsync(filePath);
 
-        */
+            if (string.IsNullOrWhiteSpace(rawText))
+            {
+                _logger.LogWarning("No text extracted from file: {filePath}", filePath);
+                return;
+            }
 
-        _logger.LogInformation(
-            "Stored embeddings for {FileName} ({FileId}) in index {Index}",
-            fileName,
-            message.FileId,
-            _settings.Index);
+            _logger.LogInformation("Generating chunks and embedding vectors...");
+
+            // Chunk and generate vectors via Ollama & Microsoft.Extensions.AI
+            var embeddedChunks = await _embeddingService.ProcessAndEmbedTextAsync(rawText);
+
+            _logger.LogInformation("Storing {count} chunks into Qdrant vector database...", embeddedChunks.Count);
+
+            // Map chunks to Qdrant PointStruct objects with payload metadata
+            var points = new List<PointStruct>();
+            ulong idCounter = (ulong)DateTime.UtcNow.Ticks; // Generate unique base ID
+
+            foreach (var (chunkText, vector) in embeddedChunks)
+            {
+                points.Add(new PointStruct
+                {
+                    Id = idCounter++,
+                    Vectors = vector,
+                    Payload =
+                    {
+                        ["text"] = chunkText,
+                        ["source_file"] = Path.GetFileName(filePath),
+                        ["ingested_at"] = DateTime.UtcNow.ToString("o")
+                    }
+                });
+            }
+
+            // Upsert points into Qdrant
+            await _qdrantClient.UpsertAsync(_collectionName, points, cancellationToken: context.CancellationToken);
+
+            _logger.LogInformation("Successfully indexed and saved document into Qdrant!");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "An error occurred while processing the document ingestion pipeline.");
+        }
     }
 
     private async Task MarkFileExtractionStartedAsync(Guid fileId, CancellationToken cancellationToken)
@@ -100,12 +147,11 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
         if (!File.Exists(fullPath))
         {
             throw new FileNotFoundException(
-                $"Uploaded file '{message.StorageKey}' was not found.",
-                fullPath);
+                $"Uploaded file '{message.StorageKey}' was not found.", fullPath);
         }
 
         return fullPath;
     }
 }
 
-public sealed record DocumentParserSettings(string StorageRootPath, string Index);
+public sealed record DocumentParserSettings(string StorageRootPath);

@@ -1,18 +1,20 @@
+﻿using DocumentFormat.OpenXml.Office2016.Drawing.ChartDrawing;
 using LearningEdge.Infrastructure;
 using LearningEdge.Infrastructure.Persistence;
 using LearningEdgeMS.DocumentParserService.EventConsumers;
+using LearningEdgeMS.DocumentParserService.Services;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using OllamaSharp;
+using Qdrant.Client;
 using Serilog;
-//using Microsoft.KernelMemory;
-//using Microsoft.KernelMemory.DocumentStorage.DevTools;
-//using Microsoft.KernelMemory.FileSystem.DevTools;
-
 
 try
 {
     Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Information()
             .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
             .CreateBootstrapLogger();
 
@@ -20,12 +22,15 @@ try
 
     var builder = Host.CreateApplicationBuilder(args);
 
+    builder.Services.AddSerilog();
+
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException(
             "Connection string 'DefaultConnection' is not configured. Set it with " +
             "'dotnet user-secrets set ConnectionStrings:DefaultConnection <value>' or the " +
             "ConnectionStrings__DefaultConnection environment variable.");
 
+    // Register EF Core DBContext with SQL Server provider
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlServer(
             connectionString,
@@ -34,14 +39,18 @@ try
     var storageRoot = ResolvePath(
         builder.Environment.ContentRootPath,
         builder.Configuration["FileStorage:RootPath"] ?? "uploads");
-    var documentStorageDirectory = ResolvePath(
-        builder.Environment.ContentRootPath,
-        builder.Configuration["KernelMemory:DocumentStorageDirectory"] ?? "km-documents");
-    var memoryIndex = builder.Configuration["KernelMemory:Index"] ?? "trainings";
+    
+    builder.Services.AddSingleton(new DocumentParserSettings(storageRoot));
 
-    builder.Services.AddSingleton(new DocumentParserSettings(storageRoot, memoryIndex));
-    builder.Services.AddInfrastructure(storageRoot);
-
+    // Register Ollama Embedding Generator via Microsoft.Extensions.AI
+    builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(sp =>
+        new OllamaApiClient(new Uri("http://localhost:11434"), "qwen3-embedding:0.6b"));
+    
+    // Register Qdrant Client (gRPC)
+    builder.Services.AddSingleton<QdrantClient>(sp =>
+        new QdrantClient(host: "localhost", port: 6334));
+    
+    // Register MassTransit with RabbitMQ
     builder.Services.AddMassTransit(bus =>
     {
         bus.AddConsumer<InitiateFileExtractConsumer>();
@@ -64,44 +73,12 @@ try
         });
     });
 
-    /*
-    builder.Services.AddKernelMemory(memory =>
-    {
-        var openAi = builder.Configuration.GetSection("KernelMemory:OpenAI").Get<OpenAIConfig>() ?? new OpenAIConfig();
-        if (string.IsNullOrWhiteSpace(openAi.APIKey))
-        {
-            openAi.APIKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? string.Empty;
-        }
+    // Register Custom Services
+    builder.Services.AddSingleton<DocumentParsingService>();
+    builder.Services.AddSingleton<EmbeddingService>();
 
-        if (string.IsNullOrWhiteSpace(openAi.TextModel))
-        {
-            openAi.TextModel = "gpt-4o-mini";
-        }
-
-        if (string.IsNullOrWhiteSpace(openAi.EmbeddingModel))
-        {
-            openAi.EmbeddingModel = "text-embedding-3-small";
-        }
-
-        if (string.IsNullOrWhiteSpace(openAi.APIKey))
-        {
-            throw new InvalidOperationException(
-                "Set KernelMemory:OpenAI:APIKey or the OPENAI_API_KEY environment variable so parsed documents can be embedded into Qdrant.");
-        }
-
-        var qdrantEndpoint = builder.Configuration["KernelMemory:Qdrant:Endpoint"] ?? "http ://localhost:6333";
-        var qdrantApiKey = builder.Configuration["KernelMemory:Qdrant:APIKey"] ?? string.Empty;
-
-        memory
-            .WithOpenAI(openAi)
-            .WithQdrantMemoryDb(qdrantEndpoint, qdrantApiKey)
-            .WithSimpleFileStorage(new SimpleFileStorageConfig
-            {
-                StorageType = FileSystemTypes.Disk,
-                Directory = documentStorageDirectory
-            });
-    });
-    */
+    // Register Background Worker
+    builder.Services.AddHostedService<DefaultWorkerService>();    
 
     var host = builder.Build();
     host.Run();

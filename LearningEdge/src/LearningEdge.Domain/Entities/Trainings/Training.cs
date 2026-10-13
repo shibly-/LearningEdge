@@ -1,4 +1,5 @@
 using LearningEdge.Domain.Common;
+using LearningEdge.Domain.Entities.Exams;
 
 namespace LearningEdge.Domain.Entities.Trainings;
 
@@ -8,8 +9,12 @@ public sealed class Training : BaseEntity<Guid>
     public string Name { get; private set; }
     public string Description { get; private set; } = string.Empty;
     public bool IsActive { get; private set; }
+
     private readonly List<TrainingFile> _files = new();
     public IReadOnlyCollection<TrainingFile> Files => _files.AsReadOnly();
+
+    private readonly List<Exam> _exams = new();
+    public IReadOnlyCollection<Exam> Exams => _exams.AsReadOnly();
 
     public Training(Guid categoryId, string name, string description = "", bool isActive = true)
     {
@@ -101,5 +106,18 @@ public sealed class Training : BaseEntity<Guid>
         file.MarkAsMCQGenerated();
         MarkUpdated();
         return file;
+    }
+
+    public void AddExam(Exam exam) => _exams.Add(exam);
+
+    public Exam? RemoveExam(Guid examId)
+    {
+        var exam = _exams.FirstOrDefault(candidate => candidate.Id == examId);
+        if (exam is null)
+        {
+            return null;
+        }
+        exam.SoftDelete();
+        return exam;
     }
 }
