@@ -12,7 +12,10 @@ public class MultipleChoiceAnswer : Answer
     {
         var list = correctOptions?.ToList() ?? throw new ArgumentNullException(nameof(correctOptions));
         if (!list.Any())
+        {
             throw new ArgumentException("At least one correct option must be provided.");
+        }
+
         CorrectOptions = list.AsReadOnly();
     }
 

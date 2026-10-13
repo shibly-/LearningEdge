@@ -1,7 +1,9 @@
 using LearningEdge.Domain.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace LearningEdge.Domain.Entities.Trainings;
 
+[Table("TrainingFile", Schema = "le")]
 public sealed class TrainingFile : BaseEntity<Guid>
 {
     public Guid TrainingId { get; private set; }

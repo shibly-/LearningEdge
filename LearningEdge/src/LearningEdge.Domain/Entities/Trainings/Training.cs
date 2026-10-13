@@ -1,8 +1,10 @@
 using LearningEdge.Domain.Common;
 using LearningEdge.Domain.Entities.Exams;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace LearningEdge.Domain.Entities.Trainings;
 
+[Table("Training", Schema = "le")]
 public sealed class Training : BaseEntity<Guid>
 {
     public Guid CategoryId { get; private set; }
@@ -10,10 +12,10 @@ public sealed class Training : BaseEntity<Guid>
     public string Description { get; private set; } = string.Empty;
     public bool IsActive { get; private set; }
 
-    private readonly List<TrainingFile> _files = new();
+    private readonly List<TrainingFile> _files = [];
     public IReadOnlyCollection<TrainingFile> Files => _files.AsReadOnly();
 
-    private readonly List<Exam> _exams = new();
+    private readonly List<Exam> _exams = [];
     public IReadOnlyCollection<Exam> Exams => _exams.AsReadOnly();
 
     public Training(Guid categoryId, string name, string description = "", bool isActive = true)

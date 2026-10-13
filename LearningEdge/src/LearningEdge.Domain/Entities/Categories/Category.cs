@@ -1,8 +1,10 @@
 using LearningEdge.Domain.Common;
 using LearningEdge.Domain.Entities.Trainings;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace LearningEdge.Domain.Entities.Categories;
 
+[Table("Category", Schema = "le")]
 public sealed class Category : BaseEntity<Guid>
 {
     public Guid OrganizationId { get; private set; }

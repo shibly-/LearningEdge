@@ -10,9 +10,9 @@ public sealed class Organization: BaseEntity<Guid>
 {
     public string Name { get; private set; } 
     public string Description { get; private set; } = string.Empty; 
-    private readonly List<User> _users = new();    
+    private readonly List<User> _users = [];    
     public IReadOnlyCollection<User> Users => _users.AsReadOnly();
-    private readonly List<Category> _categories = new();
+    private readonly List<Category> _categories = [];
     public IReadOnlyCollection<Category> Categories => _categories.AsReadOnly();
     
     //private Organization() { }

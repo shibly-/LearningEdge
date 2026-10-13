@@ -1,13 +1,8 @@
 ﻿namespace LearningEdge.Domain.ValueObjects;
 
-public class SingleChoiceAnswer : Answer
+public class SingleChoiceAnswer(Option correctOption) : Answer
 {
-    public Option CorrectOption { get; private set; }
-
-    public SingleChoiceAnswer(Option correctOption)
-    {
-        CorrectOption = correctOption ?? throw new ArgumentNullException(nameof(correctOption));
-    }
+    public Option CorrectOption { get; private set; } = correctOption ?? throw new ArgumentNullException(nameof(correctOption));
 
     public override bool IsCorrect(object response)
     {
