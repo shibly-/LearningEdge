@@ -8,6 +8,8 @@ namespace LearningEdge.Domain.Entities.Trainings;
 public class PromptRequest : BaseEntity<Guid>
 {    
     public Guid TrainingId { get; private set; }
+
+    public Guid QuestionBankId { get; private set; }
     public string PromptText { get; private set; }
     public QuestionType QuestionType { get; private set; }
     public int QuestionCount { get; private set; }
@@ -15,7 +17,7 @@ public class PromptRequest : BaseEntity<Guid>
 
     public PromptStatus Status { get; private set; }
 
-    public PromptRequest(Guid trainingId, string promptText, QuestionType questionType, int questionCount)
+    public PromptRequest(Guid trainingId, Guid questionBankId,string promptText, QuestionType questionType, int questionCount)
     {
         if (string.IsNullOrWhiteSpace(promptText))
         {
@@ -29,6 +31,7 @@ public class PromptRequest : BaseEntity<Guid>
 
         Id = Guid.NewGuid();
         TrainingId = trainingId;
+        QuestionBankId = questionBankId;
         PromptText = promptText;
         QuestionType = questionType;
         QuestionCount = questionCount;
