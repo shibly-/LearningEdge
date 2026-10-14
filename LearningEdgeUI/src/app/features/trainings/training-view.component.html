@@ -1,4 +1,12 @@
 <app-page-header [title]="headingText()" subtitle="Training details">
+  @if (training(); as current) {
+    <a class="le-btn" [routerLink]="['/trainings', current.categoryId, current.id, 'question-banks', 'new']">
+      Create Question Bank
+    </a>
+    <a class="le-btn" [routerLink]="['/trainings', current.categoryId, current.id, 'exams', 'new']">
+      Create Exam
+    </a>
+  }
   <a class="le-btn le-btn-secondary" routerLink="/trainings">Back to trainings</a>
 </app-page-header>
 
@@ -77,6 +85,80 @@
               </li>
             }
           </ul>
+        }
+      </section>
+
+      <section class="le-card files-card" aria-labelledby="question-banks-heading">
+        <h2 id="question-banks-heading">Question banks</h2>
+        @switch (catalogState()) {
+          @case ('loading') {
+            <app-skeleton [count]="2" label="Loading question banks" />
+          }
+          @case ('error') {
+            <app-error-state [message]="catalogError() ?? ''" (retry)="loadCatalog()" />
+          }
+          @case ('ready') {
+            @if (banks().length === 0) {
+              <p class="muted">No question banks yet.</p>
+            } @else {
+              <ul class="files">
+                @for (bank of banks(); track bank.id) {
+                  <li>
+                    <span class="name">{{ bank.title }}</span>
+                    <span class="file-meta">
+                      <app-badge
+                        [status]="bank.isActive ? 'on' : 'off'"
+                        [text]="bank.isActive ? 'Active' : 'Inactive'"
+                      />
+                      <a
+                        class="le-btn le-btn-secondary le-btn-sm"
+                        [routerLink]="['/trainings', current.categoryId, current.id, 'question-banks', bank.id]"
+                      >
+                        View
+                      </a>
+                    </span>
+                  </li>
+                }
+              </ul>
+            }
+          }
+        }
+      </section>
+
+      <section class="le-card files-card" aria-labelledby="exams-heading">
+        <h2 id="exams-heading">Exams</h2>
+        @switch (catalogState()) {
+          @case ('loading') {
+            <app-skeleton [count]="2" label="Loading exams" />
+          }
+          @case ('error') {
+            <p class="muted">Exams could not be loaded.</p>
+          }
+          @case ('ready') {
+            @if (examList().length === 0) {
+              <p class="muted">No exams yet.</p>
+            } @else {
+              <ul class="files">
+                @for (exam of examList(); track exam.id) {
+                  <li>
+                    <span class="name">{{ exam.title }}</span>
+                    <span class="file-meta">
+                      <app-badge
+                        [status]="exam.isActive ? 'on' : 'off'"
+                        [text]="exam.isActive ? 'Active' : 'Inactive'"
+                      />
+                      <a
+                        class="le-btn le-btn-secondary le-btn-sm"
+                        [routerLink]="['/trainings', current.categoryId, current.id, 'exams', exam.id]"
+                      >
+                        View
+                      </a>
+                    </span>
+                  </li>
+                }
+              </ul>
+            }
+          }
         }
       </section>
     }

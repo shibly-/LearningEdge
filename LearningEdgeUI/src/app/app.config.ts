@@ -35,6 +35,12 @@ import {
   MockTrainingRepository,
 } from './core/services/training.repository';
 import {
+  QuestionBankRepository,
+  HttpQuestionBankRepository,
+  MockQuestionBankRepository,
+} from './core/services/question-bank.repository';
+import { ExamRepository, HttpExamRepository, MockExamRepository } from './core/services/exam.repository';
+import {
   AssignmentRepository,
   MockAssignmentRepository,
 } from './core/services/assignment.repository';
@@ -49,7 +55,7 @@ import { MockDataLoader } from './core/services/mock/mock-data.loader';
  * Every repository is selected here by environment flag, so swapping mock for
  * live wiring never requires touching a feature (spec 3.7).
  *
- * Organizations, users, categories and trainings follow `useMockApi`.
+ * Organizations, users, categories, trainings, question banks and exams follow `useMockApi`.
  * Assignments, messages and processing have no backend endpoint yet, so they
  * always run in memory; their Http* placeholders are swapped in once the API
  * grows those routes.
@@ -60,12 +66,16 @@ const apiBackedRepositories = environment.useMockApi
       { provide: UserRepository, useClass: MockUserRepository },
       { provide: CategoryRepository, useClass: MockCategoryRepository },
       { provide: TrainingRepository, useClass: MockTrainingRepository },
+      { provide: QuestionBankRepository, useClass: MockQuestionBankRepository },
+      { provide: ExamRepository, useClass: MockExamRepository },
     ]
   : [
       { provide: OrganizationRepository, useClass: HttpOrganizationRepository },
       { provide: UserRepository, useClass: HttpUserRepository },
       { provide: CategoryRepository, useClass: HttpCategoryRepository },
       { provide: TrainingRepository, useClass: HttpTrainingRepository },
+      { provide: QuestionBankRepository, useClass: HttpQuestionBankRepository },
+      { provide: ExamRepository, useClass: HttpExamRepository },
     ];
 
 const mockOnlyRepositories = [

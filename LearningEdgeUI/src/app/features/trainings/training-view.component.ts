@@ -9,11 +9,15 @@ import {
   untracked,
 } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { map, type Subscription } from 'rxjs';
+import { forkJoin, map, type Subscription } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../core/auth/auth.service';
+import type { Exam } from '../../core/models/exam';
+import type { QuestionBank } from '../../core/models/question-bank';
 import type { Training, TrainingFile } from '../../core/models/training';
+import { ExamRepository } from '../../core/services/exam.repository';
 import { OrganizationContextService } from '../../core/services/organization-context.service';
+import { QuestionBankRepository } from '../../core/services/question-bank.repository';
 import { TrainingRepository } from '../../core/services/training.repository';
 import { describeError } from '../../core/stores/async-collection.store';
 import { CategoryStore } from '../../core/stores/category.store';
@@ -47,6 +51,8 @@ type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
 export class TrainingViewComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly repository = inject(TrainingRepository);
+  private readonly questionBanks = inject(QuestionBankRepository);
+  private readonly exams = inject(ExamRepository);
   private readonly context = inject(OrganizationContextService);
   private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
@@ -54,6 +60,7 @@ export class TrainingViewComponent {
   protected readonly store = inject(TrainingStore);
 
   private request: Subscription | null = null;
+  private catalogRequest: Subscription | null = null;
 
   private readonly trainingState = signal<Training | null>(null);
   private readonly viewState = signal<ViewState>('loading');
@@ -62,6 +69,10 @@ export class TrainingViewComponent {
   protected readonly training = this.trainingState.asReadonly();
   protected readonly state = this.viewState.asReadonly();
   protected readonly errorMessage = this.failure.asReadonly();
+  protected readonly banks = signal<readonly QuestionBank[]>([]);
+  protected readonly examList = signal<readonly Exam[]>([]);
+  protected readonly catalogState = signal<'loading' | 'ready' | 'error'>('loading');
+  protected readonly catalogError = signal<string | null>(null);
 
   private readonly categoryId = toSignal(
     this.route.paramMap.pipe(map((params) => params.get('categoryId'))),
@@ -81,7 +92,10 @@ export class TrainingViewComponent {
       this.trainingId();
       untracked(() => this.load());
     });
-    this.destroyRef.onDestroy(() => this.request?.unsubscribe());
+    this.destroyRef.onDestroy(() => {
+      this.request?.unsubscribe();
+      this.catalogRequest?.unsubscribe();
+    });
   }
 
   protected headingText(): string {
@@ -139,6 +153,30 @@ export class TrainingViewComponent {
     return null;
   }
 
+  protected loadCatalog(trainingId = this.trainingState()?.id ?? null): void {
+    this.catalogRequest?.unsubscribe();
+    if (trainingId === null) {
+      return;
+    }
+
+    this.catalogState.set('loading');
+    this.catalogError.set(null);
+    this.catalogRequest = forkJoin({
+      banks: this.questionBanks.listByTraining(trainingId),
+      exams: this.exams.listByTraining(trainingId),
+    }).subscribe({
+      next: ({ banks, exams }) => {
+        this.banks.set(banks);
+        this.examList.set(exams);
+        this.catalogState.set('ready');
+      },
+      error: (error: unknown) => {
+        this.catalogError.set(describeError(error));
+        this.catalogState.set('error');
+      },
+    });
+  }
+
   protected load(): void {
     this.request?.unsubscribe();
 
@@ -158,6 +196,9 @@ export class TrainingViewComponent {
       next: (training) => {
         this.trainingState.set(training);
         this.viewState.set(training === null ? 'missing' : 'loaded');
+        if (training !== null) {
+          this.loadCatalog(training.id);
+        }
       },
       error: (error: unknown) => {
         this.failure.set(describeError(error));

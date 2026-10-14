@@ -1,0 +1,186 @@
+<app-page-header [title]="exam()?.title ?? 'Exam'" subtitle="Choose questions from an active question bank.">
+  <a class="le-btn le-btn-secondary" [routerLink]="backLink()">Back to training</a>
+</app-page-header>
+
+@switch (state()) {
+  @case ('loading') {
+    <div class="le-card panel">
+      <app-skeleton [count]="6" label="Loading exam" />
+    </div>
+  }
+  @case ('error') {
+    <app-error-state [message]="errorMessage() ?? ''" (retry)="load()" />
+  }
+  @case ('missing') {
+    <app-empty-state
+      title="Exam not found"
+      message="The record may have been removed, or the identifier in the URL is incorrect."
+    />
+  }
+  @case ('loaded') {
+    @if (exam(); as current) {
+      <section class="le-card panel" aria-labelledby="exam-edit-heading">
+        <h2 id="exam-edit-heading">Exam</h2>
+        <form [formGroup]="form" (ngSubmit)="saveExam()" novalidate>
+          <div class="le-field" [class.is-invalid]="form.controls.title.touched && form.controls.title.invalid">
+            <label for="exam-title">Title</label>
+            <input id="exam-title" type="text" formControlName="title" [attr.maxlength]="limits.title" />
+            @if (form.controls.title.touched && form.controls.title.hasError('required')) {
+              <span class="le-error">Title is required.</span>
+            }
+          </div>
+          <label class="check">
+            <input type="checkbox" formControlName="isActive" />
+            <span>Enabled</span>
+          </label>
+          <div class="actions">
+            <app-badge [status]="current.isActive ? 'on' : 'off'" [text]="current.isActive ? 'Active' : 'Inactive'" />
+            <button type="submit" class="le-btn" [disabled]="saving()">
+              @if (saving()) {
+                <app-spinner [size]="14" label="Saving" />
+                <span>Saving…</span>
+              } @else {
+                <span>Save exam</span>
+              }
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <div class="tabs" role="tablist" aria-label="Exam questions">
+        <button type="button" role="tab" [attr.aria-selected]="tab() === 'add'" [class.is-active]="tab() === 'add'" (click)="selectTab('add')">
+          Add questions
+        </button>
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="tab() === 'attached'"
+          [class.is-active]="tab() === 'attached'"
+          (click)="selectTab('attached')"
+        >
+          Exam questions ({{ attached().length }})
+        </button>
+      </div>
+
+      @if (tab() === 'add') {
+        <section class="le-card panel" aria-labelledby="add-questions-heading">
+          <h2 id="add-questions-heading">Active questions</h2>
+          <div class="le-field">
+            <label for="bank-select">Question bank</label>
+            <select
+              id="bank-select"
+              [value]="selectedBankId()"
+              (change)="onBankChange($any($event.target).value)"
+            >
+              <option value="">Select a question bank…</option>
+              @for (bank of questionBanks(); track bank.id) {
+                <option [value]="bank.id">{{ bank.title }}</option>
+              }
+            </select>
+          </div>
+
+          @if (selectedBankId().length === 0) {
+            <p class="muted">Choose an active question bank to see its questions.</p>
+          } @else if (loadingQuestions()) {
+            <app-skeleton [count]="3" label="Loading questions" />
+          } @else if (bankQuestions().length === 0) {
+            <p class="muted">This question bank has no active questions.</p>
+          } @else {
+            <div class="le-table-wrap">
+              <table class="le-table">
+                <caption>Active questions in the selected bank</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Title</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Details</th>
+                    <th scope="col">Answer</th>
+                    <th scope="col">Score</th>
+                    <th scope="col"><span class="le-visually-hidden">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (question of bankQuestions(); track question.id) {
+                    <tr>
+                      <th scope="row">{{ question.text }}</th>
+                      <td>{{ typeLabel(question.type) }}</td>
+                      <td>{{ details(question) }}</td>
+                      <td>{{ answer(question) }}</td>
+                      <td>{{ question.score }}</td>
+                      <td class="row-actions">
+                        @if (isAttached(question.id)) {
+                          <app-badge status="complete" text="Added" />
+                        } @else {
+                          <button
+                            type="button"
+                            class="le-btn le-btn-sm"
+                            [disabled]="addingId() !== null"
+                            (click)="addQuestion(question)"
+                          >
+                            @if (addingId() === question.id) {
+                              <app-spinner [size]="14" label="Adding" />
+                            } @else {
+                              <span>Add</span>
+                            }
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </section>
+      } @else {
+        <section class="le-card panel" aria-labelledby="attached-heading">
+          <h2 id="attached-heading">Questions on this exam</h2>
+          @if (attached().length === 0) {
+            <p class="muted">No questions have been added yet.</p>
+          } @else {
+            <div class="le-table-wrap">
+              <table class="le-table">
+                <caption>Questions attached to this exam</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Title</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Details</th>
+                    <th scope="col">Answer</th>
+                    <th scope="col">Score</th>
+                    <th scope="col"><span class="le-visually-hidden">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (question of attached(); track question.id) {
+                    <tr>
+                      <th scope="row">{{ question.text }}</th>
+                      <td>{{ typeLabel(question.type) }}</td>
+                      <td>{{ details(question) }}</td>
+                      <td>{{ answer(question) }}</td>
+                      <td>{{ question.score }}</td>
+                      <td class="row-actions">
+                        <button
+                          type="button"
+                          class="le-btn le-btn-secondary le-btn-sm"
+                          [disabled]="removingId() !== null"
+                          (click)="removeQuestion(question)"
+                        >
+                          @if (removingId() === question.id) {
+                            <app-spinner [size]="14" label="Removing" />
+                          } @else {
+                            <span>Remove</span>
+                          }
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </section>
+      }
+    }
+  }
+}

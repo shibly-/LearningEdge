@@ -8,7 +8,9 @@ using LearningEdge.Application.Interfaces;
 using LearningEdge.Application.Models.Commands.Organizations;
 using LearningEdge.Application.Models.Commands.Users;
 using LearningEdge.Domain.Entities.Categories;
+using LearningEdge.Domain.Entities.Exams;
 using LearningEdge.Domain.Entities.Organizations;
+using LearningEdge.Domain.Entities.Questions;
 using LearningEdge.Domain.Entities.Trainings;
 using LearningEdge.Domain.Entities.Users;
 using LearningEdge.Infrastructure.Persistence;
@@ -88,6 +90,11 @@ public class UniqueViolationOnSaveTests
         public DbSet<Category> Categories => inner.Categories;
         public DbSet<Training> Trainings => inner.Trainings;
         public DbSet<TrainingFile> TrainingFiles => inner.TrainingFiles;
+        public DbSet<QuestionBank> QuestionBanks => inner.QuestionBanks;
+        public DbSet<Question> Questions => inner.Questions;
+        public DbSet<PromptRequest> PromptRequests => inner.PromptRequests;
+        public DbSet<Exam> Exams => inner.Exams;
+        public DbSet<ExamQuestion> ExamQuestions => inner.ExamQuestions;
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
             throw new UniqueConstraintViolationException("Cannot insert duplicate key row.", new Exception());

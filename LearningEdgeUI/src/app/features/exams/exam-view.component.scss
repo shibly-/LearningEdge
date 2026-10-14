@@ -1,0 +1,58 @@
+.panel {
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
+.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.actions,
+.row-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.actions {
+  justify-content: flex-end;
+}
+
+.row-actions {
+  justify-content: flex-end;
+}
+
+.muted {
+  margin: 0;
+  color: var(--le-text-muted);
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tabs button {
+  padding: 8px 14px;
+  border: 1px solid var(--le-border);
+  border-radius: var(--le-radius);
+  background: var(--le-surface);
+  color: var(--le-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tabs button.is-active {
+  background: var(--le-brand-600);
+  border-color: transparent;
+  color: var(--le-text-inverse);
+}

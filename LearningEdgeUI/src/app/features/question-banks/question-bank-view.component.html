@@ -1,0 +1,221 @@
+<app-page-header [title]="bank()?.title ?? 'Question bank'" subtitle="Generate questions, then review and edit them.">
+  <a class="le-btn le-btn-secondary" [routerLink]="backLink()">Back to training</a>
+</app-page-header>
+
+@switch (state()) {
+  @case ('loading') {
+    <div class="le-card panel">
+      <app-skeleton [count]="6" label="Loading question bank" />
+    </div>
+  }
+  @case ('error') {
+    <app-error-state [message]="errorMessage() ?? ''" (retry)="load()" />
+  }
+  @case ('missing') {
+    <app-empty-state
+      title="Question bank not found"
+      message="The record may have been removed, or the identifier in the URL is incorrect."
+    />
+  }
+  @case ('loaded') {
+    @if (bank(); as current) {
+      <section class="le-card panel" aria-labelledby="bank-edit-heading">
+        <h2 id="bank-edit-heading">Question bank</h2>
+        <form [formGroup]="bankForm" (ngSubmit)="saveBank()" novalidate>
+          <div class="le-field" [class.is-invalid]="bankForm.controls.title.touched && bankForm.controls.title.invalid">
+            <label for="bank-title">Title</label>
+            <input id="bank-title" type="text" formControlName="title" [attr.maxlength]="limits.title" />
+            @if (bankForm.controls.title.touched && bankForm.controls.title.hasError('required')) {
+              <span class="le-error">Title is required.</span>
+            }
+          </div>
+          <label class="check">
+            <input type="checkbox" formControlName="isActive" />
+            <span>Enabled</span>
+          </label>
+          <div class="actions">
+            <app-badge [status]="current.isActive ? 'on' : 'off'" [text]="current.isActive ? 'Active' : 'Inactive'" />
+            <button type="submit" class="le-btn" [disabled]="savingBank()">
+              @if (savingBank()) {
+                <app-spinner [size]="14" label="Saving" />
+                <span>Saving…</span>
+              } @else {
+                <span>Save question bank</span>
+              }
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="le-card panel" aria-labelledby="generate-heading">
+        <h2 id="generate-heading">Generate questions</h2>
+        <form [formGroup]="generateForm" (ngSubmit)="generate()" novalidate>
+          <div
+            class="le-field"
+            [class.is-invalid]="generateForm.controls.promptText.touched && generateForm.controls.promptText.invalid"
+          >
+            <label for="prompt-text">Prompt text</label>
+            <textarea id="prompt-text" formControlName="promptText" [attr.maxlength]="promptLimits.text"></textarea>
+            @if (generateForm.controls.promptText.touched && generateForm.controls.promptText.hasError('required')) {
+              <span class="le-error">Prompt text is required.</span>
+            }
+          </div>
+          <div class="split">
+            <div class="le-field">
+              <label for="question-type">Question type</label>
+              <select id="question-type" formControlName="questionType">
+                @for (option of questionTypes; track option.id) {
+                  <option [ngValue]="option.id">{{ option.label }}</option>
+                }
+              </select>
+            </div>
+            <div
+              class="le-field"
+              [class.is-invalid]="generateForm.controls.questionCount.touched && generateForm.controls.questionCount.invalid"
+            >
+              <label for="question-count">Question count</label>
+              <input
+                id="question-count"
+                type="number"
+                formControlName="questionCount"
+                [min]="promptLimits.minCount"
+                [max]="promptLimits.maxCount"
+              />
+              @if (generateForm.controls.questionCount.touched && generateForm.controls.questionCount.invalid) {
+                <span class="le-error">Enter a count from {{ promptLimits.minCount }} to {{ promptLimits.maxCount }}.</span>
+              }
+            </div>
+          </div>
+          <div class="actions">
+            <button type="submit" class="le-btn" [disabled]="generating()">
+              @if (generating()) {
+                <app-spinner [size]="14" label="Generating" />
+                <span>Submitting…</span>
+              } @else {
+                <span>Generate</span>
+              }
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="le-card panel" aria-labelledby="prompts-heading">
+        <h2 id="prompts-heading">Prompt requests</h2>
+        @if (prompts().length === 0) {
+          <p class="muted">No generation requests yet.</p>
+        } @else {
+          <div class="le-table-wrap">
+            <table class="le-table">
+              <caption>Requests submitted for this question bank</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Prompt</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Count</th>
+                  <th scope="col">Requested</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (prompt of prompts(); track prompt.id) {
+                  <tr>
+                    <td>{{ prompt.promptText }}</td>
+                    <td>{{ typeLabel(prompt.questionType) }}</td>
+                    <td>{{ prompt.questionCount }}</td>
+                    <td>{{ prompt.requestedOn | date: 'medium' }}</td>
+                    <td>
+                      <app-badge [status]="statusBadge(prompt.status)" [text]="statusLabel(prompt.status)" />
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      <section class="le-card panel" aria-labelledby="questions-heading">
+        <h2 id="questions-heading">Questions</h2>
+        @if (questions().length === 0) {
+          <p class="muted">No questions have been generated for this bank yet.</p>
+        } @else {
+          <div class="le-table-wrap">
+            <table class="le-table">
+              <caption>Questions in this question bank</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Title</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Details</th>
+                  <th scope="col">Answer</th>
+                  <th scope="col">Score</th>
+                  <th scope="col">Status</th>
+                  <th scope="col"><span class="le-visually-hidden">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (question of questions(); track question.id) {
+                  <tr>
+                    <th scope="row">{{ question.text }}</th>
+                    <td>{{ typeLabel(question.type) }}</td>
+                    <td>{{ details(question) }}</td>
+                    <td>{{ answer(question) }}</td>
+                    <td>{{ question.score }}</td>
+                    <td>
+                      <app-badge
+                        [status]="question.isActive ? 'on' : 'off'"
+                        [text]="question.isActive ? 'Active' : 'Inactive'"
+                      />
+                    </td>
+                    <td class="row-actions">
+                      <button type="button" class="le-btn le-btn-secondary le-btn-sm" (click)="openQuestion(question, 'view')">
+                        View
+                      </button>
+                      <button type="button" class="le-btn le-btn-secondary le-btn-sm" (click)="openQuestion(question, 'edit')">
+                        Edit
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        @if (selectedQuestion(); as question) {
+          <div class="detail-panel" aria-live="polite">
+            @if (questionMode() === 'view') {
+              <h3>Question</h3>
+              <dl class="detail">
+                <dt>Title</dt>
+                <dd>{{ question.text }}</dd>
+                <dt>Type</dt>
+                <dd>{{ typeLabel(question.type) }}</dd>
+                <dt>Details</dt>
+                <dd>{{ details(question) }}</dd>
+                <dt>Answer</dt>
+                <dd>{{ answer(question) }}</dd>
+                <dt>Score</dt>
+                <dd>{{ question.score }}</dd>
+                <dt>Status</dt>
+                <dd>{{ question.isActive ? 'Active' : 'Inactive' }}</dd>
+              </dl>
+              <div class="actions">
+                <button type="button" class="le-btn le-btn-secondary" (click)="closeQuestion()">Close</button>
+                <button type="button" class="le-btn" (click)="openQuestion(question, 'edit')">Edit</button>
+              </div>
+            } @else {
+              <h3>Edit question</h3>
+              <app-question-editor
+                [question]="question"
+                [saving]="savingQuestion()"
+                (save)="saveQuestion($event)"
+                (cancel)="closeQuestion()"
+              />
+            }
+          </div>
+        }
+      </section>
+    }
+  }
+}

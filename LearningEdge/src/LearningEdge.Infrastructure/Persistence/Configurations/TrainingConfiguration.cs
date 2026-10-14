@@ -1,3 +1,4 @@
+using LearningEdge.Domain.Entities.Exams;
 using LearningEdge.Domain.Entities.Trainings;
 using LearningEdge.Domain.Entities.Users;
 using Microsoft.EntityFrameworkCore;
@@ -28,6 +29,15 @@ public sealed class TrainingConfiguration : IEntityTypeConfiguration<Training>
 
         builder.Navigation(training => training.Files)
             .HasField("_files")
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.HasMany(training => training.Exams)
+            .WithOne()
+            .HasForeignKey(exam => exam.TrainingId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(training => training.Exams)
+            .HasField("_exams")
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
         builder.HasQueryFilter(training => !training.IsDeleted);

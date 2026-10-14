@@ -31,7 +31,7 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
         ILogger<InitiateFileExtractConsumer> logger)
     {
         _configuration = configuration;
-        _collectionName = _configuration["VectorDB:Qdrant:CollectionName"] ?? "le_documents";
+        _collectionName = _configuration["VectorDB:Qdrant:CollectionName"] ?? "le_docs";
         _appDbContext = appDbContext;        
         _settings = settings;
         _qdrantClient = qdrantClient;
@@ -60,6 +60,16 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
         _logger.LogInformation("Starting extraction for {FileName} in {filePath} ({FileId})", fileName, filePath, message.FileId);
 
         // Mark the file as being extracted
+        var trainingFile = await _appDbContext.TrainingFiles
+            .Where(file => file.Id == message.FileId)
+            .FirstOrDefaultAsync(context.CancellationToken);
+
+        if(trainingFile is null)
+        {
+            _logger.LogWarning("Training file with ID {FileId} not found in the database.", message.FileId);
+            return;
+        }
+
         await MarkFileExtractionStartedAsync(message.FileId, context.CancellationToken);
 
         // Start the extraction process
@@ -102,8 +112,13 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
                 });
             }
 
+            var collectionName = _collectionName + "_" + trainingFile.TrainingId;
+
+            // Ensure the Qdrant collection exists before inserting points
+            await EnsureVectorDBCollectionExistsAsync(collectionName);
+
             // Upsert points into Qdrant
-            await _qdrantClient.UpsertAsync(_collectionName, points, cancellationToken: context.CancellationToken);
+            await _qdrantClient.UpsertAsync(collectionName, points, cancellationToken: context.CancellationToken);
 
             _logger.LogInformation("Successfully indexed and saved document into Qdrant!");
         }
@@ -151,6 +166,29 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
         }
 
         return fullPath;
+    }
+
+    private async Task EnsureVectorDBCollectionExistsAsync(string collectionName)
+    {
+        var collections = await _qdrantClient.ListCollectionsAsync();
+        if (!collections.Contains(collectionName))
+        {
+            _logger.LogInformation("Qdrant collection '{collection}' not found. Creating new collection...", collectionName);
+
+            await _qdrantClient.CreateCollectionAsync(
+                collectionName: collectionName,
+                vectorsConfig: new VectorParams
+                {
+                    //default output dimension of 'qwen3-embedding:0.6b'
+                    Size = (ulong)int.Parse(_configuration["VectorDB:VectorParams:VectorSize"] ?? "1024"),
+                    Distance = Enum.Parse<Distance>(_configuration["VectorDB:VectorParams:Distance"] ?? "Cosine")
+                });
+            _logger.LogInformation("Qdrant collection '{collection}' is ready to use...", collectionName);
+        }
+        else
+        {
+            _logger.LogInformation("Qdrant collection '{collection}' already exists.", collectionName);
+        }
     }
 }
 

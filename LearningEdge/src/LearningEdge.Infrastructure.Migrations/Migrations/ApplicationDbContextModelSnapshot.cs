@@ -62,6 +62,61 @@ namespace LearningEdge.Infrastructure.Migrations.Migrations
                     b.ToTable("Category", "le");
                 });
 
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Exams.Exam", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("PreparedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("TrainingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PreparedByUserId");
+
+                    b.HasIndex("TrainingId", "Title")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("Exam", "le");
+                });
+
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Exams.ExamQuestion", b =>
+                {
+                    b.Property<Guid>("ExamId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("QuestionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("ExamId", "QuestionId");
+
+                    b.HasIndex("QuestionId");
+
+                    b.ToTable("ExamQuestion", "le");
+                });
+
             modelBuilder.Entity("LearningEdge.Domain.Entities.Organizations.Organization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -94,6 +149,126 @@ namespace LearningEdge.Infrastructure.Migrations.Migrations
                         .HasFilter("[IsDeleted] = 0");
 
                     b.ToTable("Organization", "le");
+                });
+
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Questions.Question", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("QuestionBankId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionBankId");
+
+                    b.ToTable("Question", "le");
+
+                    b.UseTptMappingStrategy();
+                });
+
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Questions.QuestionBank", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("TrainingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrainingId", "Title")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("QuestionBank", "le");
+                });
+
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Trainings.PromptRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PromptText")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<Guid>("QuestionBankId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("QuestionCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("QuestionType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("RequestedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TrainingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionBankId");
+
+                    b.HasIndex("TrainingId");
+
+                    b.ToTable("PromptRequest", "le");
                 });
 
             modelBuilder.Entity("LearningEdge.Domain.Entities.Trainings.Training", b =>
@@ -261,12 +436,115 @@ namespace LearningEdge.Infrastructure.Migrations.Migrations
                     b.ToTable("User", "le");
                 });
 
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Questions.McqQuestion", b =>
+                {
+                    b.HasBaseType("LearningEdge.Domain.Entities.Questions.Question");
+
+                    b.Property<string>("Answer")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Options")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.ToTable("McqQuestion", "le");
+                });
+
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Questions.MultipleSelectionQuestion", b =>
+                {
+                    b.HasBaseType("LearningEdge.Domain.Entities.Questions.Question");
+
+                    b.Property<string>("Answer")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Options")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.ToTable("MultipleSelectionQuestion", "le");
+                });
+
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Questions.TrueFalseQuestion", b =>
+                {
+                    b.HasBaseType("LearningEdge.Domain.Entities.Questions.Question");
+
+                    b.Property<bool>("Answer")
+                        .HasColumnType("bit");
+
+                    b.ToTable("TrueFalseQuestion", "le");
+                });
+
             modelBuilder.Entity("LearningEdge.Domain.Entities.Categories.Category", b =>
                 {
                     b.HasOne("LearningEdge.Domain.Entities.Organizations.Organization", null)
                         .WithMany("Categories")
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Exams.Exam", b =>
+                {
+                    b.HasOne("LearningEdge.Domain.Entities.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("PreparedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("LearningEdge.Domain.Entities.Trainings.Training", null)
+                        .WithMany("Exams")
+                        .HasForeignKey("TrainingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Exams.ExamQuestion", b =>
+                {
+                    b.HasOne("LearningEdge.Domain.Entities.Exams.Exam", null)
+                        .WithMany()
+                        .HasForeignKey("ExamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LearningEdge.Domain.Entities.Questions.Question", null)
+                        .WithMany()
+                        .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Questions.Question", b =>
+                {
+                    b.HasOne("LearningEdge.Domain.Entities.Questions.QuestionBank", null)
+                        .WithMany("Questions")
+                        .HasForeignKey("QuestionBankId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Questions.QuestionBank", b =>
+                {
+                    b.HasOne("LearningEdge.Domain.Entities.Trainings.Training", null)
+                        .WithMany()
+                        .HasForeignKey("TrainingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Trainings.PromptRequest", b =>
+                {
+                    b.HasOne("LearningEdge.Domain.Entities.Questions.QuestionBank", null)
+                        .WithMany()
+                        .HasForeignKey("QuestionBankId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("LearningEdge.Domain.Entities.Trainings.Training", null)
+                        .WithMany()
+                        .HasForeignKey("TrainingId")
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
                 });
 
@@ -303,6 +581,33 @@ namespace LearningEdge.Infrastructure.Migrations.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Questions.McqQuestion", b =>
+                {
+                    b.HasOne("LearningEdge.Domain.Entities.Questions.Question", null)
+                        .WithOne()
+                        .HasForeignKey("LearningEdge.Domain.Entities.Questions.McqQuestion", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Questions.MultipleSelectionQuestion", b =>
+                {
+                    b.HasOne("LearningEdge.Domain.Entities.Questions.Question", null)
+                        .WithOne()
+                        .HasForeignKey("LearningEdge.Domain.Entities.Questions.MultipleSelectionQuestion", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Questions.TrueFalseQuestion", b =>
+                {
+                    b.HasOne("LearningEdge.Domain.Entities.Questions.Question", null)
+                        .WithOne()
+                        .HasForeignKey("LearningEdge.Domain.Entities.Questions.TrueFalseQuestion", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LearningEdge.Domain.Entities.Categories.Category", b =>
                 {
                     b.Navigation("Trainings");
@@ -315,8 +620,15 @@ namespace LearningEdge.Infrastructure.Migrations.Migrations
                     b.Navigation("Users");
                 });
 
+            modelBuilder.Entity("LearningEdge.Domain.Entities.Questions.QuestionBank", b =>
+                {
+                    b.Navigation("Questions");
+                });
+
             modelBuilder.Entity("LearningEdge.Domain.Entities.Trainings.Training", b =>
                 {
+                    b.Navigation("Exams");
+
                     b.Navigation("Files");
                 });
 #pragma warning restore 612, 618

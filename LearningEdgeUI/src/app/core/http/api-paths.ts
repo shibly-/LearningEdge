@@ -42,4 +42,25 @@ export const apiPaths = {
     extract: (categoryId: string, trainingId: string, fileId: string) =>
       `${base()}/category/${seg(categoryId)}/training/${seg(trainingId)}/extract/${seg(fileId)}`,
   },
+  questionBank: {
+    list: (trainingId: string) => `${base()}/training/${seg(trainingId)}/question-bank`,
+    byId: (trainingId: string, id: string) =>
+      `${base()}/training/${seg(trainingId)}/question-bank/${seg(id)}`,
+    active: () => `${base()}/question-bank`,
+    prompts: (trainingId: string, questionBankId: string) =>
+      `${base()}/training/${seg(trainingId)}/question-bank/${seg(questionBankId)}/prompt-request`,
+    questions: (trainingId: string, questionBankId: string, activeOnly = false) =>
+      `${base()}/training/${seg(trainingId)}/question-bank/${seg(questionBankId)}/question${activeOnly ? '?activeOnly=true' : ''}`,
+    question: (trainingId: string, questionBankId: string, questionId: string) =>
+      `${base()}/training/${seg(trainingId)}/question-bank/${seg(questionBankId)}/question/${seg(questionId)}`,
+  },
+  exam: {
+    list: (trainingId: string) => `${base()}/training/${seg(trainingId)}/exam`,
+    byId: (trainingId: string, id: string) =>
+      `${base()}/training/${seg(trainingId)}/exam/${seg(id)}`,
+    questions: (trainingId: string, examId: string) =>
+      `${base()}/training/${seg(trainingId)}/exam/${seg(examId)}/question`,
+    question: (trainingId: string, examId: string, questionId: string) =>
+      `${base()}/training/${seg(trainingId)}/exam/${seg(examId)}/question/${seg(questionId)}`,
+  },
 } as const;

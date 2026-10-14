@@ -1,4 +1,5 @@
 using LearningEdge.Api.Extensions;
+using LearningEdge.Messaging.Contracts.Events;
 using MassTransit;
 using Microsoft.EntityFrameworkCore.Design.Internal;
 using Microsoft.Extensions.Hosting;
@@ -44,6 +45,9 @@ try
         // 2. Configure the transport (e.g., RabbitMQ)
         x.UsingRabbitMq((context, cfg) =>
         {
+            cfg.Message<IQuestionGenerateRequested>(message =>
+                message.SetEntityName(MessagingEntityNames.QuestionGenerate));
+
             // "rabbitmq" is the service name defined in docker-compose.yml
             //cfg.Host("rabbitmq", "/", h =>
             // when running the API outside of docker

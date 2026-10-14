@@ -191,6 +191,42 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'trainings/:categoryId/:trainingId/question-banks/new',
+        canActivate: [roleGuard, tenantGuard],
+        data: { roles: [UserRole.OrgAdmin, UserRole.Instructor] },
+        title: 'Create question bank · LearningEdge',
+        loadComponent: () =>
+          import('./features/question-banks/question-bank-form.component').then(
+            (m) => m.QuestionBankFormComponent,
+          ),
+      },
+      {
+        path: 'trainings/:categoryId/:trainingId/question-banks/:questionBankId',
+        canActivate: [roleGuard, tenantGuard],
+        data: { roles: [UserRole.OrgAdmin, UserRole.Instructor] },
+        title: 'Question bank · LearningEdge',
+        loadComponent: () =>
+          import('./features/question-banks/question-bank-view.component').then(
+            (m) => m.QuestionBankViewComponent,
+          ),
+      },
+      {
+        path: 'trainings/:categoryId/:trainingId/exams/new',
+        canActivate: [roleGuard, tenantGuard],
+        data: { roles: [UserRole.OrgAdmin, UserRole.Instructor] },
+        title: 'Create exam · LearningEdge',
+        loadComponent: () =>
+          import('./features/exams/exam-form.component').then((m) => m.ExamFormComponent),
+      },
+      {
+        path: 'trainings/:categoryId/:trainingId/exams/:examId',
+        canActivate: [roleGuard, tenantGuard],
+        data: { roles: [UserRole.OrgAdmin, UserRole.Instructor] },
+        title: 'Exam · LearningEdge',
+        loadComponent: () =>
+          import('./features/exams/exam-view.component').then((m) => m.ExamViewComponent),
+      },
+      {
         path: 'trainings/:categoryId/:trainingId',
         canActivate: [roleGuard, tenantGuard],
         data: { roles: [UserRole.OrgAdmin, UserRole.Instructor] },

@@ -1,7 +1,9 @@
 ﻿using LearningEdge.Application.Common.Exceptions;
 using LearningEdge.Application.Interfaces;
 using LearningEdge.Domain.Entities.Categories;
+using LearningEdge.Domain.Entities.Exams;
 using LearningEdge.Domain.Entities.Organizations;
+using LearningEdge.Domain.Entities.Questions;
 using LearningEdge.Domain.Entities.Trainings;
 using LearningEdge.Domain.Entities.Users;
 using Microsoft.Data.SqlClient;
@@ -20,6 +22,11 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Training> Trainings => Set<Training>();
     public DbSet<TrainingFile> TrainingFiles => Set<TrainingFile>();
+    public DbSet<QuestionBank> QuestionBanks => Set<QuestionBank>();
+    public DbSet<Question> Questions => Set<Question>();
+    public DbSet<PromptRequest> PromptRequests => Set<PromptRequest>();
+    public DbSet<Exam> Exams => Set<Exam>();
+    public DbSet<ExamQuestion> ExamQuestions => Set<ExamQuestion>();
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

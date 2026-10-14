@@ -1,20 +1,25 @@
 ﻿using LearningEdge.Domain.ValueObjects;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Text;
 
 namespace LearningEdge.Domain.Entities.Questions;
 
-[Table("TrueFalseQuestion", Schema = "le")]
+[System.ComponentModel.DataAnnotations.Schema.Table("TrueFalseQuestion", Schema = "le")]
 public class TrueFalseQuestion : Question
 {
-    public TrueFalseAnswer Answer { get; private set; }
+    public TrueFalseAnswer Answer { get; private set; } = new(false);
 
-    public TrueFalseQuestion(string text, Guid examId, int score, TrueFalseAnswer answer)
-        : base(text, examId, score)
+    private TrueFalseQuestion()
     {
-        Answer = answer;
+    }
+
+    public TrueFalseQuestion(string text, Guid questionBankId, int score, TrueFalseAnswer answer, bool isActive = true)
+        : base(text, questionBankId, score, isActive)
+    {
+        Answer = answer ?? throw new ArgumentNullException(nameof(answer));
+    }
+
+    public void Update(string text, int score, bool isActive, TrueFalseAnswer answer)
+    {
+        ReplaceContent(text, score, isActive);
+        Answer = answer ?? throw new ArgumentNullException(nameof(answer));
     }
 }
-
