@@ -66,7 +66,7 @@ try
                     host.Password(builder.Configuration["RabbitMQ:Password"] ?? "guest");
                 });
 
-            cfg.ReceiveEndpoint("file-extract-queue", endpoint =>
+            cfg.ReceiveEndpoint("le_file_extract_request_queue", endpoint =>
             {
                 endpoint.ConfigureConsumer<InitiateFileExtractConsumer>(context);
             });

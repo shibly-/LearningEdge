@@ -32,15 +32,16 @@ export const apiPaths = {
       `${base()}/organization/${seg(organizationId)}/category/${seg(id)}`,
   },
   training: {
-    list: (categoryId: string) => `${base()}/category/${seg(categoryId)}/training`,
-    byId: (categoryId: string, id: string) =>
-      `${base()}/category/${seg(categoryId)}/training/${seg(id)}`,
-    files: (categoryId: string, id: string) =>
-      `${base()}/category/${seg(categoryId)}/training/${seg(id)}/files`,
-    file: (categoryId: string, trainingId: string, fileId: string) =>
-      `${base()}/category/${seg(categoryId)}/training/${seg(trainingId)}/files/${seg(fileId)}`,
-    extract: (categoryId: string, trainingId: string, fileId: string) =>
-      `${base()}/category/${seg(categoryId)}/training/${seg(trainingId)}/extract/${seg(fileId)}`,
+    list: (organizationId: string, categoryId: string) =>
+      `${base()}/organization/${seg(organizationId)}/category/${seg(categoryId)}/training`,
+    byId: (organizationId: string, categoryId: string, id: string) =>
+      `${base()}/organization/${seg(organizationId)}/category/${seg(categoryId)}/training/${seg(id)}`,
+    files: (organizationId: string, categoryId: string, id: string) =>
+      `${base()}/organization/${seg(organizationId)}/category/${seg(categoryId)}/training/${seg(id)}/files`,
+    file: (organizationId: string, categoryId: string, trainingId: string, fileId: string) =>
+      `${base()}/organization/${seg(organizationId)}/category/${seg(categoryId)}/training/${seg(trainingId)}/files/${seg(fileId)}`,
+    extract: (organizationId: string, categoryId: string, trainingId: string, fileId: string) =>
+      `${base()}/organization/${seg(organizationId)}/category/${seg(categoryId)}/training/${seg(trainingId)}/extract/${seg(fileId)}`,
   },
   questionBank: {
     list: (trainingId: string) => `${base()}/training/${seg(trainingId)}/question-bank`,

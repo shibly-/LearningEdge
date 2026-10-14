@@ -122,7 +122,7 @@ export class TrainingListComponent {
     this.editor.set('new');
   }
 
-  /** The API scopes a training to its category, so editing cannot move it. */
+  /** The API scopes a training to its organization and category, so editing cannot move it. */
   protected openEdit(training: Training): void {
     this.form.reset({
       name: training.name,

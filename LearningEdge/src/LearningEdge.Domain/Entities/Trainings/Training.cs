@@ -7,6 +7,7 @@ namespace LearningEdge.Domain.Entities.Trainings;
 [Table("Training", Schema = "le")]
 public sealed class Training : BaseEntity<Guid>
 {
+    public Guid OrganizationId { get; private set; }
     public Guid CategoryId { get; private set; }
     public string Name { get; private set; }
     public string Description { get; private set; } = string.Empty;
@@ -18,9 +19,10 @@ public sealed class Training : BaseEntity<Guid>
     private readonly List<Exam> _exams = [];
     public IReadOnlyCollection<Exam> Exams => _exams.AsReadOnly();
 
-    public Training(Guid categoryId, string name, string description = "", bool isActive = true)
+    public Training(Guid organizationId, Guid categoryId, string name, string description = "", bool isActive = true)
     {
         Id = Guid.NewGuid();
+        OrganizationId = organizationId;
         CategoryId = categoryId;
         Name = name ?? throw new ArgumentNullException(nameof(name));
         Description = description ?? string.Empty;

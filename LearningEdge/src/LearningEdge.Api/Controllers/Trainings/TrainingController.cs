@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace LearningEdge.Api.Controllers.Trainings;
 
 [ApiController]
-[Route("api/v{version:apiVersion}/category/{categoryId:guid}/training")]
+[Route("api/v{version:apiVersion}/organization/{organizationId:guid}/category/{categoryId:guid}/training")]
 [ApiVersion("1.0")]
 public class TrainingController : ControllerBase
 {
@@ -27,7 +27,7 @@ public class TrainingController : ControllerBase
         _mediator = mediator;        
     }
 
-    // POST: api/v1/category/{categoryId}/training
+    // POST: api/v1/organization/{organizationId}/category/{categoryId}/training
     [HttpPost]
     [MapToApiVersion("1.0")]
     [EndpointSummary("Create a training in a category")]
@@ -36,21 +36,27 @@ public class TrainingController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<Guid>> Create(
+        Guid organizationId,
         Guid categoryId,
         [FromBody] CreateTrainingCommand command,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(command with { CategoryId = categoryId }, cancellationToken);
+        var result = await _mediator.Send(
+            command with { OrganizationId = organizationId, CategoryId = categoryId },
+            cancellationToken);
         if (!result.Success)
         {
             return result.ToErrorResult();
         }
 
         RouteData.Values.TryGetValue("version", out var version);
-        return CreatedAtAction(nameof(GetById), new { version, categoryId, id = result.Data }, result.Data);
+        return CreatedAtAction(
+            nameof(GetById),
+            new { version, organizationId, categoryId, id = result.Data },
+            result.Data);
     }
 
-    // PUT: api/v1/category/{categoryId}/training/{id}
+    // PUT: api/v1/organization/{organizationId}/category/{categoryId}/training/{id}
     [HttpPut("{id:guid}")]
     [MapToApiVersion("1.0")]
     [EndpointSummary("Update a training")]
@@ -60,12 +66,15 @@ public class TrainingController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<TrainingDTO>> Update(
+        Guid organizationId,
         Guid categoryId,
         Guid id,
         [FromBody] UpdateTrainingCommand command,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(command with { CategoryId = categoryId, Id = id }, cancellationToken);
+        var result = await _mediator.Send(
+            command with { OrganizationId = organizationId, CategoryId = categoryId, Id = id },
+            cancellationToken);
         if (!result.Success)
         {
             return result.ToErrorResult();
@@ -74,7 +83,7 @@ public class TrainingController : ControllerBase
         return Ok(result.Data);
     }
 
-    // POST: api/v1/category/{categoryId}/training/{id}/files
+    // POST: api/v1/organization/{organizationId}/category/{categoryId}/training/{id}/files
     [HttpPost("{id:guid}/files")]
     [MapToApiVersion("1.0")]
     [Consumes("multipart/form-data")]
@@ -89,6 +98,7 @@ public class TrainingController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IReadOnlyList<TrainingFileDTO>>> UploadFiles(
+        Guid organizationId,
         Guid categoryId,
         Guid id,
         [FromForm] Guid uploadedByUserId,
@@ -102,7 +112,7 @@ public class TrainingController : ControllerBase
         try
         {
             var result = await _mediator.Send(
-                new UploadTrainingFilesCommand(categoryId, id, uploadedByUserId, uploads),
+                new UploadTrainingFilesCommand(organizationId, categoryId, id, uploadedByUserId, uploads),
                 cancellationToken);
             if (!result.Success)
             {
@@ -110,7 +120,7 @@ public class TrainingController : ControllerBase
             }
 
             RouteData.Values.TryGetValue("version", out var version);
-            return CreatedAtAction(nameof(GetById), new { version, categoryId, id }, result.Data);
+            return CreatedAtAction(nameof(GetById), new { version, organizationId, categoryId, id }, result.Data);
         }
         finally
         {
@@ -121,7 +131,7 @@ public class TrainingController : ControllerBase
         }
     }
 
-    // DELETE: api/v1/category/{categoryId}/training/{id}/files/{fileId}?removedByUserId=
+    // DELETE: api/v1/organization/{organizationId}/category/{categoryId}/training/{id}/files/{fileId}?removedByUserId=
     [HttpDelete("{id:guid}/files/{fileId:guid}")]
     [MapToApiVersion("1.0")]
     [EndpointSummary("Remove a file from a training")]
@@ -133,6 +143,7 @@ public class TrainingController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RemoveFile(
+        Guid organizationId,
         Guid categoryId,
         Guid id,
         Guid fileId,
@@ -140,7 +151,7 @@ public class TrainingController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(
-            new RemoveTrainingFileCommand(categoryId, id, fileId, removedByUserId),
+            new RemoveTrainingFileCommand(organizationId, categoryId, id, fileId, removedByUserId),
             cancellationToken);
         if (!result.Success)
         {
@@ -150,15 +161,18 @@ public class TrainingController : ControllerBase
         return NoContent();
     }
 
-    // GET: api/v1/category/{categoryId}/training
+    // GET: api/v1/organization/{organizationId}/category/{categoryId}/training
     [HttpGet]
     [MapToApiVersion("1.0")]
     [EndpointSummary("Get the trainings of a category")]
     [ProducesResponseType(typeof(IReadOnlyList<TrainingDTO>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<IReadOnlyList<TrainingDTO>>> GetAll(Guid categoryId, CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<TrainingDTO>>> GetAll(
+        Guid organizationId,
+        Guid categoryId,
+        CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetTrainingsQuery(categoryId), cancellationToken);
+        var result = await _mediator.Send(new GetTrainingsQuery(organizationId, categoryId), cancellationToken);
         if (!result.Success)
         {
             return result.ToErrorResult();
@@ -167,14 +181,18 @@ public class TrainingController : ControllerBase
         return Ok(result.Data);
     }
 
-    // GET: api/v1/category/{categoryId}/training/{id}
+    // GET: api/v1/organization/{organizationId}/category/{categoryId}/training/{id}
     [HttpGet("{id:guid}")]
     [MapToApiVersion("1.0")]
     [ProducesResponseType(typeof(TrainingDTO), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<TrainingDTO>> GetById(Guid categoryId, Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<TrainingDTO>> GetById(
+        Guid organizationId,
+        Guid categoryId,
+        Guid id,
+        CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetTrainingByIdQuery(categoryId, id), cancellationToken);
+        var result = await _mediator.Send(new GetTrainingByIdQuery(organizationId, categoryId, id), cancellationToken);
         if (!result.Success)
         {
             return result.ToErrorResult();
@@ -184,19 +202,22 @@ public class TrainingController : ControllerBase
     }
 
 
-    // GET: api/v1/category/{categoryId}/training/{id}/extract/{fileId}?requestedByUserId=
+    // GET: api/v1/organization/{organizationId}/category/{categoryId}/training/{id}/extract/{fileId}?requestedByUserId=
     [HttpGet("{id:guid}/extract/{fileId:guid}")]
     [MapToApiVersion("1.0")]
     [ProducesResponseType(typeof(IReadOnlyList<TrainingFileDTO>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IReadOnlyList<TrainingFileDTO>>> Extract(
+        Guid organizationId,
         Guid categoryId,
         Guid id,
         Guid fileId,
         [FromQuery] Guid requestedByUserId,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new UpdateTrainingInitiateFileExtractCommand(categoryId, id, fileId, requestedByUserId), cancellationToken);
+        var result = await _mediator.Send(
+            new UpdateTrainingInitiateFileExtractCommand(organizationId, categoryId, id, fileId, requestedByUserId),
+            cancellationToken);
         if (!result.Success)
         {
             return result.ToErrorResult();

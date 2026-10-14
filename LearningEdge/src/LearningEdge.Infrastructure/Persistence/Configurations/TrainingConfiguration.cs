@@ -1,4 +1,5 @@
 using LearningEdge.Domain.Entities.Exams;
+using LearningEdge.Domain.Entities.Organizations;
 using LearningEdge.Domain.Entities.Trainings;
 using LearningEdge.Domain.Entities.Users;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,13 @@ public sealed class TrainingConfiguration : IEntityTypeConfiguration<Training>
         builder.HasIndex(training => new { training.CategoryId, training.Name })
             .IsUnique()
             .HasFilter("[IsDeleted] = 0");
+
+        // NoAction: Organization already cascades to Training through Category, and SQL Server
+        // rejects a second cascade path to the same table.
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(training => training.OrganizationId)
+            .OnDelete(DeleteBehavior.NoAction);
 
         builder.HasMany(training => training.Files)
             .WithOne()

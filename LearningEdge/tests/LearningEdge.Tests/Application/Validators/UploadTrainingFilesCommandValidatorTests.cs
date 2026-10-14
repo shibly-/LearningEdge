@@ -64,7 +64,7 @@ public class UploadTrainingFilesCommandValidatorTests
     }
 
     private static UploadTrainingFilesCommand Command(params TrainingFileUpload[] files) =>
-        new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), files);
+        new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), files);
 
     private static TrainingFileUpload File(string name, long length) =>
         new(name, "application/octet-stream", length, Stream.Null);

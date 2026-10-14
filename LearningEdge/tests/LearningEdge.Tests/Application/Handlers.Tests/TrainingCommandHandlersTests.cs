@@ -24,14 +24,15 @@ public class TrainingCommandHandlersTests
     public async Task Create_SavesTraining_WhenCategoryExists()
     {
         await using var context = CreateContext();
-        var (_, category) = await SeedCategoryAsync(context);
+        var (organization, category) = await SeedCategoryAsync(context);
         var handler = CreateHandler(context);
 
         var result = await handler.Handle(
-            new CreateTrainingCommand(category.Id, "Fire Safety", "Basics"), CancellationToken.None);
+            new CreateTrainingCommand(organization.Id, category.Id, "Fire Safety", "Basics"), CancellationToken.None);
 
         Assert.True(result.Success);
         var saved = await context.Trainings.SingleAsync();
+        Assert.Equal(organization.Id, saved.OrganizationId);
         Assert.Equal(category.Id, saved.CategoryId);
         Assert.True(saved.IsActive);
     }
@@ -43,7 +44,20 @@ public class TrainingCommandHandlersTests
         var handler = CreateHandler(context);
 
         var result = await handler.Handle(
-            new CreateTrainingCommand(Guid.NewGuid(), "Fire Safety", null), CancellationToken.None);
+            new CreateTrainingCommand(Guid.NewGuid(), Guid.NewGuid(), "Fire Safety", null), CancellationToken.None);
+
+        Assert.Equal(ResultErrorKind.NotFound, result.Kind);
+    }
+
+    [Fact]
+    public async Task Create_ReturnsNotFound_WhenCategoryBelongsToAnotherOrganization()
+    {
+        await using var context = CreateContext();
+        var (_, category) = await SeedCategoryAsync(context);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(
+            new CreateTrainingCommand(Guid.NewGuid(), category.Id, "Fire Safety", null), CancellationToken.None);
 
         Assert.Equal(ResultErrorKind.NotFound, result.Kind);
     }
@@ -52,13 +66,13 @@ public class TrainingCommandHandlersTests
     public async Task Create_ReturnsConflict_WhenNameExistsInCategory()
     {
         await using var context = CreateContext();
-        var (_, category) = await SeedCategoryAsync(context);
-        context.Trainings.Add(new Training(category.Id, "Fire Safety"));
+        var (organization, category) = await SeedCategoryAsync(context);
+        context.Trainings.Add(new Training(organization.Id, category.Id, "Fire Safety"));
         await context.SaveChangesAsync();
         var handler = CreateHandler(context);
 
         var result = await handler.Handle(
-            new CreateTrainingCommand(category.Id, "Fire Safety", null), CancellationToken.None);
+            new CreateTrainingCommand(organization.Id, category.Id, "Fire Safety", null), CancellationToken.None);
 
         Assert.Equal(ResultErrorKind.Conflict, result.Kind);
     }
@@ -67,17 +81,18 @@ public class TrainingCommandHandlersTests
     public async Task Update_ChangesTraining_AndCanDeactivateIt()
     {
         await using var context = CreateContext();
-        var (_, category) = await SeedCategoryAsync(context);
-        var training = new Training(category.Id, "Fire Safety");
+        var (organization, category) = await SeedCategoryAsync(context);
+        var training = new Training(organization.Id, category.Id, "Fire Safety");
         context.Trainings.Add(training);
         await context.SaveChangesAsync();
         var handler = CreateHandler(context);
 
         var result = await handler.Handle(
-            new UpdateTrainingCommand(category.Id, training.Id, "Fire Safety 101", "Updated", false),
+            new UpdateTrainingCommand(organization.Id, category.Id, training.Id, "Fire Safety 101", "Updated", false),
             CancellationToken.None);
 
         Assert.True(result.Success);
+        Assert.Equal(organization.Id, result.Data!.OrganizationId);
         Assert.Equal("Fire Safety 101", result.Data!.Name);
         Assert.False(result.Data.IsActive);
         Assert.Empty(result.Data.Files);
@@ -89,14 +104,14 @@ public class TrainingCommandHandlersTests
         await using var context = CreateContext();
         var (organization, category) = await SeedCategoryAsync(context);
         var otherCategory = new Category(organization.Id, "Other");
-        var training = new Training(category.Id, "Fire Safety");
+        var training = new Training(organization.Id, category.Id, "Fire Safety");
         context.Categories.Add(otherCategory);
         context.Trainings.Add(training);
         await context.SaveChangesAsync();
         var handler = CreateHandler(context);
 
         var result = await handler.Handle(
-            new UpdateTrainingCommand(otherCategory.Id, training.Id, "Renamed", null, true), CancellationToken.None);
+            new UpdateTrainingCommand(organization.Id, otherCategory.Id, training.Id, "Renamed", null, true), CancellationToken.None);
 
         Assert.Equal(ResultErrorKind.NotFound, result.Kind);
     }
@@ -112,7 +127,7 @@ public class TrainingCommandHandlersTests
         var handler = CreateHandler(context);
 
         var result = await handler.Handle(
-            new UploadTrainingFilesCommand(category.Id, training.Id, admin.Id,
+            new UploadTrainingFilesCommand(organization.Id, category.Id, training.Id, admin.Id,
             [
                 Upload("guide.pdf", "%PDF-1.7 content"),
                 Upload("notes.txt", "plain text notes"),
@@ -139,7 +154,7 @@ public class TrainingCommandHandlersTests
         var handler = CreateHandler(context);
 
         var result = await handler.Handle(
-            new UploadTrainingFilesCommand(category.Id, training.Id, learner.Id, [Upload("guide.pdf", "%PDF-1.7")]),
+            new UploadTrainingFilesCommand(organization.Id, category.Id, training.Id, learner.Id, [Upload("guide.pdf", "%PDF-1.7")]),
             CancellationToken.None);
 
         Assert.Equal(ResultErrorKind.Forbidden, result.Kind);
@@ -150,14 +165,14 @@ public class TrainingCommandHandlersTests
     public async Task Upload_IsForbidden_ForOrgAdminOfAnotherOrganization()
     {
         await using var context = CreateContext();
-        var (_, category, training) = await SeedTrainingAsync(context);
+        var (organization, category, training) = await SeedTrainingAsync(context);
         var otherOrganization = new Organization("Contoso");
         context.Organizations.Add(otherOrganization);
         var outsider = await SeedUserAsync(context, UserRole.OrgAdmin, otherOrganization.Id);
         var handler = CreateHandler(context);
 
         var result = await handler.Handle(
-            new UploadTrainingFilesCommand(category.Id, training.Id, outsider.Id, [Upload("guide.pdf", "%PDF-1.7")]),
+            new UploadTrainingFilesCommand(organization.Id, category.Id, training.Id, outsider.Id, [Upload("guide.pdf", "%PDF-1.7")]),
             CancellationToken.None);
 
         Assert.Equal(ResultErrorKind.Forbidden, result.Kind);
@@ -167,11 +182,11 @@ public class TrainingCommandHandlersTests
     public async Task Upload_IsForbidden_ForUnknownUser()
     {
         await using var context = CreateContext();
-        var (_, category, training) = await SeedTrainingAsync(context);
+        var (organization, category, training) = await SeedTrainingAsync(context);
         var handler = CreateHandler(context);
 
         var result = await handler.Handle(
-            new UploadTrainingFilesCommand(category.Id, training.Id, Guid.NewGuid(), [Upload("guide.pdf", "%PDF-1.7")]),
+            new UploadTrainingFilesCommand(organization.Id, category.Id, training.Id, Guid.NewGuid(), [Upload("guide.pdf", "%PDF-1.7")]),
             CancellationToken.None);
 
         Assert.Equal(ResultErrorKind.Forbidden, result.Kind);
@@ -186,7 +201,7 @@ public class TrainingCommandHandlersTests
         var handler = CreateHandler(context);
 
         var result = await handler.Handle(
-            new UploadTrainingFilesCommand(Guid.NewGuid(), training.Id, admin.Id, [Upload("guide.pdf", "%PDF-1.7")]),
+            new UploadTrainingFilesCommand(organization.Id, Guid.NewGuid(), training.Id, admin.Id, [Upload("guide.pdf", "%PDF-1.7")]),
             CancellationToken.None);
 
         Assert.Equal(ResultErrorKind.NotFound, result.Kind);
@@ -201,7 +216,7 @@ public class TrainingCommandHandlersTests
         var handler = CreateHandler(context);
 
         var result = await handler.Handle(
-            new UploadTrainingFilesCommand(category.Id, training.Id, admin.Id,
+            new UploadTrainingFilesCommand(organization.Id, category.Id, training.Id, admin.Id,
             [
                 Upload("guide.pdf", "%PDF-1.7"),
                 Upload("fake.pdf", "MZ this is an executable")
@@ -222,7 +237,7 @@ public class TrainingCommandHandlersTests
         var admin = await SeedUserAsync(context, UserRole.OrgAdmin, organization.Id);
         var handler = CreateHandler(context);
         var uploaded = await handler.Handle(
-            new UploadTrainingFilesCommand(category.Id, training.Id, admin.Id,
+            new UploadTrainingFilesCommand(organization.Id, category.Id, training.Id, admin.Id,
             [
                 Upload("notes.txt", "hello"),
                 Upload("guide.pdf", "%PDF-1.7")
@@ -232,7 +247,7 @@ public class TrainingCommandHandlersTests
         context.ChangeTracker.Clear();
 
         var result = await handler.Handle(
-            new RemoveTrainingFileCommand(category.Id, training.Id, target.Id, admin.Id),
+            new RemoveTrainingFileCommand(organization.Id, category.Id, training.Id, target.Id, admin.Id),
             CancellationToken.None);
 
         Assert.True(result.Success, result.Error);
@@ -247,7 +262,7 @@ public class TrainingCommandHandlersTests
         Assert.DoesNotContain(_storage.Files.Keys, key => key == deleted.StorageKey);
 
         var loaded = await new TrainingQueryHandlers(context, CreateMapper())
-            .Handle(new GetTrainingByIdQuery(category.Id, training.Id), CancellationToken.None);
+            .Handle(new GetTrainingByIdQuery(organization.Id, category.Id, training.Id), CancellationToken.None);
         Assert.DoesNotContain(loaded.Data!.Files, file => file.Id == target.Id);
         Assert.Contains(loaded.Data.Files, file => file.FileName == "guide.pdf");
     }
@@ -261,13 +276,13 @@ public class TrainingCommandHandlersTests
         var learner = await SeedUserAsync(context, UserRole.Learner, organization.Id);
         var handler = CreateHandler(context);
         var uploaded = await handler.Handle(
-            new UploadTrainingFilesCommand(category.Id, training.Id, admin.Id, [Upload("notes.txt", "hello")]),
+            new UploadTrainingFilesCommand(organization.Id, category.Id, training.Id, admin.Id, [Upload("notes.txt", "hello")]),
             CancellationToken.None);
         var fileId = uploaded.Data!.Single().Id;
         context.ChangeTracker.Clear();
 
         var result = await handler.Handle(
-            new RemoveTrainingFileCommand(category.Id, training.Id, fileId, learner.Id),
+            new RemoveTrainingFileCommand(organization.Id, category.Id, training.Id, fileId, learner.Id),
             CancellationToken.None);
 
         Assert.Equal(ResultErrorKind.Forbidden, result.Kind);
@@ -280,19 +295,19 @@ public class TrainingCommandHandlersTests
     {
         await using var context = CreateContext();
         var (organization, category, training) = await SeedTrainingAsync(context);
-        var other = new Training(category.Id, "Other course");
+        var other = new Training(organization.Id, category.Id, "Other course");
         context.Trainings.Add(other);
         await context.SaveChangesAsync();
         var admin = await SeedUserAsync(context, UserRole.OrgAdmin, organization.Id);
         var handler = CreateHandler(context);
         var uploaded = await handler.Handle(
-            new UploadTrainingFilesCommand(category.Id, training.Id, admin.Id, [Upload("notes.txt", "hello")]),
+            new UploadTrainingFilesCommand(organization.Id, category.Id, training.Id, admin.Id, [Upload("notes.txt", "hello")]),
             CancellationToken.None);
         var fileId = uploaded.Data!.Single().Id;
         context.ChangeTracker.Clear();
 
         var result = await handler.Handle(
-            new RemoveTrainingFileCommand(category.Id, other.Id, fileId, admin.Id),
+            new RemoveTrainingFileCommand(organization.Id, category.Id, other.Id, fileId, admin.Id),
             CancellationToken.None);
 
         Assert.Equal(ResultErrorKind.NotFound, result.Kind);
@@ -308,12 +323,12 @@ public class TrainingCommandHandlersTests
         var admin = await SeedUserAsync(context, UserRole.OrgAdmin, organization.Id);
         var handler = CreateHandler(context);
         var uploaded = await handler.Handle(
-            new UploadTrainingFilesCommand(category.Id, training.Id, admin.Id, [Upload("notes.txt", "hello")]),
+            new UploadTrainingFilesCommand(organization.Id, category.Id, training.Id, admin.Id, [Upload("notes.txt", "hello")]),
             CancellationToken.None);
         context.ChangeTracker.Clear();
 
         var result = await handler.Handle(
-            new RemoveTrainingFileCommand(Guid.NewGuid(), training.Id, uploaded.Data!.Single().Id, admin.Id),
+            new RemoveTrainingFileCommand(organization.Id, Guid.NewGuid(), training.Id, uploaded.Data!.Single().Id, admin.Id),
             CancellationToken.None);
 
         Assert.Equal(ResultErrorKind.NotFound, result.Kind);
@@ -327,12 +342,12 @@ public class TrainingCommandHandlersTests
         var (organization, category, training) = await SeedTrainingAsync(context);
         var admin = await SeedUserAsync(context, UserRole.OrgAdmin, organization.Id);
         await CreateHandler(context).Handle(
-            new UploadTrainingFilesCommand(category.Id, training.Id, admin.Id, [Upload("notes.txt", "hello")]),
+            new UploadTrainingFilesCommand(organization.Id, category.Id, training.Id, admin.Id, [Upload("notes.txt", "hello")]),
             CancellationToken.None);
         context.ChangeTracker.Clear();
 
         var result = await new TrainingQueryHandlers(context, CreateMapper())
-            .Handle(new GetTrainingByIdQuery(category.Id, training.Id), CancellationToken.None);
+            .Handle(new GetTrainingByIdQuery(organization.Id, category.Id, training.Id), CancellationToken.None);
 
         var file = Assert.Single(result.Data!.Files);
         Assert.Equal("notes.txt", file.FileName);
@@ -361,7 +376,7 @@ public class TrainingCommandHandlersTests
     private static async Task<(Organization, Category, Training)> SeedTrainingAsync(ApplicationDbContext context)
     {
         var (organization, category) = await SeedCategoryAsync(context);
-        var training = new Training(category.Id, "Fire Safety");
+        var training = new Training(organization.Id, category.Id, "Fire Safety");
         context.Trainings.Add(training);
         await context.SaveChangesAsync();
         return (organization, category, training);

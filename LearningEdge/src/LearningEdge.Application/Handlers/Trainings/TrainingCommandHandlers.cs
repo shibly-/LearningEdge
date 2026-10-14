@@ -39,11 +39,14 @@ public class TrainingCommandHandlers :
     public async Task<Result<Guid>> Handle(CreateTrainingCommand request, CancellationToken cancellationToken)
     {
         var categoryExists = await _appDbContext.Categories
-            .AnyAsync(category => category.Id == request.CategoryId, cancellationToken);
+            .AnyAsync(
+                category => category.Id == request.CategoryId && category.OrganizationId == request.OrganizationId,
+                cancellationToken);
 
         if (!categoryExists)
         {
-            return Result<Guid>.NotFound($"No category found with Id {request.CategoryId}.");
+            return Result<Guid>.NotFound(
+                $"No category found with Id {request.CategoryId} in organization {request.OrganizationId}.");
         }
 
         var nameTaken = await _appDbContext.Trainings
@@ -56,7 +59,12 @@ public class TrainingCommandHandlers :
             return Result<Guid>.Conflict(NameTakenMessage(request.Name));
         }
 
-        var training = new Training(request.CategoryId, request.Name, request.Description ?? string.Empty, request.IsActive);
+        var training = new Training(
+            request.OrganizationId,
+            request.CategoryId,
+            request.Name,
+            request.Description ?? string.Empty,
+            request.IsActive);
         _appDbContext.Trainings.Add(training);
 
         try
@@ -76,7 +84,9 @@ public class TrainingCommandHandlers :
         var training = await _appDbContext.Trainings
             .Include(candidate => candidate.Files)
             .FirstOrDefaultAsync(
-                candidate => candidate.Id == request.Id && candidate.CategoryId == request.CategoryId,
+                candidate => candidate.Id == request.Id
+                    && candidate.CategoryId == request.CategoryId
+                    && candidate.OrganizationId == request.OrganizationId,
                 cancellationToken);
 
         if (training is null)
@@ -114,14 +124,14 @@ public class TrainingCommandHandlers :
         UploadTrainingFilesCommand request,
         CancellationToken cancellationToken)
     {
-        var target = await (
-                from training in _appDbContext.Trainings
-                join category in _appDbContext.Categories on training.CategoryId equals category.Id
-                where training.Id == request.TrainingId && training.CategoryId == request.CategoryId
-                select new { Training = training, category.OrganizationId })
-            .FirstOrDefaultAsync(cancellationToken);
+        var training = await _appDbContext.Trainings
+            .FirstOrDefaultAsync(
+                candidate => candidate.Id == request.TrainingId
+                    && candidate.CategoryId == request.CategoryId
+                    && candidate.OrganizationId == request.OrganizationId,
+                cancellationToken);
 
-        if (target is null)
+        if (training is null)
         {
             return Result<IReadOnlyList<TrainingFileDTO>>.NotFound(
                 $"No training found with Id {request.TrainingId} in category {request.CategoryId}.");
@@ -133,7 +143,7 @@ public class TrainingCommandHandlers :
 
         var isAdmin = uploader is not null
             && (uploader.Role == UserRole.SysAdmin
-                || (uploader.Role == UserRole.OrgAdmin && uploader.OrganizationId == target.OrganizationId));
+                || (uploader.Role == UserRole.OrgAdmin && uploader.OrganizationId == training.OrganizationId));
 
         if (!isAdmin)
         {
@@ -160,10 +170,10 @@ public class TrainingCommandHandlers :
                 var displayName = Path.GetFileName(file.FileName);
                 var extension = Path.GetExtension(displayName).ToLowerInvariant();
                 var key = await _fileStorage.SaveAsync(
-                    file.Content, $"trainings/{target.Training.Id}", extension, cancellationToken);
+                    file.Content, $"trainings/{training.Id}", extension, cancellationToken);
                 storedKeys.Add(key);
 
-                var entity = target.Training.AddFile(
+                var entity = training.AddFile(
                     displayName,
                     TrainingFileRules.ContentTypeFor(displayName),
                     file.Length,
@@ -190,15 +200,15 @@ public class TrainingCommandHandlers :
 
     public async Task<Result<Guid>> Handle(RemoveTrainingFileCommand request, CancellationToken cancellationToken)
     {
-        // Include is ignored inside a projection, so resolve the organization first, then load files.
-        var organizationId = await (
-                from training in _appDbContext.Trainings
-                join category in _appDbContext.Categories on training.CategoryId equals category.Id
-                where training.Id == request.TrainingId && training.CategoryId == request.CategoryId
-                select (Guid?)category.OrganizationId)
-            .FirstOrDefaultAsync(cancellationToken);
+        var trainingEntity = await _appDbContext.Trainings
+            .Include(candidate => candidate.Files)
+            .FirstOrDefaultAsync(
+                candidate => candidate.Id == request.TrainingId
+                    && candidate.CategoryId == request.CategoryId
+                    && candidate.OrganizationId == request.OrganizationId,
+                cancellationToken);
 
-        if (organizationId is null)
+        if (trainingEntity is null)
         {
             return Result<Guid>.NotFound(
                 $"No training found with Id {request.TrainingId} in category {request.CategoryId}.");
@@ -210,17 +220,13 @@ public class TrainingCommandHandlers :
 
         var isAdmin = actor is not null
             && (actor.Role == UserRole.SysAdmin
-                || (actor.Role == UserRole.OrgAdmin && actor.OrganizationId == organizationId));
+                || (actor.Role == UserRole.OrgAdmin && actor.OrganizationId == trainingEntity.OrganizationId));
 
         if (!isAdmin)
         {
             return Result<Guid>.Forbidden(
                 "Only an organization admin or system admin can remove training files.");
         }
-
-        var trainingEntity = await _appDbContext.Trainings
-            .Include(candidate => candidate.Files)
-            .FirstAsync(candidate => candidate.Id == request.TrainingId, cancellationToken);
 
         var file = trainingEntity.RemoveFile(request.FileId);
         if (file is null)
@@ -238,14 +244,15 @@ public class TrainingCommandHandlers :
 
     public async Task<Result<IReadOnlyList<TrainingFileDTO>>> Handle(UpdateTrainingInitiateFileExtractCommand request, CancellationToken cancellationToken)
     {
-        var organizationId = await (
-                 from training in _appDbContext.Trainings
-                 join category in _appDbContext.Categories on training.CategoryId equals category.Id
-                 where training.Id == request.TrainingId && training.CategoryId == request.CategoryId
-                 select (Guid?)category.OrganizationId)
-             .FirstOrDefaultAsync(cancellationToken);
+        var trainingEntity = await _appDbContext.Trainings
+            .Include(candidate => candidate.Files)
+            .FirstOrDefaultAsync(
+                candidate => candidate.Id == request.TrainingId
+                    && candidate.CategoryId == request.CategoryId
+                    && candidate.OrganizationId == request.OrganizationId,
+                cancellationToken);
 
-        if (organizationId is null)
+        if (trainingEntity is null)
         {
             return Result<IReadOnlyList<TrainingFileDTO>>.NotFound(
                 $"No training found with Id {request.TrainingId} in category {request.CategoryId}.");
@@ -257,17 +264,13 @@ public class TrainingCommandHandlers :
 
         var isAdmin = actor is not null
             && (actor.Role == UserRole.SysAdmin
-                || (actor.Role == UserRole.OrgAdmin && actor.OrganizationId == organizationId));
+                || (actor.Role == UserRole.OrgAdmin && actor.OrganizationId == trainingEntity.OrganizationId));
 
         if (!isAdmin)
         {
             return Result<IReadOnlyList<TrainingFileDTO>>.Forbidden(
                 "Only an organization admin or system admin can request training extracts.");
         }
-
-        var trainingEntity = await _appDbContext.Trainings
-            .Include(candidate => candidate.Files)
-            .FirstAsync(candidate => candidate.Id == request.TrainingId, cancellationToken);
 
         // File extraction flag is enabled
         var file = trainingEntity.FileExtractionIsInitiated(request.FileId);        

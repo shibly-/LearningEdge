@@ -27,7 +27,9 @@ public class TrainingQueryHandlers :
             .AsNoTracking()
             .Include(candidate => candidate.Files.OrderBy(file => file.CreatedAt))
             .FirstOrDefaultAsync(
-                candidate => candidate.Id == request.Id && candidate.CategoryId == request.CategoryId,
+                candidate => candidate.Id == request.Id
+                    && candidate.CategoryId == request.CategoryId
+                    && candidate.OrganizationId == request.OrganizationId,
                 cancellationToken);
 
         return training is null
@@ -38,17 +40,21 @@ public class TrainingQueryHandlers :
     public async Task<Result<IReadOnlyList<TrainingDTO>>> Handle(GetTrainingsQuery request, CancellationToken cancellationToken)
     {
         var categoryExists = await _appDbContext.Categories
-            .AnyAsync(category => category.Id == request.CategoryId, cancellationToken);
+            .AnyAsync(
+                category => category.Id == request.CategoryId && category.OrganizationId == request.OrganizationId,
+                cancellationToken);
 
         if (!categoryExists)
         {
-            return Result<IReadOnlyList<TrainingDTO>>.NotFound($"No category found with Id {request.CategoryId}.");
+            return Result<IReadOnlyList<TrainingDTO>>.NotFound(
+                $"No category found with Id {request.CategoryId} in organization {request.OrganizationId}.");
         }
 
         var trainings = await _appDbContext.Trainings
             .AsNoTracking()
             .Include(training => training.Files.OrderBy(file => file.CreatedAt))
-            .Where(training => training.CategoryId == request.CategoryId)
+            .Where(training => training.CategoryId == request.CategoryId
+                && training.OrganizationId == request.OrganizationId)
             .OrderBy(training => training.Name)
             .ToListAsync(cancellationToken);
 

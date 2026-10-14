@@ -35,13 +35,9 @@ export const TRAINING_FILE_IDLE = {
   'id' | 'fileName' | 'contentType' | 'sizeBytes' | 'uploadedByUserId' | 'createdAt'
 >;
 
-/** GET /api/v1/category/{categoryId}/training -> TrainingDTO[] */
+/** GET /api/v1/organization/{organizationId}/category/{categoryId}/training -> TrainingDTO[] */
 export interface Training {
   readonly id: string;
-  /**
-   * Not part of TrainingDTO: the repository fills it in from the category the
-   * training was loaded through, so tenant filtering keeps working.
-   */
   readonly organizationId: string;
   readonly categoryId: string;
   readonly name: string;
@@ -50,7 +46,7 @@ export interface Training {
   readonly files: readonly TrainingFile[];
 }
 
-/** POST /api/v1/category/{categoryId}/training -> 201 with the new GUID */
+/** POST /api/v1/organization/{organizationId}/category/{categoryId}/training -> 201 with the new GUID */
 export interface CreateTrainingCommand {
   readonly organizationId: string;
   readonly categoryId: string;
@@ -59,7 +55,7 @@ export interface CreateTrainingCommand {
   readonly isActive: boolean;
 }
 
-/** PUT /api/v1/category/{categoryId}/training/{id} -> TrainingDTO */
+/** PUT /api/v1/organization/{organizationId}/category/{categoryId}/training/{id} -> TrainingDTO */
 export interface UpdateTrainingCommand extends CreateTrainingCommand {
   readonly id: string;
 }

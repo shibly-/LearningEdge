@@ -2,6 +2,7 @@ namespace LearningEdge.Application.Models.DTOs;
 
 public record TrainingDTO(
     Guid Id,
+    Guid OrganizationId,
     Guid CategoryId,
     string Name,
     string Description,

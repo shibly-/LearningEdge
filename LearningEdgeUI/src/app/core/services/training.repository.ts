@@ -33,6 +33,7 @@ export interface RemoveTrainingFileRequest {
 
 /** `fileName` is only used for the confirmation message; the API identifies the file by id. */
 export interface ExtractTrainingFileRequest {
+  readonly organizationId: string;
   readonly categoryId: string;
   readonly trainingId: string;
   readonly fileId: string;
@@ -58,9 +59,6 @@ export abstract class TrainingRepository {
   abstract extractFile(request: ExtractTrainingFileRequest): Observable<readonly TrainingFile[]>;
 }
 
-/** TrainingDTO as the API returns it: no organizationId. */
-type TrainingDto = Omit<Training, 'organizationId'>;
-
 @Injectable()
 export class HttpTrainingRepository extends TrainingRepository {
   private readonly api = inject(ApiService);
@@ -81,9 +79,7 @@ export class HttpTrainingRepository extends TrainingRepository {
     organizationId: string,
     categoryId: string,
   ): Observable<readonly Training[]> {
-    return this.api
-      .get<readonly TrainingDto[]>(apiPaths.training.list(categoryId))
-      .pipe(map((items) => items.map((dto) => ({ ...dto, organizationId }))));
+    return this.api.get<readonly Training[]>(apiPaths.training.list(organizationId, categoryId));
   }
 
   override getById(
@@ -91,21 +87,20 @@ export class HttpTrainingRepository extends TrainingRepository {
     categoryId: string,
     id: string,
   ): Observable<Training | null> {
-    return this.api
-      .getOptional<TrainingDto>(apiPaths.training.byId(categoryId, id))
-      .pipe(map((dto) => (dto === null ? null : { ...dto, organizationId })));
+    return this.api.getOptional<Training>(apiPaths.training.byId(organizationId, categoryId, id));
   }
 
   override create(command: CreateTrainingCommand): Observable<string> {
-    const { organizationId: _organizationId, categoryId, ...body } = command;
-    return this.api.post(apiPaths.training.list(categoryId), body);
+    const { organizationId, categoryId, ...body } = command;
+    return this.api.post(apiPaths.training.list(organizationId, categoryId), body);
   }
 
   override update(command: UpdateTrainingCommand): Observable<Training> {
     const { organizationId, categoryId, id, ...body } = command;
-    return this.api
-      .put<typeof body, TrainingDto>(apiPaths.training.byId(categoryId, id), body)
-      .pipe(map((dto) => ({ ...dto, organizationId })));
+    return this.api.put<typeof body, Training>(
+      apiPaths.training.byId(organizationId, categoryId, id),
+      body,
+    );
   }
 
   override uploadFiles(request: UploadTrainingFilesRequest): Observable<readonly TrainingFile[]> {
@@ -115,18 +110,18 @@ export class HttpTrainingRepository extends TrainingRepository {
       form.append('files', file, file.name);
     }
     return this.api.postForm<readonly TrainingFile[]>(
-      apiPaths.training.files(request.categoryId, request.trainingId),
+      apiPaths.training.files(request.organizationId, request.categoryId, request.trainingId),
       form,
     );
   }
 
   override removeFile(request: RemoveTrainingFileRequest): Observable<void> {
-    const url = `${apiPaths.training.file(request.categoryId, request.trainingId, request.fileId)}?removedByUserId=${encodeURIComponent(request.removedByUserId)}`;
+    const url = `${apiPaths.training.file(request.organizationId, request.categoryId, request.trainingId, request.fileId)}?removedByUserId=${encodeURIComponent(request.removedByUserId)}`;
     return this.api.delete(url);
   }
 
   override extractFile(request: ExtractTrainingFileRequest): Observable<readonly TrainingFile[]> {
-    const url = `${apiPaths.training.extract(request.categoryId, request.trainingId, request.fileId)}?requestedByUserId=${encodeURIComponent(request.requestedByUserId)}`;
+    const url = `${apiPaths.training.extract(request.organizationId, request.categoryId, request.trainingId, request.fileId)}?requestedByUserId=${encodeURIComponent(request.requestedByUserId)}`;
     return this.api.get<readonly TrainingFile[]>(url);
   }
 }
@@ -169,9 +164,15 @@ export class MockTrainingRepository extends TrainingRepository {
   }
 
   override create(command: CreateTrainingCommand): Observable<string> {
-    if (!this.db.categories.some((c) => c.id === command.categoryId)) {
+    const category = this.db.categories.find((c) => c.id === command.categoryId);
+    if (category === undefined || category.organizationId !== command.organizationId) {
       return throwError(
-        () => new ApiFailure('not-found', `No category found with Id ${command.categoryId}.`, 404),
+        () =>
+          new ApiFailure(
+            'not-found',
+            `No category found with Id ${command.categoryId} in organization ${command.organizationId}.`,
+            404,
+          ),
       );
     }
     const problem = this.validate(command, null);
@@ -197,7 +198,10 @@ export class MockTrainingRepository extends TrainingRepository {
 
   override update(command: UpdateTrainingCommand): Observable<Training> {
     const existing = this.db.trainings.find(
-      (t) => t.id === command.id && t.categoryId === command.categoryId,
+      (t) =>
+        t.id === command.id &&
+        t.categoryId === command.categoryId &&
+        t.organizationId === command.organizationId,
     );
     if (existing === undefined) {
       return throwError(
@@ -221,7 +225,10 @@ export class MockTrainingRepository extends TrainingRepository {
 
   override uploadFiles(request: UploadTrainingFilesRequest): Observable<readonly TrainingFile[]> {
     const training = this.db.trainings.find(
-      (t) => t.id === request.trainingId && t.categoryId === request.categoryId,
+      (t) =>
+        t.id === request.trainingId &&
+        t.categoryId === request.categoryId &&
+        t.organizationId === request.organizationId,
     );
     if (training === undefined) {
       return throwError(
@@ -274,7 +281,10 @@ export class MockTrainingRepository extends TrainingRepository {
 
   override extractFile(request: ExtractTrainingFileRequest): Observable<readonly TrainingFile[]> {
     const training = this.db.trainings.find(
-      (t) => t.id === request.trainingId && t.categoryId === request.categoryId,
+      (t) =>
+        t.id === request.trainingId &&
+        t.categoryId === request.categoryId &&
+        t.organizationId === request.organizationId,
     );
     if (training === undefined || !training.files.some((file) => file.id === request.fileId)) {
       return throwError(

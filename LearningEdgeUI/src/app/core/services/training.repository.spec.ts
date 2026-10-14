@@ -54,11 +54,10 @@ describe('HttpTrainingRepository', () => {
     const result = firstValueFrom(repository.listByOrganization(ORG));
 
     http.expectOne(apiPaths.category.list(ORG)).flush([category, { ...category, id: 'cat-2' }]);
-    const { organizationId: _a, ...dto } = training;
-    http.expectOne(apiPaths.training.list('cat-1')).flush([dto]);
+    http.expectOne(apiPaths.training.list(ORG, 'cat-1')).flush([training]);
     http
-      .expectOne(apiPaths.training.list('cat-2'))
-      .flush([{ ...dto, id: 'trn-2', categoryId: 'cat-2' }]);
+      .expectOne(apiPaths.training.list(ORG, 'cat-2'))
+      .flush([{ ...training, id: 'trn-2', categoryId: 'cat-2' }]);
 
     const items = await result;
     expect(items.map((t) => t.id)).toEqual(['trn-1', 'trn-2']);
@@ -82,7 +81,7 @@ describe('HttpTrainingRepository', () => {
       }),
     );
 
-    const request = http.expectOne(apiPaths.training.list('cat-1'));
+    const request = http.expectOne(apiPaths.training.list(ORG, 'cat-1'));
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({ name: 'New', description: 'd', isActive: false });
     request.flush('new-id', { status: 201, statusText: 'Created' });
@@ -101,7 +100,7 @@ describe('HttpTrainingRepository', () => {
       }),
     );
 
-    const request = http.expectOne(apiPaths.training.files('cat-1', 'trn-1'));
+    const request = http.expectOne(apiPaths.training.files(ORG, 'cat-1', 'trn-1'));
     const body = request.request.body as FormData;
     expect(body.get('uploadedByUserId')).toBe('user-1');
     expect((body.getAll('files') as File[]).map((f) => f.name)).toEqual(['a.pdf', 'b.txt']);
@@ -113,6 +112,7 @@ describe('HttpTrainingRepository', () => {
   it('requests file extract with the acting user id', async () => {
     const result = firstValueFrom(
       repository.extractFile({
+        organizationId: ORG,
         categoryId: 'cat-1',
         trainingId: 'trn-1',
         fileId: 'file-1',
@@ -122,10 +122,10 @@ describe('HttpTrainingRepository', () => {
     );
 
     const request = http.expectOne(
-      `${apiPaths.training.extract('cat-1', 'trn-1', 'file-1')}?requestedByUserId=user-1`,
+      `${apiPaths.training.extract(ORG, 'cat-1', 'trn-1', 'file-1')}?requestedByUserId=user-1`,
     );
     expect(request.request.method).toBe('GET');
-    const files = [{ ...sampleFile, IsFileExtractionRequested: true }];
+    const files = [{ ...sampleFile, isFileExtractionRequested: true }];
     request.flush(files);
 
     await expect(result).resolves.toEqual(files);
@@ -143,7 +143,7 @@ describe('HttpTrainingRepository', () => {
     );
 
     const request = http.expectOne(
-      `${apiPaths.training.file('cat-1', 'trn-1', 'file-1')}?removedByUserId=user-1`,
+      `${apiPaths.training.file(ORG, 'cat-1', 'trn-1', 'file-1')}?removedByUserId=user-1`,
     );
     expect(request.request.method).toBe('DELETE');
     request.flush('', { status: 204, statusText: 'No Content' });
@@ -163,7 +163,7 @@ describe('HttpTrainingRepository', () => {
     );
 
     http
-      .expectOne(apiPaths.training.files('cat-1', 'trn-1'))
+      .expectOne(apiPaths.training.files(ORG, 'cat-1', 'trn-1'))
       .flush(
         { title: 'Forbidden', detail: 'Only admins can upload files.' },
         { status: 403, statusText: 'Forbidden' },
@@ -251,6 +251,7 @@ describe('MockTrainingRepository', () => {
 
     const response = await settle(
       repository.extractFile({
+        organizationId: ORG,
         categoryId: 'cat-1',
         trainingId: 'trn-1',
         fileId: 'f-1',
@@ -259,14 +260,22 @@ describe('MockTrainingRepository', () => {
       }),
     );
 
-    expect(response).toEqual([{ ...sampleFile, IsFileExtractionRequested: true }]);
-    expect(db.trainings[0].files[0].IsFileExtractionRequested).toBe(true);
+    expect(response).toEqual([
+      {
+        ...sampleFile,
+        isFileExtractionRequested: true,
+        isFileExtractionStarted: true,
+        isMCQGenerationRequested: true,
+      },
+    ]);
+    expect(db.trainings[0].files[0].isFileExtractionRequested).toBe(true);
   });
 
   it('rejects extract when the file is not on the training', async () => {
     await expect(
       settle(
         repository.extractFile({
+          organizationId: ORG,
           categoryId: 'cat-1',
           trainingId: 'trn-1',
           fileId: 'missing',

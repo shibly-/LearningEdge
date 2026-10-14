@@ -8,6 +8,8 @@ public class CreateTrainingCommandValidator : AbstractValidator<CreateTrainingCo
 {
     public CreateTrainingCommandValidator()
     {
+        RuleFor(x => x.OrganizationId)
+            .NotEmpty().WithMessage("Organization id is required.");
         RuleFor(x => x.CategoryId)
             .NotEmpty().WithMessage("Category id is required.");
         RuleFor(x => x.Name)
@@ -23,6 +25,8 @@ public class UpdateTrainingCommandValidator : AbstractValidator<UpdateTrainingCo
 {
     public UpdateTrainingCommandValidator()
     {
+        RuleFor(x => x.OrganizationId)
+            .NotEmpty().WithMessage("Organization id is required.");
         RuleFor(x => x.CategoryId)
             .NotEmpty().WithMessage("Category id is required.");
         RuleFor(x => x.Id)
@@ -40,6 +44,8 @@ public class UploadTrainingFilesCommandValidator : AbstractValidator<UploadTrain
 {
     public UploadTrainingFilesCommandValidator()
     {
+        RuleFor(x => x.OrganizationId)
+            .NotEmpty().WithMessage("Organization id is required.");
         RuleFor(x => x.CategoryId)
             .NotEmpty().WithMessage("Category id is required.");
         RuleFor(x => x.TrainingId)
@@ -75,6 +81,8 @@ public class RemoveTrainingFileCommandValidator : AbstractValidator<RemoveTraini
 {
     public RemoveTrainingFileCommandValidator()
     {
+        RuleFor(x => x.OrganizationId)
+            .NotEmpty().WithMessage("Organization id is required.");
         RuleFor(x => x.CategoryId)
             .NotEmpty().WithMessage("Category id is required.");
         RuleFor(x => x.TrainingId)

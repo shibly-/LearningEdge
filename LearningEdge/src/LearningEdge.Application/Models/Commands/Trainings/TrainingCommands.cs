@@ -6,6 +6,7 @@ using MediatR;
 namespace LearningEdge.Application.Models.Commands.Trainings;
 
 public record CreateTrainingCommand(
+    Guid OrganizationId,
     Guid CategoryId,
     string Name,
     string? Description,
@@ -13,6 +14,7 @@ public record CreateTrainingCommand(
 ) : IRequest<Result<Guid>>;
 
 public record UpdateTrainingCommand(
+    Guid OrganizationId,
     Guid CategoryId,
     Guid Id,
     string Name,
@@ -24,6 +26,7 @@ public record UpdateTrainingCommand(
 public record TrainingFileUpload(string FileName, string ContentType, long Length, Stream Content);
 
 public record UploadTrainingFilesCommand(
+    Guid OrganizationId,
     Guid CategoryId,
     Guid TrainingId,
     Guid UploadedByUserId,
@@ -31,6 +34,7 @@ public record UploadTrainingFilesCommand(
 ) : IRequest<Result<IReadOnlyList<TrainingFileDTO>>>;
 
 public record RemoveTrainingFileCommand(
+    Guid OrganizationId,
     Guid CategoryId,
     Guid TrainingId,
     Guid FileId,
@@ -38,6 +42,7 @@ public record RemoveTrainingFileCommand(
 ) : IRequest<Result<Guid>>;
 
 public record UpdateTrainingInitiateFileExtractCommand(
+    Guid OrganizationId,
     Guid CategoryId,
     Guid TrainingId,
     Guid FileId,

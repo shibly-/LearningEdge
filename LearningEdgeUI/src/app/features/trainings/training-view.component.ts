@@ -119,6 +119,7 @@ export class TrainingViewComponent {
 
     this.store.extractFile(
       {
+        organizationId: training.organizationId,
         categoryId: training.categoryId,
         trainingId: training.id,
         fileId: file.id,
