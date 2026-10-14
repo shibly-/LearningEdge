@@ -48,3 +48,10 @@ public record UpdateTrainingInitiateFileExtractCommand(
     Guid FileId,
     Guid RequestedByUserId
 ) : IRequest<Result<IReadOnlyList<TrainingFileDTO>>>;
+
+public record UpdateTrainingFileExtractCompletedCommand(    
+    Guid FileId,
+    Guid TrainingId,
+    bool IsSuccessful,
+    string? FailedReason
+) : IRequest<Result<bool>>;

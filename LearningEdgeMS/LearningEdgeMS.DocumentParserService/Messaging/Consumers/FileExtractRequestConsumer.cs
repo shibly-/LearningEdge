@@ -1,4 +1,4 @@
-﻿using LearningEdge.Application.Interfaces;
+﻿using LearningEdge.Application.Events;
 using LearningEdge.Infrastructure.Persistence;
 using LearningEdge.Messaging.Contracts.Events;
 using LearningEdgeMS.DocumentParserService.Services;
@@ -6,11 +6,12 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
+using System.Diagnostics;
 
 
-namespace LearningEdgeMS.DocumentParserService.EventConsumers;
+namespace LearningEdgeMS.DocumentParserService.Messaging.Consumers;
 
-public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmitted>
+public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmitted>
 {
     private readonly IConfiguration _configuration;
     private readonly ApplicationDbContext _appDbContext;    
@@ -18,17 +19,17 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
     private readonly QdrantClient _qdrantClient;
     private readonly DocumentParsingService _parserService;
     private readonly EmbeddingService _embeddingService;
-    private readonly ILogger<InitiateFileExtractConsumer> _logger;
+    private readonly ILogger<FileExtractRequestConsumer> _logger;
     private readonly string _collectionName;
 
-    public InitiateFileExtractConsumer(
+    public FileExtractRequestConsumer(
         IConfiguration configuration,
         ApplicationDbContext appDbContext,        
         DocumentParserSettings settings,
         DocumentParsingService parserService,
         EmbeddingService embeddingService,
         QdrantClient qdrantClient,
-        ILogger<InitiateFileExtractConsumer> logger)
+        ILogger<FileExtractRequestConsumer> logger)
     {
         _configuration = configuration;
         _collectionName = _configuration["VectorDB:Qdrant:CollectionName"] ?? "le_docs";
@@ -37,8 +38,12 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
         _qdrantClient = qdrantClient;
         _parserService = parserService;
         _embeddingService = embeddingService;
-        _logger = logger;        
+        _logger = logger;
     }
+
+    // <summary>
+    // Consumes the IExtractRequestSubmitted event and initiates the file extraction process.
+    // </summary>
 
     public async Task Consume(ConsumeContext<IExtractRequestSubmitted> context)
     {
@@ -48,7 +53,7 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
             ? Path.GetFileName(filePath)
             : message.FileName;
 
-        _logger.LogInformation($"Received extract request for file {fileName} ({message.FileId}) uploaded by {message.UploadedByUserId}");
+        _logger.LogInformation("Received extract request for file {fileName} ({FileId}) uploaded by {UploadedByUserId}", fileName, message.FileId, message.UploadedByUserId);
 
         // Check the file exists before proceeding
         if (!File.Exists(filePath))
@@ -61,7 +66,7 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
 
         // Mark the file as being extracted
         var trainingFile = await _appDbContext.TrainingFiles
-            .Where(file => file.Id == message.FileId)
+            .Where(file => file.Id == message.FileId)            
             .FirstOrDefaultAsync(context.CancellationToken);
 
         if(trainingFile is null)
@@ -72,17 +77,32 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
 
         await MarkFileExtractionStartedAsync(message.FileId, context.CancellationToken);
 
+        IExtractRequestCompleted? responseMessage = null;
+
         // Start the extraction process
         try
         {
             _logger.LogInformation("Parsing file: {filePath}", filePath);
 
+            Stopwatch stopwatch = Stopwatch.StartNew();
+
             // Extract raw text dynamically based on extension
             string rawText = await _parserService.ExtractTextAsync(filePath);
+
+            stopwatch.Stop();
+            TimeSpan elapsedTime = stopwatch.Elapsed;
+            long elapsedMilliseconds = stopwatch.ElapsedMilliseconds;
+            _logger.LogInformation("Parsing - Elapsed Time (TimeSpan): {ElapsedTime}", elapsedTime);
+            _logger.LogInformation("Parsing - Elapsed Milliseconds: {ElapsedMilliseconds} ms", elapsedMilliseconds);
 
             if (string.IsNullOrWhiteSpace(rawText))
             {
                 _logger.LogWarning("No text extracted from file: {filePath}", filePath);
+                responseMessage = new ExtractRequestCompleted(
+                    FileId: message.FileId,
+                    TrainingId: trainingFile.TrainingId,
+                    IsSuccessful: false,
+                    FailedReason: "No text extracted from file.");
                 return;
             }
 
@@ -90,6 +110,12 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
 
             // Chunk and generate vectors via Ollama & Microsoft.Extensions.AI
             var embeddedChunks = await _embeddingService.ProcessAndEmbedTextAsync(rawText);
+
+            stopwatch.Restart();
+            TimeSpan elapsedTimeNext = stopwatch.Elapsed;
+            long elapsedMillisecondsNext = stopwatch.ElapsedMilliseconds;
+            _logger.LogInformation("Embedding - Elapsed Time (TimeSpan): {ElapsedTime}", elapsedTimeNext);
+            _logger.LogInformation("Embedding - Elapsed Milliseconds: {ElapsedMilliseconds} ms", elapsedMillisecondsNext);
 
             _logger.LogInformation("Storing {count} chunks into Qdrant vector database...", embeddedChunks.Count);
 
@@ -112,7 +138,23 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
                 });
             }
 
-            var collectionName = _collectionName + "_" + trainingFile.TrainingId;
+            var training = await _appDbContext.Trainings
+            .Where(training => training.Id == trainingFile.TrainingId)
+            .FirstOrDefaultAsync(context.CancellationToken);
+
+            if (training is null)
+            {
+                _logger.LogWarning("Training with ID {TrainingId} not found in the database.", trainingFile.TrainingId);
+                responseMessage = new ExtractRequestCompleted(
+                    FileId: message.FileId,
+                    TrainingId: trainingFile.TrainingId,
+                    IsSuccessful: false,
+                    FailedReason: "Training not found.");
+                return;
+            }
+
+            var collectionName = _collectionName + "_" + training.OrganizationId.ToString("N");
+            _logger.LogInformation("Qdrant collection '{collection}' will be used to store {count} chunks...", collectionName, embeddedChunks.Count);
 
             // Ensure the Qdrant collection exists before inserting points
             await EnsureVectorDBCollectionExistsAsync(collectionName);
@@ -121,13 +163,42 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
             await _qdrantClient.UpsertAsync(collectionName, points, cancellationToken: context.CancellationToken);
 
             _logger.LogInformation("Successfully indexed and saved document into Qdrant!");
+
+            responseMessage = new ExtractRequestCompleted(
+                FileId: message.FileId,
+                TrainingId: trainingFile.TrainingId,
+                IsSuccessful: true,
+                FailedReason: null
+            );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "An error occurred while processing the document ingestion pipeline.");
+
+            responseMessage = new ExtractRequestCompleted(
+                FileId: message.FileId,
+                TrainingId: trainingFile.TrainingId,
+                IsSuccessful: false,
+                FailedReason: ex.Message
+            );
+        }
+        finally
+        {
+            if (responseMessage is not null)
+            {
+                // Publish as IExtractRequestCompleted so the message is routed to the
+                // exchange the Web API queue le-file-extract-completed is bound to.
+                await context.Publish(
+                    responseMessage,
+                    cfg => cfg.SetRoutingKey(_configuration["RabbitMQ:FileExtractCompletedEvent"] ?? string.Empty),
+                    context.CancellationToken);
+
+                _logger.LogInformation("Published file extract completion event for File ID: {FileId}!", message.FileId);
+            }
         }
     }
 
+    // Helper method to resolve the stored file path based on the message
     private async Task MarkFileExtractionStartedAsync(Guid fileId, CancellationToken cancellationToken)
     {
         var updated = await _appDbContext.TrainingFiles
@@ -142,6 +213,7 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
         }
     }
 
+    // Resolves the stored file path based on the message details
     private string ResolveStoredFile(IExtractRequestSubmitted message)
     {
         if (string.IsNullOrWhiteSpace(message.StorageKey))
@@ -168,6 +240,7 @@ public sealed class InitiateFileExtractConsumer : IConsumer<IExtractRequestSubmi
         return fullPath;
     }
 
+    // Ensure the Qdrant collection exists before inserting points
     private async Task EnsureVectorDBCollectionExistsAsync(string collectionName)
     {
         var collections = await _qdrantClient.ListCollectionsAsync();

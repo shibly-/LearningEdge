@@ -13,15 +13,15 @@ public class EmbeddingService
 
     public async Task<List<(string ChunkText, float[] Vector)>> ProcessAndEmbedTextAsync(string fullText)
     {
-        // 1. Chunk the document text into smaller segments
+        // Chunk the document text into smaller segments
         var chunks = ChunkText(fullText, maxChunkLength: 1000, overlap: 100);
         var results = new List<(string, float[])>();
 
-        // 2. Generate embeddings for all chunks
+        // Generate embeddings for all chunks
         // Microsoft.Extensions.AI natively supports batch processing for efficiency
         GeneratedEmbeddings<Embedding<float>> embeddings = await _embeddingGenerator.GenerateAsync(chunks);
 
-        // 3. Map the generated vectors back to their respective text chunks
+        // Map the generated vectors back to their respective text chunks
         for (int i = 0; i < chunks.Count; i++)
         {
             float[] vector = embeddings[i].Vector.ToArray();
@@ -31,34 +31,46 @@ public class EmbeddingService
         return results;
     }
 
-    private List<string> ChunkText(string text, int maxChunkLength, int overlap)
+    private static List<string> ChunkText(string text, int maxChunkLength, int overlap)
     {
-        var chunks = new List<string>();
-        if (string.IsNullOrWhiteSpace(text)) return chunks;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return [];
+        }
 
-        int startIndex = 0;
+        var step = Math.Max(1, maxChunkLength - overlap);
+        var chunks = new List<string>(text.Length / step + 1);
+        var startIndex = 0;
+
         while (startIndex < text.Length)
         {
-            int length = Math.Min(maxChunkLength, text.Length - startIndex);
+            var length = Math.Min(maxChunkLength, text.Length - startIndex);
 
-            // Try to break cleanly at a space if we are in the middle of a document
+            // Break on a space when this window is not the tail of the document.
             if (startIndex + length < text.Length)
             {
-                int lastSpace = text.LastIndexOf(' ', startIndex + length, length);
+                var lastSpace = text.LastIndexOf(' ', startIndex + length - 1, length);
                 if (lastSpace > startIndex)
                 {
                     length = lastSpace - startIndex + 1;
                 }
             }
 
-            string chunk = text.Substring(startIndex, length).Trim();
-            if (!string.IsNullOrWhiteSpace(chunk))
+            var chunk = text.AsSpan(startIndex, length).Trim();
+            if (!chunk.IsEmpty)
             {
-                chunks.Add(chunk);
+                chunks.Add(chunk.ToString());
             }
 
-            startIndex += length - overlap;
-            if (startIndex < 0) startIndex = 0;
+            if (startIndex + length >= text.Length)
+            {
+                break;
+            }
+
+            // A chunk shorter than the overlap must still move forward.
+            // Resetting to zero here re-walks the whole document.
+            var nextStart = startIndex + length - overlap;
+            startIndex = nextStart > startIndex ? nextStart : startIndex + length;
         }
 
         return chunks;

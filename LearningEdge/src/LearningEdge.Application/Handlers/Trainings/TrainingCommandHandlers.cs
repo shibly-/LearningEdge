@@ -11,6 +11,7 @@ using LearningEdge.Messaging.Contracts.Events;
 using MassTransit;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using static LearningEdge.Domain.Common.Enums;
 using static System.Net.WebRequestMethods;
 
@@ -21,15 +22,18 @@ public class TrainingCommandHandlers :
     IRequestHandler<UpdateTrainingCommand, Result<TrainingDTO>>,
     IRequestHandler<UploadTrainingFilesCommand, Result<IReadOnlyList<TrainingFileDTO>>>,
     IRequestHandler<RemoveTrainingFileCommand, Result<Guid>>,
-    IRequestHandler<UpdateTrainingInitiateFileExtractCommand, Result<IReadOnlyList<TrainingFileDTO>>>
+    IRequestHandler<UpdateTrainingInitiateFileExtractCommand, Result<IReadOnlyList<TrainingFileDTO>>>,
+    IRequestHandler<UpdateTrainingFileExtractCompletedCommand, Result<bool>>
 {
+    private readonly IConfiguration _configuration;
     private readonly IApplicationDbContext _appDbContext;
     private readonly IMapper _mapper;
     private readonly IFileStorage _fileStorage;
     private readonly IPublishEndpoint? _publishEndpoint;
 
-    public TrainingCommandHandlers(IApplicationDbContext appDbContext, IMapper mapper, IFileStorage fileStorage, IPublishEndpoint? publishEndpoint = null)
+    public TrainingCommandHandlers(IConfiguration configuration, IApplicationDbContext appDbContext, IMapper mapper, IFileStorage fileStorage, IPublishEndpoint? publishEndpoint = null)
     {
+        _configuration = configuration;
         _appDbContext = appDbContext;
         _mapper = mapper;
         _fileStorage = fileStorage;
@@ -300,12 +304,39 @@ public class TrainingCommandHandlers :
         );
 
         // Publish the file extract event to RabbitMQ via MassTransit
-        await _publishEndpoint.Publish(message, cancellationToken);
+        await _publishEndpoint.Publish(message, cfg => cfg.SetRoutingKey(_configuration["RabbitMQ:FileExtractRequestEvent"] ?? string.Empty), cancellationToken);
 
         await _appDbContext.SaveChangesAsync(cancellationToken);
 
         return Result<IReadOnlyList<TrainingFileDTO>>.Ok(
             _mapper.Map<List<TrainingFileDTO>>(trainingEntity.Files));
+    }
+
+    public async Task<Result<bool>> Handle(UpdateTrainingFileExtractCompletedCommand request, CancellationToken cancellationToken)
+    {
+        string extractFailureMessage = request.IsSuccessful ? string.Empty : $"Training file extract failed for File Id {request.FileId} on training Id {request.TrainingId}.";
+
+        bool isExtracted = request.IsSuccessful;
+        bool isFileExtractionFailed = !request.IsSuccessful;
+
+        var fileUpdateCount = await _appDbContext.TrainingFiles
+                .Where(file => file.Id == request.FileId)
+                .ExecuteUpdateAsync(
+                    setters => setters
+                        .SetProperty(file => file.IsFileExtracted, isExtracted)
+                        .SetProperty(file => file.IsFileExtractionFailed, isFileExtractionFailed)
+                        .SetProperty(file => file.FileExtractionFailureMessage, extractFailureMessage)
+                        .SetProperty(file => file.UpdatedAt, DateTime.Now),
+
+                    cancellationToken);
+
+        if (fileUpdateCount == 0)
+        {
+            return Result<bool>.NotFound(
+                $"No file found with File Id {request.FileId} on training {request.TrainingId}.");
+        }
+
+        return Result<bool>.Ok(true);
     }
 
     private static string NameTakenMessage(string name) =>

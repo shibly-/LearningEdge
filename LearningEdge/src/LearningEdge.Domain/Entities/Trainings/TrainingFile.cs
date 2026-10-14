@@ -1,5 +1,6 @@
 using LearningEdge.Domain.Common;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Xml.Linq;
 
 namespace LearningEdge.Domain.Entities.Trainings;
 

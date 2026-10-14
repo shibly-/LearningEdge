@@ -5,16 +5,35 @@ using LearningEdge.Application;
 using LearningEdge.Application.Common.Behaviors;
 using LearningEdge.Infrastructure;
 using LearningEdge.Infrastructure.Persistence;
+using MassTransit;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Threading.RateLimiting;
+using LearningEdge.Messaging.Contracts.Events;
+using Microsoft.EntityFrameworkCore.Design.Internal;
+using Microsoft.Extensions.Hosting;
+using LearningEdge.Infrastructure.Messaging.Consumers;
 
 namespace LearningEdge.Api.Extensions;
 
 public static class ServiceCollectionExtension
 {
+    public static IServiceCollection AddCORSService(this IServiceCollection services)
+    {
+        services.AddCors(options =>
+        {
+            options.AddPolicy("AllowAngularApp", policy =>
+            {
+                policy.WithOrigins("http://localhost:4200")
+                      .AllowAnyHeader()
+                      .AllowAnyMethod();
+            });
+        });
+        return services;
+    }
+
     public static IServiceCollection AddRateLimiterService(this IServiceCollection services)
     {
         services.AddRateLimiter(options =>
@@ -102,6 +121,43 @@ public static class ServiceCollectionExtension
         services.AddSerilog((services, lc) => lc
         .ReadFrom.Configuration(configuration)
         .ReadFrom.Services(services));
+
+        return services;
+    }
+
+    public static IServiceCollection AddMassTransitWithRabbitMQ(this IServiceCollection services, ConfigurationManager configuration)
+    {
+        // Register MassTransit
+        services.AddMassTransit(bus =>
+        {
+            // Register consumers
+            bus.AddConsumer<ExtractRequestCompletedConsumer>();
+
+            // Configure the transport with RabbitMQ (In future, we will configure for Azure Service Bus)
+            bus.UsingRabbitMq((context, cfg) =>
+            {
+                cfg.Message<IQuestionGenerateRequested>(message =>
+                    message.SetEntityName(MessagingEntityNames.QuestionGenerate));
+
+                cfg.Host(configuration["RabbitMQ:Host"] ?? "localhost", h =>                                    
+                {
+                    h.Username(configuration["RabbitMQ:Username"] ?? "guest");
+                    h.Password(configuration["RabbitMQ:Password"] ?? "guest");
+                });
+
+                // Automatically configure endpoints for all registered consumers
+                // cfg.ConfigureEndpoints(context);
+
+                cfg.ReceiveEndpoint(configuration["RabbitMQ:FileExtractCompletedQueue"] ?? string.Empty, endpoint =>
+                {
+                    endpoint.ConfigureConsumer<ExtractRequestCompletedConsumer>(context);
+                });
+
+                //cfg.Durable = true;
+                //cfg.AutoDelete = false;            
+                //cfg.Exclusive = false;
+            });
+        });
 
         return services;
     }

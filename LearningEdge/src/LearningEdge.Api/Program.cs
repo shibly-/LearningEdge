@@ -1,8 +1,4 @@
 using LearningEdge.Api.Extensions;
-using LearningEdge.Messaging.Contracts.Events;
-using MassTransit;
-using Microsoft.EntityFrameworkCore.Design.Internal;
-using Microsoft.Extensions.Hosting;
 using Serilog;
 
 try
@@ -11,61 +7,20 @@ try
         .WriteTo.Console()
         .CreateBootstrapLogger();
 
-    Log.Information("Starting application...");
+    Log.Information("Starting LearningEdge Web API...");
 
     // Create the application builder
     var builder = WebApplication.CreateBuilder(args);
 
-    // Add CORS policy
-    builder.Services.AddCors(options =>
-    {
-        options.AddPolicy("AllowAngularApp", policy =>
-        {
-            policy.WithOrigins("http://localhost:4200")
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        });
-    });
-
     // Register services to DI containers
-    builder.Services.AddMediatrMapperFluentValidation()
+    builder.Services.AddCORSService()
+        .AddMediatrMapperFluentValidation()
         .AddApplicationDbContext(builder.Configuration, builder.Environment)
         .AddOpenApiAndApiVersioning()
         .AddLoggingService(builder.Configuration)
         .AddRateLimiterService()
+        .AddMassTransitWithRabbitMQ(builder.Configuration)
         .AddControllers();
-
-
-    // Register MassTransit
-    builder.Services.AddMassTransit(x =>
-    {
-        // 1. Register your consumers here (if you have any)
-        // x.AddConsumer<YourMessageConsumer>();
-
-        // 2. Configure the transport (e.g., RabbitMQ)
-        x.UsingRabbitMq((context, cfg) =>
-        {
-            cfg.Message<IQuestionGenerateRequested>(message =>
-                message.SetEntityName(MessagingEntityNames.QuestionGenerate));
-
-            // "rabbitmq" is the service name defined in docker-compose.yml
-            //cfg.Host("rabbitmq", "/", h =>
-            // when running the API outside of docker
-            cfg.Host("localhost", "/", h =>
-            {
-                h.Username("guest");
-                h.Password("guest");
-            });
-
-            // Automatically configure endpoints for all registered consumers
-            cfg.ConfigureEndpoints(context);
-
-            //cfg.Durable = true;
-            //cfg.AutoDelete = false;            
-            //cfg.Exclusive = false;
-        });
-    });
-
 
     // Build the application
     var app = builder.Build();
@@ -81,11 +36,11 @@ try
 }
 catch (Exception ex) when (ex is not HostAbortedException)
 {
-    Log.Fatal(ex, "Application terminated unexpectedly!");
+    Log.Fatal(ex, "LearningEdge Web API terminated unexpectedly!");
     throw;
 }
 finally
 {
-    Log.Information("Exit application...");
+    Log.Information("Exit LearningEdge Web API...");
     Log.CloseAndFlush();
 }
