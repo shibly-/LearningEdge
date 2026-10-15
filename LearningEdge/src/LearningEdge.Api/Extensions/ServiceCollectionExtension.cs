@@ -136,8 +136,11 @@ public static class ServiceCollectionExtension
             // Configure the transport with RabbitMQ (In future, we will configure for Azure Service Bus)
             bus.UsingRabbitMq((context, cfg) =>
             {
-                cfg.Message<IQuestionGenerateRequested>(message =>
-                    message.SetEntityName(MessagingEntityNames.QuestionGenerate));
+                cfg.Message<IExtractRequestSubmitted>(message =>
+                    message.SetEntityName(configuration["RabbitMQ:FileExtractRequestEvent"] ?? "le-file-extract-requested"));
+
+                //cfg.Message<IQuestionGenerationSubmitted>(message =>
+                //    message.SetEntityName(configuration["RabbitMQ:QuestionGenerationRequestEvent"] ?? "le-question-generation-requested"));
 
                 cfg.Host(configuration["RabbitMQ:Host"] ?? "localhost", h =>                                    
                 {
@@ -148,10 +151,17 @@ public static class ServiceCollectionExtension
                 // Automatically configure endpoints for all registered consumers
                 // cfg.ConfigureEndpoints(context);
 
+                // configure endpoint for FileExtractCompleted consumers
                 cfg.ReceiveEndpoint(configuration["RabbitMQ:FileExtractCompletedQueue"] ?? string.Empty, endpoint =>
                 {
                     endpoint.ConfigureConsumer<ExtractRequestCompletedConsumer>(context);
                 });
+
+                // configure endpoint for QuestionGenerationCompleted consumers
+                //cfg.ReceiveEndpoint(configuration["RabbitMQ:QuestionGenerationCompletedQueue"] ?? string.Empty, endpoint =>
+                //{
+                //    endpoint.ConfigureConsumer<QuestionGenerationCompletedConsumer>(context);
+                //});
 
                 //cfg.Durable = true;
                 //cfg.AutoDelete = false;            

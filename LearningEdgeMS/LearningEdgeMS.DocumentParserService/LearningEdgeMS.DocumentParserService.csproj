@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Worker">
+﻿<Project Sdk="Microsoft.NET.Sdk.Worker">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\LearningEdge\src\LearningEdge.Application\LearningEdge.Application.csproj" />
     <ProjectReference Include="..\..\LearningEdge\src\LearningEdge.Infrastructure\LearningEdge.Infrastructure.csproj" />
     <ProjectReference Include="..\..\LearningEdge\src\LearningEdge.Messaging.Contracts\LearningEdge.Messaging.Contracts.csproj" />
   </ItemGroup>

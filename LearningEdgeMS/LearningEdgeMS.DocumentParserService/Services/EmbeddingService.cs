@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.AI;
+﻿using Google.Protobuf.Collections;
+using Microsoft.Extensions.AI;
+using Qdrant.Client.Grpc;
+using System.Text.RegularExpressions;
 
 namespace LearningEdgeMS.DocumentParserService.Services;
 
@@ -11,24 +14,127 @@ public class EmbeddingService
         _embeddingGenerator = embeddingGenerator;
     }
 
-    public async Task<List<(string ChunkText, float[] Vector)>> ProcessAndEmbedTextAsync(string fullText)
+    public async Task<List<PointStruct>> ProcessAndEmbedTextAsync(string fullText)
     {
         // Chunk the document text into smaller segments
-        var chunks = ChunkText(fullText, maxChunkLength: 1000, overlap: 100);
-        var results = new List<(string, float[])>();
+        //var chunks = ChunkText(fullText, maxChunkLength: 1000, overlap: 100);
+        //var results = new List<(string, float[])>();
 
-        // Generate embeddings for all chunks
-        // Microsoft.Extensions.AI natively supports batch processing for efficiency
-        GeneratedEmbeddings<Embedding<float>> embeddings = await _embeddingGenerator.GenerateAsync(chunks);
+        // Perform the semantic split
+        // A similarity threshold of 0.70 to 0.75 works well for Qwen3-Embedding
+        List<string> semanticChunks = await SplitTextSemanticallyAsync(fullText, similarityThreshold: 0.72f);
 
-        // Map the generated vectors back to their respective text chunks
-        for (int i = 0; i < chunks.Count; i++)
+        // Generate embeddings and prepare points for Qdrant
+        var points = new List<PointStruct>();
+
+        // Generate a unique starting ID baseline based on the current timestamp
+        ulong startingId = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        for (int i = 0; i < semanticChunks.Count; i++)
         {
-            float[] vector = embeddings[i].Vector.ToArray();
-            results.Add((chunks[i], vector));
+            string chunkText = semanticChunks[i];
+            Console.WriteLine($"Generating embedding vector for Semantic Chunk {i + 1}/{semanticChunks.Count}...");
+
+            // CRITICAL: Embed the RAW semantic chunk text only. 
+            // Do NOT add query instructions ("Given a query...") during data insertion.
+
+            // Generate embeddings for all chunks
+            // Microsoft.Extensions.AI natively supports batch processing for efficiency
+            //GeneratedEmbeddings<Embedding<float>> embeddings = await _embeddingGenerator.GenerateAsync(semanticChunks);
+
+            var embeddingResult = await _embeddingGenerator.GenerateVectorAsync(chunkText);
+            float[] vector = embeddingResult.ToArray();
+
+            // Structure the metadata payload so you can identify the source later
+            var payload = new MapField<string, Value>
+            {
+                { "text", new Value { StringValue = chunkText } },
+                { "chunk_type", new Value { StringValue = "semantic" } },
+                { "inserted_at", new Value { StringValue = DateTime.UtcNow.ToString("o") } }
+            };
+
+            // Build the individual point point object
+            var point = new PointStruct
+            {
+                Id = startingId + (ulong)i, // Must be a completely unique ulong number
+                Vectors = vector,
+                Payload = { payload }
+            };
+
+            points.Add(point);
         }
 
-        return results;
+        //// Map the generated vectors back to their respective text chunks
+        //for (int i = 0; i < semanticChunks.Count; i++)
+        //{
+        //    float[] vector = embeddings[i].Vector.ToArray();
+        //    results.Add((semanticChunks[i], vector));
+        //}
+
+        return points;
+    }
+
+    public async Task<List<string>> SplitTextSemanticallyAsync(
+        string text,
+        float similarityThreshold)
+    {
+        // Regex to split by sentences (. ! ?) while handling spacing safely
+        string[] sentences = Regex.Split(text, @"(?<=[.!?])\s+")
+                                  .Where(s => !string.IsNullOrWhiteSpace(s))
+                                  .ToArray();
+
+        if (sentences.Length <= 1) return [text];
+
+        // Generate embeddings for every single individual sentence
+        var sentenceVectors = new List<float[]>();
+        foreach (var sentence in sentences)
+        {
+            var result = await _embeddingGenerator.GenerateVectorAsync(sentence);
+            sentenceVectors.Add(result.ToArray());
+        }
+
+        var chunks = new List<string>();
+        var currentChunkSentences = new List<string> { sentences[0] };
+
+        // Compare adjacent sentences to find where topics drift away
+        for (int i = 0; i < sentences.Length - 1; i++)
+        {
+            float similarity = CalculateCosineSimilarity(sentenceVectors[i], sentenceVectors[i + 1]);
+
+            // If similarity falls below our threshold, the topic changed! Commit current chunk and start a new one.
+            if (similarity < similarityThreshold)
+            {
+                chunks.Add(string.Join(" ", currentChunkSentences));
+                currentChunkSentences.Clear();
+            }
+
+            currentChunkSentences.Add(sentences[i + 1]);
+        }
+
+        // Catch the remaining trailing sentences
+        if (currentChunkSentences.Count > 0)
+        {
+            chunks.Add(string.Join(" ", currentChunkSentences));
+        }
+
+        return chunks;
+    }
+
+    private float CalculateCosineSimilarity(float[] vectorA, float[] vectorB)
+    {
+        float dotProduct = 0.0f;
+        float normA = 0.0f;
+        float normB = 0.0f;
+
+        for (int i = 0; i < vectorA.Length; i++)
+        {
+            dotProduct += vectorA[i] * vectorB[i];
+            normA += vectorA[i] * vectorA[i];
+            normB += vectorB[i] * vectorB[i];
+        }
+
+        if (normA == 0.0f || normB == 0.0f) return 0.0f;
+        return dotProduct / (MathF.Sqrt(normA) * MathF.Sqrt(normB));
     }
 
     private static List<string> ChunkText(string text, int maxChunkLength, int overlap)

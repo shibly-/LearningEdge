@@ -57,7 +57,7 @@ public class PromptRequestHandlers :
         _appDbContext.PromptRequests.Add(prompt);
         await _appDbContext.SaveChangesAsync(cancellationToken);
 
-        IQuestionGenerateRequested message = new QuestionGenerateRequested(
+        IQuestionGenerationSubmitted message = new QuestionGenerationSubmitted(
             prompt.Id,
             prompt.TrainingId,
             prompt.QuestionBankId,
@@ -65,7 +65,8 @@ public class PromptRequestHandlers :
             prompt.QuestionType.ToString(),
             prompt.QuestionCount,
             prompt.RequestedOn,
-            prompt.Status.ToString());
+            prompt.Status.ToString()
+        );
 
         using var publishTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         publishTimeout.CancelAfter(TimeSpan.FromSeconds(8));

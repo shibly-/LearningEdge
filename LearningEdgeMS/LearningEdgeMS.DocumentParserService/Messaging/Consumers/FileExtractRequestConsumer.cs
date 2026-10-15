@@ -109,7 +109,7 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
             _logger.LogInformation("Generating chunks and embedding vectors...");
 
             // Chunk and generate vectors via Ollama & Microsoft.Extensions.AI
-            var embeddedChunks = await _embeddingService.ProcessAndEmbedTextAsync(rawText);
+            var points = await _embeddingService.ProcessAndEmbedTextAsync(rawText);
 
             stopwatch.Restart();
             TimeSpan elapsedTimeNext = stopwatch.Elapsed;
@@ -117,27 +117,9 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
             _logger.LogInformation("Embedding - Elapsed Time (TimeSpan): {ElapsedTime}", elapsedTimeNext);
             _logger.LogInformation("Embedding - Elapsed Milliseconds: {ElapsedMilliseconds} ms", elapsedMillisecondsNext);
 
-            _logger.LogInformation("Storing {count} chunks into Qdrant vector database...", embeddedChunks.Count);
+            _logger.LogInformation("Storing {count} chunks into Qdrant vector database...", points.Count);
 
-            // Map chunks to Qdrant PointStruct objects with payload metadata
-            var points = new List<PointStruct>();
-            ulong idCounter = (ulong)DateTime.UtcNow.Ticks; // Generate unique base ID
-
-            foreach (var (chunkText, vector) in embeddedChunks)
-            {
-                points.Add(new PointStruct
-                {
-                    Id = idCounter++,
-                    Vectors = vector,
-                    Payload =
-                    {
-                        ["text"] = chunkText,
-                        ["source_file"] = Path.GetFileName(filePath),
-                        ["ingested_at"] = DateTime.UtcNow.ToString("o")
-                    }
-                });
-            }
-
+            
             var training = await _appDbContext.Trainings
             .Where(training => training.Id == trainingFile.TrainingId)
             .FirstOrDefaultAsync(context.CancellationToken);
@@ -154,13 +136,13 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
             }
 
             var collectionName = _collectionName + "_" + training.OrganizationId.ToString("N");
-            _logger.LogInformation("Qdrant collection '{collection}' will be used to store {count} chunks...", collectionName, embeddedChunks.Count);
+            _logger.LogInformation("Qdrant collection '{collection}' will be used to store {count} chunks...", collectionName, points.Count);
 
             // Ensure the Qdrant collection exists before inserting points
             await EnsureVectorDBCollectionExistsAsync(collectionName);
 
             // Upsert points into Qdrant
-            await _qdrantClient.UpsertAsync(collectionName, points, cancellationToken: context.CancellationToken);
+            UpdateResult result = await _qdrantClient.UpsertAsync(collectionName, points, cancellationToken: context.CancellationToken);
 
             _logger.LogInformation("Successfully indexed and saved document into Qdrant!");
 

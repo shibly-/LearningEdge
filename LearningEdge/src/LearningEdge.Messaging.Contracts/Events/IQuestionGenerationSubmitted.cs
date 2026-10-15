@@ -3,7 +3,7 @@ namespace LearningEdge.Messaging.Contracts.Events;
 /// <summary>
 /// Published to the <c>question-generate</c> RabbitMQ exchange when a prompt request is stored.
 /// </summary>
-public interface IQuestionGenerateRequested
+public interface IQuestionGenerationSubmitted
 {
     Guid PromptRequestId { get; }
     Guid TrainingId { get; }
@@ -13,9 +13,4 @@ public interface IQuestionGenerateRequested
     int QuestionCount { get; }
     DateTime RequestedOn { get; }
     string Status { get; }
-}
-
-public static class MessagingEntityNames
-{
-    public const string QuestionGenerate = "question-generate";
 }

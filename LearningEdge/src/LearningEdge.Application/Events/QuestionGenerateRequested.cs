@@ -2,7 +2,7 @@ using LearningEdge.Messaging.Contracts.Events;
 
 namespace LearningEdge.Application.Events;
 
-public record QuestionGenerateRequested(
+public record QuestionGenerationSubmitted(
     Guid PromptRequestId,
     Guid TrainingId,
     Guid QuestionBankId,
@@ -11,4 +11,4 @@ public record QuestionGenerateRequested(
     int QuestionCount,
     DateTime RequestedOn,
     string Status
-) : IQuestionGenerateRequested;
+) : IQuestionGenerationSubmitted;
