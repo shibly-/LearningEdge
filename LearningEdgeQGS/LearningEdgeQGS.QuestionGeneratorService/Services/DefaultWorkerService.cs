@@ -1,4 +1,5 @@
 ﻿using Google.Protobuf.Collections;
+using LearningEdge.Domain.Entities.Questions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using OllamaSharp;
@@ -31,27 +32,29 @@ public class DefaultWorkerService : BackgroundService
     {
         _logger.LogInformation("QuestionGenerator service has started at: {time}", DateTimeOffset.Now);
 
-        // Intentionally left blank.
         // The consumer class will handle all background work.
-        //await Task.CompletedTask;
+        // await Task.CompletedTask;
 
-        string prompt = "Generate a multiple choice questions with four options and correct answer on Multi-Factor Authentication?";
-        
+        Console.Write("Enter the collection name: ");
+        string collectionName = Console.ReadLine() ?? string.Empty; // le_docs_5839a1a37b8942779aaff1edaafca46d
+        Console.Write("\nDatabase (Qdrant) collection " + collectionName + " will be used for this query...");
+
+        Console.Write("\n\nAsk for a question: ");
+        string question = Console.ReadLine() ?? string.Empty;
+
+        string prompt = question ?? "Generate a summary of this document?";
+                
         string formattedQuery = $"Given a query, retrieve relevant documents that answer the query.\nQuery: {prompt}";
 
-        // Step 1: Embed the prompt
+        // Embed the prompt
         var embeddingResult = await _embeddingGenerator.GenerateVectorAsync(prompt);
         float[] queryVector = embeddingResult.ToArray();
 
-        // Step 2: Query Qdrant for context
+        // Query Qdrant for context
         var searchResults = await _qdrant.QueryAsync(
-            collectionName: "test_docs",
+            collectionName: collectionName,
             query: queryVector,
-            limit: 1,
-            //filter: null,                // optional filter
-            //scoreThreshold: 0.75f,       // only results above 0.75 similarity
-            //offset: 0,
-            //payloadSelector: new[] { "title", "text" },
+            limit: 10,
             vectorsSelector: false,
             cancellationToken: stoppingToken
         );
@@ -72,117 +75,22 @@ public class DefaultWorkerService : BackgroundService
 
         using var _ = GenerateAnswerWithLlamaAsync(prompt, retrievedContexts, stoppingToken);
 
-        //var contextBuilder = new StringBuilder();
-        //foreach (var hit in searchResult)
-        //{
-        //    contextBuilder.AppendLine(hit.Payload["text"].ToString());
-        //}
-
-        // Step 3: Augment prompt with retrieved context
-        //string augmentedPrompt = $"{prompt}\n\nContext:\n{contextBuilder}";
-
-        //Console.WriteLine("Generated Questions:");
-        //Console.WriteLine(augmentedPrompt);
-
-
-
-        /*
-        string documentText = """
-            To secure your application account, you must enable Multi-Factor Authentication (MFA) in settings. 
-            You can use a hardware security key or a software authenticator app. 
-            Biometric login options like FaceID can also add a strong extra layer of defense against remote attacks.
-            
-            Apples and oranges are popular fruits across the world. 
-            Oranges are high in Vitamin C and have a thick outer citrus rind. 
-            Most commercial apple orchards require cold winter temperatures to produce high-quality yields next spring.
-            
-            Database clusters must be backed up daily to offsite storage locations. 
-            Point-in-time recovery configurations allow you to restore data down to the exact second of a failure. 
-            Always encrypt database backups using modern AES-256 standards.
-            """;
-
-        Console.WriteLine("Starting semantic text chunking...\n");
-
-        // 2. Perform the semantic split
-        // A similarity threshold of 0.70 to 0.75 works well for Qwen3-Embedding
-        List<string> semanticChunks = await SplitTextSemanticallyAsync(documentText, similarityThreshold: 0.72f);
-
-        //// 3. Display the intelligently split chunks
-        //for (int i = 0; i < semanticChunks.Count; i++)
-        //{
-        //    Console.WriteLine($"--- [SEMANTIC CHUNK {i + 1}] ---");
-        //    Console.WriteLine(semanticChunks[i].Trim());
-        //    Console.WriteLine(new string('-', 30) + "\n");
-        //}
-
-        await _qdrant.CreateCollectionAsync(
-                collectionName: "test_docs",
-                vectorsConfig: new VectorParams
-                {
-                    //default output dimension of 'qwen3-embedding:0.6b'
-                    Size = 1024,
-                    Distance = Distance.Cosine
-                });
-
-        // 5. Generate embeddings and prepare points for Qdrant
-        var points = new List<PointStruct>();
-
-        // Generate a unique starting ID baseline based on the current timestamp
-        ulong startingId = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-        for (int i = 0; i < semanticChunks.Count; i++)
-        {
-            string chunkText = semanticChunks[i];
-            Console.WriteLine($"Generating embedding vector for Semantic Chunk {i + 1}/{semanticChunks.Count}...");
-
-            // CRITICAL: Embed the RAW semantic chunk text only. 
-            // Do NOT add query instructions ("Given a query...") during data insertion.
-            var embeddingResult = await _embeddingGenerator.GenerateVectorAsync(chunkText);
-            float[] vector = embeddingResult.ToArray();
-
-            // Structure the metadata payload so you can identify the source later
-            var payload = new MapField<string, Value>
-            {
-                { "text", new Value { StringValue = chunkText } },
-                { "chunk_type", new Value { StringValue = "semantic" } },
-                { "inserted_at", new Value { StringValue = DateTime.UtcNow.ToString("o") } }
-            };
-
-            // Build the individual point point object
-            var point = new PointStruct
-            {
-                Id = startingId + (ulong)i, // Must be a completely unique ulong number
-                Vectors = vector,
-                Payload = { payload }
-            };
-
-            points.Add(point);
-        }
-
-        // 6. Push all points concurrently to your Qdrant cluster
-        Console.WriteLine("\nUpserting semantic chunks into Qdrant database...");
-        //UpdateResult result = await _embeddingGenerator.UpsertAsync(collectionName, points);
-        UpdateResult result = await _qdrant.UpsertAsync("test_docs", points, cancellationToken: stoppingToken);
-
-        Console.WriteLine($"Successfully saved! Server Status: {result.Status}");
-        */
-
         Console.ReadKey();
     }
 
     private static async Task GenerateAnswerWithLlamaAsync(string userQuery, List<string> retrievedContexts, CancellationToken token)
     {
-        // 1. Initialize the local Ollama Chat Client for llama3.1:8b
+        // Initialize the local Ollama Chat Client for llama3.1:8b
         IChatClient chatClient = new OllamaApiClient(new Uri("http://localhost:11434"), "llama3.1:8b");
         
-        // 2. Format the retrieved database chunks into a clear structural string
+        // Format the retrieved database chunks into a clear structural string
         var contextBuilder = new StringBuilder();
         for (int i = 0; i < retrievedContexts.Count; i++)
         {
             contextBuilder.AppendLine($"[Document {i + 1}]: {retrievedContexts[i]}");
         }
 
-        // 3. Construct the prompt hierarchy
+        // Construct the prompt hierarchy
         // System message instructs the LLM how to behave and provides facts
         // User message contains the original raw question
         var messages = new List<ChatMessage>
@@ -197,79 +105,18 @@ public class DefaultWorkerService : BackgroundService
             new ChatMessage(ChatRole.User, userQuery)
         };
 
-        Console.WriteLine("\n--- Sending request to Llama 3.1:8b ---");
+        Console.WriteLine("\n--- Sending request to llama3.1:8b ==>");
+        Console.WriteLine("\n--- Actual question from user:\n" + userQuery);
 
-        // 4. Stream the text response back asynchronously for a fluid user interface experience
+        Console.WriteLine("\n\n--- Model (llama3.1:8b) has generated the following answer: \n");
+        // Stream the text response back asynchronously for a fluid user interface experience
         await foreach (ChatResponseUpdate streamingChunk in chatClient.GetStreamingResponseAsync(messages))
         {
             // Print out each token immediately as llama3.1 computes it
             Console.Write(streamingChunk.Text);
         }
 
-        Console.WriteLine("\n\n--- End of Generation ---");
-    }
-
-    private async Task<List<string>> SplitTextSemanticallyAsync(
-        string text,
-        float similarityThreshold)
-    {
-        // Regex to split by sentences (. ! ?) while handling spacing safely
-        string[] sentences = Regex.Split(text, @"(?<=[.!?])\s+")
-                                  .Where(s => !string.IsNullOrWhiteSpace(s))
-                                  .ToArray();
-
-        if (sentences.Length <= 1) return [text];
-
-        // 1. Generate embeddings for every single individual sentence
-        var sentenceVectors = new List<float[]>();
-        foreach (var sentence in sentences)
-        {
-            var result = await _embeddingGenerator.GenerateVectorAsync(sentence);
-            sentenceVectors.Add(result.ToArray());
-        }
-
-        var chunks = new List<string>();
-        var currentChunkSentences = new List<string> { sentences[0] };
-
-        // 2. Compare adjacent sentences to find where topics drift away
-        for (int i = 0; i < sentences.Length - 1; i++)
-        {
-            float similarity = CalculateCosineSimilarity(sentenceVectors[i], sentenceVectors[i + 1]);
-
-            // If similarity falls below our threshold, the topic changed! Commit current chunk and start a new one.
-            if (similarity < similarityThreshold)
-            {
-                chunks.Add(string.Join(" ", currentChunkSentences));
-                currentChunkSentences.Clear();
-            }
-
-            currentChunkSentences.Add(sentences[i + 1]);
-        }
-
-        // Catch the remaining trailing sentences
-        if (currentChunkSentences.Count > 0)
-        {
-            chunks.Add(string.Join(" ", currentChunkSentences));
-        }
-
-        return chunks;
-    }
-
-    private float CalculateCosineSimilarity(float[] vectorA, float[] vectorB)
-    {
-        float dotProduct = 0.0f;
-        float normA = 0.0f;
-        float normB = 0.0f;
-
-        for (int i = 0; i < vectorA.Length; i++)
-        {
-            dotProduct += vectorA[i] * vectorB[i];
-            normA += vectorA[i] * vectorA[i];
-            normB += vectorB[i] * vectorB[i];
-        }
-
-        if (normA == 0.0f || normB == 0.0f) return 0.0f;
-        return dotProduct / (MathF.Sqrt(normA) * MathF.Sqrt(normB));
+        Console.WriteLine("\n\n--- End of generation ---");
     }
 
 }

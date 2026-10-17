@@ -19,10 +19,7 @@ namespace LearningEdgeMS.QuestionGeneratorService.Extensions
         public static IServiceCollection AddApplicationDbContext(this IServiceCollection services, ConfigurationManager configuration)
         {
             var connectionString = configuration.GetConnectionString("DefaultConnection")
-        ?? throw new InvalidOperationException(
-            "Connection string 'DefaultConnection' is not configured. Set it with " +
-            "'dotnet user-secrets set ConnectionStrings:DefaultConnection <value>' or the " +
-            "ConnectionStrings__DefaultConnection environment variable.");
+        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 
             // Register EF Core DBContext with SQL Server provider
             services.AddDbContext<ApplicationDbContext>(options =>

@@ -38,7 +38,6 @@ public sealed class QuestionGenerationConsumer : IConsumer<IQuestionGenerationSu
     // <summary>
     // Consumes the IQuestionGenerationSubmitted event and initiates the question generation process.
     // </summary>
-
     public async Task Consume(ConsumeContext<IQuestionGenerationSubmitted> context)
     {
         var message = context.Message;

@@ -9,7 +9,6 @@
     <Folder Include="Common\Behaviors\" />
     <Folder Include="Common\Exceptions\" />
     <Folder Include="Handlers\Messages\" />
-    <Folder Include="Interfaces\" />
   </ItemGroup>
 
   <ItemGroup>
