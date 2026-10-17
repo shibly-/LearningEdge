@@ -1,4 +1,6 @@
-﻿using LearningEdge.Application.Events;
+﻿using LearningEdge.Application.Caching;
+using LearningEdge.Application.Events;
+using LearningEdge.Application.Interfaces;
 using LearningEdge.Infrastructure.Persistence;
 using LearningEdge.Messaging.Contracts.Events;
 using LearningEdgeMS.DocumentParserService.Services;
@@ -20,6 +22,7 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
     private readonly DocumentParsingService _parserService;
     private readonly EmbeddingService _embeddingService;
     private readonly ILogger<FileExtractRequestConsumer> _logger;
+    private readonly ICacheService _cache;
     private readonly string _collectionName;
 
     public FileExtractRequestConsumer(
@@ -29,6 +32,7 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
         DocumentParsingService parserService,
         EmbeddingService embeddingService,
         QdrantClient qdrantClient,
+        ICacheService cache,
         ILogger<FileExtractRequestConsumer> logger)
     {
         _configuration = configuration;
@@ -38,6 +42,7 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
         _qdrantClient = qdrantClient;
         _parserService = parserService;
         _embeddingService = embeddingService;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -48,7 +53,32 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
     public async Task Consume(ConsumeContext<IExtractRequestSubmitted> context)
     {
         var message = context.Message;
-        var filePath = ResolveStoredFile(message);
+
+        var fileStatusInCache = await _cache.GetAsync(FileExtractCache.StatusKey(message.FileId) + ":status");
+
+        if (fileStatusInCache != null && fileStatusInCache == "Completed")
+        {
+            _logger.LogInformation($"File extraction already completed for FileId: {message.FileId}. Skipping processing.");
+            return;
+        }
+        else
+        {
+            _logger.LogInformation($"Starting file extraction for FileId: {message.FileId} with status: {fileStatusInCache}");
+        }
+
+        await SetExtractStatusAsync(message.FileId, FileExtractCache.Status.Processing);
+
+        string filePath;
+        try
+        {
+            filePath = ResolveStoredFile(message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not resolve stored file for extract request {FileId}", message.FileId);
+            await SetExtractStatusAsync(message.FileId, FileExtractCache.Status.Failed);
+            throw;
+        }
         var fileName = string.IsNullOrWhiteSpace(message.FileName)
             ? Path.GetFileName(filePath)
             : message.FileName;
@@ -59,6 +89,7 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
         if (!File.Exists(filePath))
         {
             _logger.LogWarning("Target file not found: {filePath}", filePath);
+            await SetExtractStatusAsync(message.FileId, FileExtractCache.Status.Failed);
             return;
         }
 
@@ -72,6 +103,7 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
         if(trainingFile is null)
         {
             _logger.LogWarning("Training file with ID {FileId} not found in the database.", message.FileId);
+            await SetExtractStatusAsync(message.FileId, FileExtractCache.Status.Failed);
             return;
         }
 
@@ -109,7 +141,7 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
             _logger.LogInformation("Generating chunks and embedding vectors...");
 
             // Chunk and generate vectors via Ollama & Microsoft.Extensions.AI
-            var points = await _embeddingService.ProcessAndEmbedTextAsync(rawText);
+            var points = await _embeddingService.ProcessAndEmbedTextAsync(message.FileId, rawText);
 
             stopwatch.Restart();
             TimeSpan elapsedTimeNext = stopwatch.Elapsed;
@@ -168,6 +200,12 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
         {
             if (responseMessage is not null)
             {
+                await SetExtractStatusAsync(
+                    message.FileId,
+                    responseMessage.IsSuccessful
+                        ? FileExtractCache.Status.Completed
+                        : FileExtractCache.Status.Failed);
+
                 // Publish as IExtractRequestCompleted so the message is routed to the
                 // exchange the Web API queue le-file-extract-completed is bound to.
                 await context.Publish(
@@ -179,6 +217,9 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
             }
         }
     }
+
+    private Task SetExtractStatusAsync(Guid fileId, string status) =>
+        _cache.SetAsync(FileExtractCache.StatusKey(fileId)+":status", status, FileExtractCache.StatusLifetime);
 
     // Helper method to resolve the stored file path based on the message
     private async Task MarkFileExtractionStartedAsync(Guid fileId, CancellationToken cancellationToken)

@@ -1,4 +1,5 @@
 using AutoMapper;
+using LearningEdge.Application.Caching;
 using LearningEdge.Application.Common.Exceptions;
 using LearningEdge.Application.Common.Files;
 using LearningEdge.Application.Common.Results;
@@ -30,14 +31,16 @@ public class TrainingCommandHandlers :
     private readonly IMapper _mapper;
     private readonly IFileStorage _fileStorage;
     private readonly IPublishEndpoint? _publishEndpoint;
+    private readonly ICacheService? _cache;
 
-    public TrainingCommandHandlers(IConfiguration configuration, IApplicationDbContext appDbContext, IMapper mapper, IFileStorage fileStorage, IPublishEndpoint? publishEndpoint = null)
+    public TrainingCommandHandlers(IConfiguration configuration, IApplicationDbContext appDbContext, IMapper mapper, IFileStorage fileStorage, IPublishEndpoint? publishEndpoint = null, ICacheService? cache = null)
     {
         _configuration = configuration;
         _appDbContext = appDbContext;
         _mapper = mapper;
         _fileStorage = fileStorage;
         _publishEndpoint = publishEndpoint;
+        _cache = cache;
     }
 
     public async Task<Result<Guid>> Handle(CreateTrainingCommand request, CancellationToken cancellationToken)
@@ -305,6 +308,18 @@ public class TrainingCommandHandlers :
 
         // Publish the file extract event to RabbitMQ via MassTransit
         await _publishEndpoint.Publish(message, cfg => cfg.SetRoutingKey(_configuration["RabbitMQ:FileExtractRequestEvent"] ?? string.Empty), cancellationToken);
+
+        // LearningEdgeMS updates this same key while it consumes le-file-extract-requested.
+        if (_cache is not null)
+        {
+            await _cache.SetAsync(
+                FileExtractCache.StatusKey(request.FileId) + ":status",
+                FileExtractCache.Status.Queued,
+                FileExtractCache.StatusLifetime);
+            //var getRedisKey = await _cache.GetAsync(
+            //    FileExtractCache.StatusKey(request.FileId) + ":status");
+            //Console.Write("getRedisKey: " + getRedisKey);
+        }
 
         await _appDbContext.SaveChangesAsync(cancellationToken);
 

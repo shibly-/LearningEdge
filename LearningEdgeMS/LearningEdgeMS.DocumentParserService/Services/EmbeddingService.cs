@@ -1,5 +1,8 @@
 ﻿using Google.Protobuf.Collections;
+using LearningEdge.Application.Caching;
+using LearningEdge.Application.Interfaces;
 using Microsoft.Extensions.AI;
+using OllamaSharp.Models.Chat;
 using Qdrant.Client.Grpc;
 using System.Text.RegularExpressions;
 
@@ -8,13 +11,15 @@ namespace LearningEdgeMS.DocumentParserService.Services;
 public class EmbeddingService
 {
     private readonly IEmbeddingGenerator<string, Embedding<float>> _embeddingGenerator;
+    private readonly ICacheService _cache;
 
-    public EmbeddingService(IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator)
+    public EmbeddingService(IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator, ICacheService cache   )
     {
         _embeddingGenerator = embeddingGenerator;
+        _cache = cache;
     }
 
-    public async Task<List<PointStruct>> ProcessAndEmbedTextAsync(string fullText)
+    public async Task<List<PointStruct>> ProcessAndEmbedTextAsync(Guid fileId,string fullText)
     {
         // Chunk the document text into smaller segments
         //var chunks = ChunkText(fullText, maxChunkLength: 1000, overlap: 100);
@@ -30,10 +35,19 @@ public class EmbeddingService
         // Generate a unique starting ID baseline based on the current timestamp
         ulong startingId = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
+        string progressOfFileId = FileExtractCache.StatusKey(fileId) + ":progress";
+        
+
         for (int i = 0; i < semanticChunks.Count; i++)
         {
             string chunkText = semanticChunks[i];
             Console.WriteLine($"Generating embedding vector for Semantic Chunk {i + 1}/{semanticChunks.Count}...");
+
+            double progressPercentage = ((double)(i + 1)/ ((double)semanticChunks.Count)) * 100;
+            progressPercentage = Math.Ceiling(progressPercentage);
+            if (progressPercentage > 100) progressPercentage = 100;
+            Console.WriteLine($"progressPercentage => {progressPercentage}");
+            await SetExtractStatusWithProgressAsync(progressOfFileId, ((int)progressPercentage).ToString());
 
             // CRITICAL: Embed the RAW semantic chunk text only. 
             // Do NOT add query instructions ("Given a query...") during data insertion.
@@ -181,4 +195,7 @@ public class EmbeddingService
 
         return chunks;
     }
+
+    private Task SetExtractStatusWithProgressAsync(string progressOfFileId, string progress)
+        => _cache.SetAsync(progressOfFileId, progress, FileExtractCache.StatusLifetime);
 }

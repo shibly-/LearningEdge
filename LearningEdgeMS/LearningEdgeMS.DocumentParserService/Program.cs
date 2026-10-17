@@ -1,7 +1,10 @@
 ﻿
+using LearningEdge.Application.Interfaces;
+using LearningEdge.Infrastructure.Caching;
 using LearningEdgeMS.DocumentParserService.Extensions;
 using LearningEdgeMS.DocumentParserService.Services;
 using Serilog;
+using StackExchange.Redis;
 
 try
 {
@@ -18,6 +21,10 @@ try
         .AddApplicationDbContext(builder.Configuration)
         .AddEmbeddingAndVectorDBService(builder.Configuration, builder.Environment)
         .AddMassTransitWithRabbitMQ(builder.Configuration, builder.Environment);
+
+    var redisConnection = builder.Configuration["Redis:Connection"] ?? "127.0.0.1:6380";
+    builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnection));
+    builder.Services.AddSingleton<ICacheService, RedisCacheService>();
 
     // Register custom services & default background worker
     builder.Services

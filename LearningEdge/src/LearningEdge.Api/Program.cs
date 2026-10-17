@@ -1,5 +1,8 @@
 using LearningEdge.Api.Extensions;
+using LearningEdge.Application.Interfaces;
+using LearningEdge.Infrastructure.Caching;
 using Serilog;
+using StackExchange.Redis;
 
 try
 {
@@ -21,6 +24,10 @@ try
         .AddRateLimiterService()
         .AddMassTransitWithRabbitMQ(builder.Configuration)
         .AddControllers();
+
+    var redisConnection = builder.Configuration["Redis:Connection"] ?? "127.0.0.1:6380";
+    builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnection));
+    builder.Services.AddSingleton<ICacheService, RedisCacheService>();
 
     // Build the application
     var app = builder.Build();
