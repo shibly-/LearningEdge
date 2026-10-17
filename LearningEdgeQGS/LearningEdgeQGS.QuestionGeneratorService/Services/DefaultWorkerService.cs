@@ -6,6 +6,7 @@ using OllamaSharp;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
 using System.Collections;
+using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using static Qdrant.Client.Grpc.Qdrant;
@@ -14,15 +15,18 @@ namespace LearningEdgeMS.QuestionGeneratorService.Services;
 
 public class DefaultWorkerService : BackgroundService
 {
+    private readonly IHostApplicationLifetime _appLifetime;
     private readonly ILogger<DefaultWorkerService> _logger;
     private readonly IEmbeddingGenerator<string, Embedding<float>> _embeddingGenerator;
     private readonly Qdrant.Client.QdrantClient _qdrant;
 
     public DefaultWorkerService(
+        IHostApplicationLifetime appLifetime,
         ILogger<DefaultWorkerService> logger, 
         IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator,
         Qdrant.Client.QdrantClient qdrant)
     {
+        _appLifetime = appLifetime;
         _logger = logger;        
         _embeddingGenerator = embeddingGenerator;
         _qdrant = qdrant;
@@ -37,48 +41,76 @@ public class DefaultWorkerService : BackgroundService
 
         Console.Write("Enter the collection name: ");
         string collectionName = Console.ReadLine() ?? string.Empty; // le_docs_5839a1a37b8942779aaff1edaafca46d
-        Console.Write("\nDatabase (Qdrant) collection " + collectionName + " will be used for this query...");
 
-        Console.Write("\n\nAsk for a question: ");
-        string question = Console.ReadLine() ?? string.Empty;
+        Console.Write("\nDatabase (Qdrant) collection ");
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.Write(collectionName);
+        Console.ResetColor();
+        Console.Write("will be used for this query...");
 
-        string prompt = question ?? "Generate a summary of this document?";
-                
-        string formattedQuery = $"Given a query, retrieve relevant documents that answer the query.\nQuery: {prompt}";
-
-        // Embed the prompt
-        var embeddingResult = await _embeddingGenerator.GenerateVectorAsync(prompt);
-        float[] queryVector = embeddingResult.ToArray();
-
-        // Query Qdrant for context
-        var searchResults = await _qdrant.QueryAsync(
-            collectionName: collectionName,
-            query: queryVector,
-            limit: 10,
-            vectorsSelector: false,
-            cancellationToken: stoppingToken
-        );
-
-        List<string> retrievedContexts = new List<string>();
-        Console.WriteLine("\n--- Search Results ---");
-        foreach (ScoredPoint point in searchResults)
+        while (true)  // loop until user decides to quit
         {
-            Console.WriteLine($"Score: {point.Score:F4}");
+            Console.Write("\n\nAsk for a question: ");
+            string question = Console.ReadLine() ?? string.Empty;
 
-            // Extract the actual text string you stored in the database
-            if (point.Payload.TryGetValue("text", out var textValue))
+            string prompt = question ?? "Generate a summary of this document?";
+
+            string formattedQuery = $"Given a query, retrieve relevant documents that answer the query.\nQuery: {prompt}";
+
+            // Embed the prompt
+            var embeddingResult = await _embeddingGenerator.GenerateVectorAsync(prompt);
+            float[] queryVector = embeddingResult.ToArray();
+
+            Console.WriteLine("\n--- Searching in Vector DB (Qdrant) ---");
+            // Query Qdrant for context
+            var searchResults = await _qdrant.QueryAsync(
+                collectionName: collectionName,
+                query: queryVector,
+                limit: 10,
+                vectorsSelector: false,
+                cancellationToken: stoppingToken
+            );
+
+            List<string> retrievedContexts = new List<string>();
+            
+            foreach (ScoredPoint point in searchResults)
             {
-                retrievedContexts.Add(textValue.StringValue);
-                Console.WriteLine($"Content: {textValue.StringValue}");
+                //Console.WriteLine($"Score: {point.Score:F4}");
+
+                // Extract the actual text string you stored in the database
+                if (point.Payload.TryGetValue("text", out var textValue))
+                {
+                    retrievedContexts.Add(textValue.StringValue);
+                    //Console.WriteLine($"Content: {textValue.StringValue}");
+                }
+            }
+
+            var stopwatch = Stopwatch.StartNew();
+            await GenerateAnswerWithLlamaAsync(prompt, retrievedContexts, stoppingToken);
+
+            stopwatch.Stop();
+            Console.WriteLine($"\nReplied in {stopwatch.Elapsed.TotalSeconds:F2} seconds.");
+
+            Console.Write("Do you want to ask another question? (y/n): ");
+            string choice = Console.ReadLine() ?? string.Empty;
+
+            if (choice?.ToLower() != "y")
+            {
+                Console.WriteLine("Thanks for using the tool...");
+                break; 
             }
         }
 
-        using var _ = GenerateAnswerWithLlamaAsync(prompt, retrievedContexts, stoppingToken);
+        Console.Write("Enter any key to close...");
+        // Wait for a key press asynchronously
+        await Task.Run(() => Console.ReadKey(true), stoppingToken);
 
-        Console.ReadKey();
+        // Signal the host to stop
+        _appLifetime.StopApplication();
+        return;
     }
 
-    private static async Task GenerateAnswerWithLlamaAsync(string userQuery, List<string> retrievedContexts, CancellationToken token)
+    private async Task GenerateAnswerWithLlamaAsync(string userQuery, List<string> retrievedContexts, CancellationToken token)
     {
         // Initialize the local Ollama Chat Client for llama3.1:8b
         IChatClient chatClient = new OllamaApiClient(new Uri("http://localhost:11434"), "llama3.1:8b");
@@ -106,15 +138,22 @@ public class DefaultWorkerService : BackgroundService
         };
 
         Console.WriteLine("\n--- Sending request to llama3.1:8b ==>");
-        Console.WriteLine("\n--- Actual question from user:\n" + userQuery);
 
-        Console.WriteLine("\n\n--- Model (llama3.1:8b) has generated the following answer: \n");
+        Console.WriteLine("\n--- Actual question from user:\n");
+        Console.ForegroundColor = ConsoleColor.Blue;
+        Console.Write(userQuery);
+        Console.ResetColor();
+
+        Console.WriteLine("\n\n--- Model (llama3.1:8b) is generating the possible answer: \n");
         // Stream the text response back asynchronously for a fluid user interface experience
+
+        Console.ForegroundColor = ConsoleColor.Green;
         await foreach (ChatResponseUpdate streamingChunk in chatClient.GetStreamingResponseAsync(messages))
         {
             // Print out each token immediately as llama3.1 computes it
             Console.Write(streamingChunk.Text);
         }
+        Console.ResetColor();
 
         Console.WriteLine("\n\n--- End of generation ---");
     }
