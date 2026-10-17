@@ -54,9 +54,35 @@ h2 {
 
 .file-copy {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+}
+
+.bar {
+  height: 8px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--le-surface-sunken);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--le-brand-600);
+  transition: width 0.3s ease;
+
+  &.is-failed {
+    background: var(--le-danger);
+  }
+}
+
+.extract-label {
+  margin: 0;
+  color: var(--le-text-muted);
+  font-size: 0.8rem;
 }
 
 .name {

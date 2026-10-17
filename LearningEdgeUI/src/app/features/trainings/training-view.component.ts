@@ -18,6 +18,10 @@ import type { Training, TrainingFile } from '../../core/models/training';
 import { ExamRepository } from '../../core/services/exam.repository';
 import { OrganizationContextService } from '../../core/services/organization-context.service';
 import { QuestionBankRepository } from '../../core/services/question-bank.repository';
+import {
+  FileExtractProgressService,
+  type FileExtractProgress,
+} from '../../core/services/file-extract-progress.service';
 import { TrainingRepository } from '../../core/services/training.repository';
 import { describeError } from '../../core/stores/async-collection.store';
 import { CategoryStore } from '../../core/stores/category.store';
@@ -30,6 +34,46 @@ import { SkeletonComponent } from '../../shared/components/skeleton.component';
 import { SpinnerComponent } from '../../shared/components/spinner.component';
 
 type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
+
+function applyExtractProgress(file: TrainingFile, update: FileExtractProgress): TrainingFile {
+  if (update.status === 'Completed') {
+    if (file.isFileExtracted && !file.isFileExtractionFailed) {
+      return file;
+    }
+    return {
+      ...file,
+      isFileExtracted: true,
+      isFileExtractionFailed: false,
+      isFileExtractionRequested: true,
+      isFileExtractionStarted: true,
+      fileExtractionFailureMessage: '',
+    };
+  }
+
+  if (update.status === 'Failed') {
+    if (file.isFileExtractionFailed && !file.isFileExtracted) {
+      return file;
+    }
+    return {
+      ...file,
+      isFileExtracted: false,
+      isFileExtractionFailed: true,
+      isFileExtractionRequested: true,
+      isFileExtractionStarted: true,
+      fileExtractionFailureMessage: file.fileExtractionFailureMessage || 'Extract failed.',
+    };
+  }
+
+  if (!file.isFileExtractionRequested || (update.status === 'Processing' && !file.isFileExtractionStarted)) {
+    return {
+      ...file,
+      isFileExtractionRequested: true,
+      isFileExtractionStarted: update.status === 'Processing' || file.isFileExtractionStarted,
+    };
+  }
+
+  return file;
+}
 
 @Component({
   selector: 'app-training-view',
@@ -55,6 +99,7 @@ export class TrainingViewComponent {
   private readonly exams = inject(ExamRepository);
   private readonly context = inject(OrganizationContextService);
   private readonly auth = inject(AuthService);
+  private readonly progress = inject(FileExtractProgressService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly categories = inject(CategoryStore);
   protected readonly store = inject(TrainingStore);
@@ -92,9 +137,26 @@ export class TrainingViewComponent {
       this.trainingId();
       untracked(() => this.load());
     });
+    effect(() => {
+      const training = this.trainingState();
+      const extractingId = this.store.extractingFileId();
+      const fileIds = (training?.files ?? [])
+        .filter((file) => file.id === extractingId || this.isExtractInFlight(file))
+        .map((file) => file.id);
+      untracked(() => this.progress.sync(fileIds));
+    });
+    effect(() => {
+      const snapshots = this.progress.progress();
+      const current = this.trainingState();
+      if (current === null) {
+        return;
+      }
+      untracked(() => this.applySnapshots(current, snapshots));
+    });
     this.destroyRef.onDestroy(() => {
       this.request?.unsubscribe();
       this.catalogRequest?.unsubscribe();
+      this.progress.sync([]);
     });
   }
 
@@ -117,6 +179,7 @@ export class TrainingViewComponent {
       return;
     }
 
+    this.progress.clear(file.id);
     this.store.extractFile(
       {
         organizationId: training.organizationId,
@@ -136,6 +199,30 @@ export class TrainingViewComponent {
     );
   }
 
+  protected liveProgress(fileId: string): FileExtractProgress | null {
+    return this.progress.progress()[fileId.toLowerCase()] ?? null;
+  }
+
+  protected shownProgress(file: TrainingFile): FileExtractProgress | null {
+    const live = this.liveProgress(file.id);
+    const starting = this.store.extractingFileId() === file.id || this.isExtractInFlight(file);
+    if (live === null && !starting) {
+      return null;
+    }
+
+    const update = live ?? { fileId: file.id, status: 'Queued', progress: 0 };
+    if (update.status === '' || update.status === 'Queued') {
+      return { ...update, status: 'Queued', progress: 0 };
+    }
+
+    return update;
+  }
+
+  protected progressLabel(update: FileExtractProgress): string {
+    const status = update.status === '' ? 'Waiting' : update.status;
+    return `${status} · ${update.progress}%`;
+  }
+
   /** Extract can be requested again after a failure. A started or finished extract stays as-is. */
   protected canRequestExtract(file: TrainingFile): boolean {
     return !file.isFileExtracted && (!file.isFileExtractionRequested || file.isFileExtractionFailed);
@@ -152,6 +239,31 @@ export class TrainingViewComponent {
       return { status: 'parsing', text: 'Extract Requested' };
     }
     return null;
+  }
+
+  private isExtractInFlight(file: TrainingFile): boolean {
+    return file.isFileExtractionRequested && !file.isFileExtracted && !file.isFileExtractionFailed;
+  }
+
+  private applySnapshots(
+    current: Training,
+    snapshots: Readonly<Record<string, FileExtractProgress>>,
+  ): void {
+    let changed = false;
+    const files = current.files.map((file) => {
+      const update = snapshots[file.id.toLowerCase()];
+      if (update === undefined) {
+        return file;
+      }
+      const next = applyExtractProgress(file, update);
+      if (next !== file) {
+        changed = true;
+      }
+      return next;
+    });
+    if (changed) {
+      this.trainingState.set({ ...current, files });
+    }
   }
 
   protected loadCatalog(trainingId = this.trainingState()?.id ?? null): void {

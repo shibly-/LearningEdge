@@ -56,6 +56,23 @@
                   @if (file.isFileExtractionFailed && file.fileExtractionFailureMessage) {
                     <p class="failure">{{ file.fileExtractionFailureMessage }}</p>
                   }
+                  @if (shownProgress(file); as live) {
+                    <div
+                      class="bar"
+                      role="progressbar"
+                      [attr.aria-valuenow]="live.progress"
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                      [attr.aria-label]="'Extract progress for ' + file.fileName"
+                    >
+                      <span
+                        class="fill"
+                        [class.is-failed]="live.status === 'Failed'"
+                        [style.width.%]="live.progress"
+                      ></span>
+                    </div>
+                    <p class="extract-label">{{ progressLabel(live) }}</p>
+                  }
                 </div>
                 <span class="file-meta">
                   <span class="muted">

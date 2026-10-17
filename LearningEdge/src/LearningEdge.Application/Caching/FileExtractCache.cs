@@ -6,6 +6,10 @@ public static class FileExtractCache
 
     public static string StatusKey(Guid fileId) => $"file_extraction:{fileId}";
 
+    public static string StatusValueKey(Guid fileId) => $"{StatusKey(fileId)}:status";
+
+    public static string ProgressKey(Guid fileId) => $"{StatusKey(fileId)}:progress";
+
     public static class Status
     {
         public const string Queued = "Queued";

@@ -42,7 +42,7 @@ namespace LearningEdgeMS.DocumentParserService.Extensions
 
             // Register Ollama Embedding Generator via Microsoft.Extensions.AI
             services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(sp =>
-                new OllamaApiClient(new Uri("http://localhost:11434"), "qwen3-embedding:0.6b"));
+                new OllamaApiClient(new Uri(configuration["OLLama:Endpoint"] ?? "http://localhost:11434"), configuration["OLLama:Model"] ?? "qwen3-embedding:0.6b"));
 
             // Register Qdrant Client (gRPC)
             services.AddSingleton<QdrantClient>(sp =>

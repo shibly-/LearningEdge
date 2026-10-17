@@ -54,7 +54,7 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
     {
         var message = context.Message;
 
-        var fileStatusInCache = await _cache.GetAsync(FileExtractCache.StatusKey(message.FileId) + ":status");
+        var fileStatusInCache = await _cache.GetAsync(FileExtractCache.StatusValueKey(message.FileId));
 
         if (fileStatusInCache != null && fileStatusInCache == "Completed")
         {
@@ -66,6 +66,7 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
             _logger.LogInformation($"Starting file extraction for FileId: {message.FileId} with status: {fileStatusInCache}");
         }
 
+        await _cache.SetAsync(FileExtractCache.ProgressKey(message.FileId), "0", FileExtractCache.StatusLifetime);
         await SetExtractStatusAsync(message.FileId, FileExtractCache.Status.Processing);
 
         string filePath;
@@ -219,7 +220,7 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
     }
 
     private Task SetExtractStatusAsync(Guid fileId, string status) =>
-        _cache.SetAsync(FileExtractCache.StatusKey(fileId)+":status", status, FileExtractCache.StatusLifetime);
+        _cache.SetAsync(FileExtractCache.StatusValueKey(fileId), status, FileExtractCache.StatusLifetime);
 
     // Helper method to resolve the stored file path based on the message
     private async Task MarkFileExtractionStartedAsync(Guid fileId, CancellationToken cancellationToken)

@@ -20,15 +20,16 @@ namespace LearningEdge.Api.Extensions;
 
 public static class ServiceCollectionExtension
 {
-    public static IServiceCollection AddCORSService(this IServiceCollection services)
+    public static IServiceCollection AddCORSService(this IServiceCollection services, ConfigurationManager configuration)
     {
         services.AddCors(options =>
         {
             options.AddPolicy("AllowAngularApp", policy =>
             {
-                policy.WithOrigins("http://localhost:4200")
+                policy.WithOrigins(configuration["AngularApp:URL"] ?? "http://localhost:4200")
                       .AllowAnyHeader()
-                      .AllowAnyMethod();
+                      .AllowAnyMethod()
+                      .AllowCredentials();
             });
         });
         return services;

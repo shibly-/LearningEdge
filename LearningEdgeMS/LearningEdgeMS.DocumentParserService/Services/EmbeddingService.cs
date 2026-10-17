@@ -35,7 +35,7 @@ public class EmbeddingService
         // Generate a unique starting ID baseline based on the current timestamp
         ulong startingId = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-        string progressOfFileId = FileExtractCache.StatusKey(fileId) + ":progress";
+        string progressOfFileId = FileExtractCache.ProgressKey(fileId);
         
 
         for (int i = 0; i < semanticChunks.Count; i++)

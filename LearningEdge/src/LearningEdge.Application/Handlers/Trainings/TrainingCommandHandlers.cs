@@ -313,7 +313,11 @@ public class TrainingCommandHandlers :
         if (_cache is not null)
         {
             await _cache.SetAsync(
-                FileExtractCache.StatusKey(request.FileId) + ":status",
+                FileExtractCache.ProgressKey(request.FileId),
+                "0",
+                FileExtractCache.StatusLifetime);
+            await _cache.SetAsync(
+                FileExtractCache.StatusValueKey(request.FileId),
                 FileExtractCache.Status.Queued,
                 FileExtractCache.StatusLifetime);
             //var getRedisKey = await _cache.GetAsync(
