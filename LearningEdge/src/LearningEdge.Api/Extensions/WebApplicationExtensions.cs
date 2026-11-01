@@ -42,22 +42,7 @@ public static class WebApplicationExtensions
         }
     }
 
-    public static WebApplication UseOpenApiWithVersioning(this WebApplication app)
-    {
-        if (app.Environment.IsDevelopment())
-        {
-            app.MapOpenApi("/openapi/{documentName}.json");
-            app.UseSwaggerUI(options =>
-            {
-                options.SwaggerEndpoint("/openapi/v1.json", "v1");
-                options.SwaggerEndpoint("/openapi/v2.json", "v2");
-            });
-        }
-
-        return app;
-    }
-
-    public static WebApplication UseCustomMiddlewarePipeline(this WebApplication app)
+    public static WebApplication ConfigureMiddlewarePipelines(this WebApplication app, ConfigurationManager configuration)
     {
         app.UseExceptionHandler(errorApp =>
         {
@@ -88,9 +73,21 @@ public static class WebApplicationExtensions
 
         app.UseSerilogRequestLogging()
             .UseHttpsRedirection()
-            .UseCors("AllowAngularApp")
-            .UseAuthorization()
+            // .UseRouting() this is not required in .NET 8/9/10 Web APIs, it is managed by the framework automatically
+            .UseCors(configuration["Cors:Policy"] ?? "AllowWebApp")
+            // .UseAuthentication() // will implement authentication in the future
+            // .UseAuthorization()  // will configure authorization in the future
             .UseRateLimiter();
+
+        if (app.Environment.IsDevelopment())
+        {
+            app.MapOpenApi("/openapi/{documentName}.json");
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("/openapi/v1.json", "v1");
+                options.SwaggerEndpoint("/openapi/v2.json", "v2");
+            });
+        }
 
         return app;
     }

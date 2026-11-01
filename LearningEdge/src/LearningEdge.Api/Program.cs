@@ -1,47 +1,48 @@
 using LearningEdge.Api.Extensions;
 using LearningEdge.Api.Hubs;
-using LearningEdge.Application.Interfaces;
-using LearningEdge.Infrastructure.Caching;
 using Serilog;
-using StackExchange.Redis;
 
 try
 {
-    Log.Logger = new LoggerConfiguration()
-        .WriteTo.Console()
-        .CreateBootstrapLogger();
+    Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger();
 
     Log.Information("Starting LearningEdge Web API...");
 
     // Create the application builder
     var builder = WebApplication.CreateBuilder(args);
 
-    // Register services to DI containers
-    builder.Services.AddCORSService(builder.Configuration)
-        .AddMediatrMapperFluentValidation()
-        .AddApplicationDbContext(builder.Configuration, builder.Environment)
-        .AddOpenApiAndApiVersioning()
-        .AddLoggingService(builder.Configuration)
-        .AddRateLimiterService()
-        .AddMassTransitWithRabbitMQ(builder.Configuration)
-        .AddControllers();
+    // Register all required services to DI containers
+    // API Services   
+    builder.Services.AddApiServices();
 
-    builder.Services.AddSignalR();
+    // Application Services
+    builder.Services.AddApplicationServices();
 
-    var redisConnection = builder.Configuration["Redis:Connection"] ?? "127.0.0.1:6380";
-    builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnection));
-    builder.Services.AddSingleton<ICacheService, RedisCacheService>();
-    builder.Services.AddSingleton<FileExtractWatchRegistry>();
-    builder.Services.AddSingleton<FileExtractProgressReader>();
-    builder.Services.AddHostedService<FileExtractProgressPublisher>();
+    // Infrastructure Services (Data + Other 3rd Party Services)
+    builder.Services.AddInfrastructureServices(builder.Configuration, builder.Environment);
 
+    // Messaging / Real-Time Services
+    builder.Services.AddMessagingServices(builder.Configuration);
+
+    // Caching Services
+    builder.Services.AddCachingServices(builder.Configuration);
+
+    // Background Services
+    builder.Services.AddBackgroundServices(builder.Configuration);
+
+    // Cross-Cutting Services
+    builder.Services.AddCORSService(builder.Configuration);
+    builder.Services.AddRateLimiterService(builder.Configuration);
+    builder.Services.AddLoggingService(builder.Configuration);
+
+   
     // Build the application
     var app = builder.Build();
 
     await app.MigrateDatabaseAsync();
 
-    app.UseOpenApiWithVersioning()
-        .UseCustomMiddlewarePipeline()
+    // Configure the middleware pipeline
+    app.ConfigureMiddlewarePipelines(builder.Configuration)         
         .MapControllers();
 
     app.MapHub<FileExtractProgressHub>("/hubs/file-extract");

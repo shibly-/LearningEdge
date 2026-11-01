@@ -1,57 +1,62 @@
 ﻿using Asp.Versioning;
-using Asp.Versioning.ApiExplorer;
 using FluentValidation;
+using LearningEdge.Api.Hubs;
 using LearningEdge.Application;
 using LearningEdge.Application.Common.Behaviors;
+using LearningEdge.Application.Interfaces;
 using LearningEdge.Infrastructure;
+using LearningEdge.Infrastructure.Caching;
+using LearningEdge.Infrastructure.Messaging.Consumers;
 using LearningEdge.Infrastructure.Persistence;
+using LearningEdge.Messaging.Contracts.Events;
 using MassTransit;
-using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using StackExchange.Redis;
 using System.Threading.RateLimiting;
-using LearningEdge.Messaging.Contracts.Events;
-using Microsoft.EntityFrameworkCore.Design.Internal;
-using Microsoft.Extensions.Hosting;
-using LearningEdge.Infrastructure.Messaging.Consumers;
 
 namespace LearningEdge.Api.Extensions;
 
 public static class ServiceCollectionExtension
 {
-    public static IServiceCollection AddCORSService(this IServiceCollection services, ConfigurationManager configuration)
+    private const string CorsPolicyName = "AllowWebApp";
+    private const string CorsOrigin = "http://localhost:4200";
+    private const string RateLimiterTokenBucketPolicyName = "api";
+    private const string FileStorageRootPath = "uploads";
+    private const string RedisConnectionString = "127.0.0.1:6380";
+    private const string RabbitMQDefaultHost = "localhost";
+    private const string RabbitMQDefaultUser = "guest";   
+    private const string RabbitMQDefaultPassword = "guest";
+
+    public static IServiceCollection AddApiServices(this IServiceCollection services)
     {
-        services.AddCors(options =>
+        // Add Controllers
+        services.AddControllers();
+
+        // Add API versioning
+        services.AddApiVersioning(options =>
         {
-            options.AddPolicy("AllowAngularApp", policy =>
-            {
-                policy.WithOrigins(configuration["AngularApp:URL"] ?? "http://localhost:4200")
-                      .AllowAnyHeader()
-                      .AllowAnyMethod()
-                      .AllowCredentials();
-            });
+            options.ReportApiVersions = true;
+            options.ApiVersionReader = new UrlSegmentApiVersionReader();
+        })
+        //.AddMvc()
+        .AddApiExplorer(options =>
+        {
+            options.GroupNameFormat = "'v'VVV";
+            options.SubstituteApiVersionInUrl = true;
         });
+
+        // Add OpenAPI/Swagger support
+        services.AddOpenApi("v1");
+        services.AddOpenApi("v2");
+
         return services;
     }
 
-    public static IServiceCollection AddRateLimiterService(this IServiceCollection services)
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services) 
     {
-        services.AddRateLimiter(options =>
-        {
-            options.AddFixedWindowLimiter("fixed", limiterOptions =>
-            {
-                limiterOptions.PermitLimit = 5; // Max 5 requests
-                limiterOptions.Window = TimeSpan.FromSeconds(10); // Per 10 seconds
-                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                limiterOptions.QueueLimit = 2; // Allow 2 queued requests
-            });
-        });
-        return services;
-    }         
-
-    public static IServiceCollection AddMediatrMapperFluentValidation(this IServiceCollection services) 
-    {
+        // Add MediatR
         services.AddMediatR(config =>
         {
             config.RegisterServicesFromAssembly(typeof(AssemblyMarker).Assembly);
@@ -67,7 +72,7 @@ public static class ServiceCollectionExtension
         return services;
     }
 
-    public static IServiceCollection AddApplicationDbContext(
+    public static IServiceCollection AddInfrastructureServices(
         this IServiceCollection services,
         ConfigurationManager configuration,
         IWebHostEnvironment environment)
@@ -75,58 +80,28 @@ public static class ServiceCollectionExtension
         // Not stored in appsettings: comes from user secrets locally and from the environment in Docker.
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException(
-                "Connection string 'DefaultConnection' is not configured. Set it with " +
-                "'dotnet user-secrets set ConnectionStrings:DefaultConnection <value>' or the " +
-                "ConnectionStrings__DefaultConnection environment variable.");
+                "Connection string 'DefaultConnection' is not configured.");
 
-        // Register DbContext (Infrastructure)
+        // Register App DbContext (Infrastructure)
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(
                 connectionString, 
-                opts => { opts.MigrationsAssembly("LearningEdge.Infrastructure.Migrations"); }
+                opts => { opts.MigrationsAssembly(configuration["MigrationsAssembly"] ?? "LearningEdge.Infrastructure.Migrations"); }
             )
         );
 
+        // Register Other Infrastructure Services
         // Relative paths are resolved against the content root.
         var fileStorageRoot = Path.Combine(
             environment.ContentRootPath,
-            configuration["FileStorage:RootPath"] ?? "uploads");
+            configuration["FileStorage:RootPath"] ?? FileStorageRootPath);
 
-        // Register IApplicationDbContext and IFileStorage for DI
         services.AddInfrastructure(fileStorageRoot);
 
         return services;
-    }
-    public static IServiceCollection AddOpenApiAndApiVersioning(this IServiceCollection services)
-    {
-        services.AddOpenApi("v1");
-        services.AddOpenApi("v2");
+    }    
 
-        services.AddApiVersioning(options =>
-        {
-            options.ReportApiVersions = true;
-            options.ApiVersionReader = new UrlSegmentApiVersionReader();
-        })
-        .AddMvc()
-        .AddApiExplorer(options =>
-        {
-            options.GroupNameFormat = "'v'VVV";
-            options.SubstituteApiVersionInUrl = true;
-        });
-
-        return services;
-    }
-
-    public static IServiceCollection AddLoggingService(this IServiceCollection services, ConfigurationManager configuration)
-    {
-        services.AddSerilog((services, lc) => lc
-        .ReadFrom.Configuration(configuration)
-        .ReadFrom.Services(services));
-
-        return services;
-    }
-
-    public static IServiceCollection AddMassTransitWithRabbitMQ(this IServiceCollection services, ConfigurationManager configuration)
+    public static IServiceCollection AddMessagingServices(this IServiceCollection services, ConfigurationManager configuration)
     {
         // Register MassTransit
         services.AddMassTransit(bus =>
@@ -143,10 +118,10 @@ public static class ServiceCollectionExtension
                 //cfg.Message<IQuestionGenerationSubmitted>(message =>
                 //    message.SetEntityName(configuration["RabbitMQ:QuestionGenerationRequestEvent"] ?? "le-question-generation-requested"));
 
-                cfg.Host(configuration["RabbitMQ:Host"] ?? "localhost", h =>                                    
+                cfg.Host(configuration["RabbitMQ:Host"] ?? RabbitMQDefaultHost, h =>                                    
                 {
-                    h.Username(configuration["RabbitMQ:Username"] ?? "guest");
-                    h.Password(configuration["RabbitMQ:Password"] ?? "guest");
+                    h.Username(configuration["RabbitMQ:Username"] ?? RabbitMQDefaultUser);
+                    h.Password(configuration["RabbitMQ:Password"] ?? RabbitMQDefaultPassword);
                 });
 
                 // Automatically configure endpoints for all registered consumers
@@ -169,6 +144,66 @@ public static class ServiceCollectionExtension
                 //cfg.Exclusive = false;
             });
         });
+
+        services.AddSignalR();
+
+        return services;
+    }
+
+    public static IServiceCollection AddCachingServices(this IServiceCollection services, ConfigurationManager configuration)
+    {
+        var redisConnection = configuration["Redis:Connection"] ?? RedisConnectionString;
+        
+        services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnection))
+            .AddSingleton<ICacheService, RedisCacheService>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddBackgroundServices(this IServiceCollection services, ConfigurationManager configuration)
+    {
+        services.AddSingleton<FileExtractWatchRegistry>()
+            .AddSingleton<FileExtractProgressReader>()
+            .AddHostedService<FileExtractProgressPublisher>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddCORSService(this IServiceCollection services, ConfigurationManager configuration)
+    {
+        services.AddCors(options =>
+        {
+            options.AddPolicy(configuration["Cors:Policy"] ?? CorsPolicyName, policy =>
+            {
+                policy.WithOrigins(configuration["Cors:Origin"] ?? CorsOrigin)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
+            });
+        });
+        return services;
+    }
+
+    public static IServiceCollection AddRateLimiterService(this IServiceCollection services, ConfigurationManager configuration)
+    {
+        services.AddRateLimiter(options =>
+        {
+            options.AddTokenBucketLimiter(configuration["RateLimiter:TokenBucket:PolicyName"] ?? RateLimiterTokenBucketPolicyName, opt =>
+            {
+                opt.TokenLimit = configuration.GetValue<int>("RateLimiter:TokenBucket:TokenLimit");
+                opt.TokensPerPeriod = configuration.GetValue<int>("RateLimiter:TokenBucket:TokensPerPeriod");
+                opt.ReplenishmentPeriod = TimeSpan.FromSeconds(configuration.GetValue<int>("RateLimiter:TokenBucket:ReplenishmentPeriodInSeconds"));
+                opt.QueueLimit = configuration.GetValue<int>("RateLimiter:TokenBucket:QueueLimit");
+            });
+        });
+        return services;
+    }
+
+    public static IServiceCollection AddLoggingService(this IServiceCollection services, ConfigurationManager configuration)
+    {
+        services.AddSerilog((services, lc) => lc
+        .ReadFrom.Configuration(configuration)
+        .ReadFrom.Services(services));
 
         return services;
     }

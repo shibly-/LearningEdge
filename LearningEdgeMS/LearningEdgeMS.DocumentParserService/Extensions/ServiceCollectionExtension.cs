@@ -1,10 +1,13 @@
-﻿using LearningEdge.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
+﻿using LearningEdge.Application.Interfaces;
+using LearningEdge.Infrastructure.Caching;
+using LearningEdge.Infrastructure.Persistence;
+using LearningEdgeMS.DocumentParserService.Messaging.Consumers;
 using MassTransit;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using OllamaSharp;
 using Qdrant.Client;
-using LearningEdgeMS.DocumentParserService.Messaging.Consumers;
+using StackExchange.Redis;
 
 namespace LearningEdgeMS.DocumentParserService.Extensions
 {
@@ -75,6 +78,16 @@ namespace LearningEdgeMS.DocumentParserService.Extensions
                     });
                 });
             });
+
+            return services;
+        }
+
+        // Add Redis Caching
+        public static IServiceCollection AddCaching(this IServiceCollection services, IConfiguration configuration)
+        {
+            var redisConnection = configuration["Redis:Connection"] ?? "127.0.0.1:6380";
+            services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnection));
+            services.AddSingleton<ICacheService, RedisCacheService>();
 
             return services;
         }
