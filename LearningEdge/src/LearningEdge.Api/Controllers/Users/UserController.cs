@@ -1,10 +1,12 @@
 ﻿using Asp.Versioning;
+using LearningEdge.Api.Constants;
 using LearningEdge.Api.Extensions;
 using LearningEdge.Application.Models.Commands.Users;
 using LearningEdge.Application.Models.DTOs;
 using LearningEdge.Application.Models.Queries.Users;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using static LearningEdge.Domain.Common.Enums;
 
@@ -70,7 +72,7 @@ public class UserController : ControllerBase
     [EndpointDescription("Returns users that have not been deleted, across all organizations unless organizationId is given. Repeat role to match any of several roles; omit it for every role. Ordered by last name then first name.")]
     [ProducesResponseType(typeof(IReadOnlyList<UserDTO>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]    
     public async Task<ActionResult<IReadOnlyList<UserDTO>>> List(
         [FromQuery] Guid? organizationId,
         [FromQuery(Name = "role")] UserRole[]? roles,

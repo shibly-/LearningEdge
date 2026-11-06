@@ -11,14 +11,11 @@ public static class WebApplicationExtensions
 {
     public static async Task MigrateDatabaseAsync(this WebApplication app)
     {
-        // Microsoft.Extensions.ApiDescription.Server starts the app at build time
-        // to generate OpenAPI documents. There is no SQL Server in that process.
-        var entryAssemblyName = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name;
-        if (string.Equals(entryAssemblyName, "GetDocument.Insider", StringComparison.Ordinal))
+        if (Environment.GetEnvironmentVariable("SKIP_DB_MIGRATION") == "true") 
         {
             return;
         }
-
+        
         const int maxAttempts = 15;
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
@@ -88,6 +85,8 @@ public static class WebApplicationExtensions
                 options.SwaggerEndpoint("/openapi/v2.json", "v2");
             });
         }
+
+        app.UseOutputCache();
 
         return app;
     }

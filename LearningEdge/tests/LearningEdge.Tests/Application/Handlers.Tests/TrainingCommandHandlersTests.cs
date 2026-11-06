@@ -1,5 +1,5 @@
-using System.Text;
 using AutoMapper;
+using Castle.Core.Configuration;
 using LearningEdge.Application.Common.Mappings;
 using LearningEdge.Application.Common.Results;
 using LearningEdge.Application.Handlers.Trainings;
@@ -12,6 +12,8 @@ using LearningEdge.Domain.Entities.Users;
 using LearningEdge.Infrastructure.Persistence;
 using LearningEdge.Tests.Common;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using System.Text;
 using static LearningEdge.Domain.Common.Enums;
 
 namespace LearningEdge.Tests.Application.Handlers.Tests;
@@ -353,9 +355,20 @@ public class TrainingCommandHandlersTests
         Assert.Equal("notes.txt", file.FileName);
         Assert.Equal("text/plain", file.ContentType);
     }
-
-    private TrainingCommandHandlers CreateHandler(ApplicationDbContext context) =>
-        new(context, CreateMapper(), _storage);
+        
+    private TrainingCommandHandlers CreateHandler(ApplicationDbContext context)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["FileStorage:MaxFileSize"] = "10485760" // 10 MB
+        }).Build();
+        return new TrainingCommandHandlers(
+            configuration: configuration,
+            appDbContext: context,
+            mapper: CreateMapper(),
+            fileStorage: _storage);
+    }
+        
 
     private static TrainingFileUpload Upload(string fileName, string content)
     {

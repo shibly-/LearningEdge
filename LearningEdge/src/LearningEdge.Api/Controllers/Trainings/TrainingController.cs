@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using LearningEdge.Api.Constants;
 using LearningEdge.Api.Extensions;
 using LearningEdge.Application.Common.Files;
 using LearningEdge.Application.Models.Commands.Trainings;
@@ -8,6 +9,7 @@ using LearningEdge.Messaging.Contracts;
 using LearningEdge.Messaging.Contracts.Events;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace LearningEdge.Api.Controllers.Trainings;
 
@@ -167,6 +169,7 @@ public class TrainingController : ControllerBase
     [EndpointSummary("Get the trainings of a category")]
     [ProducesResponseType(typeof(IReadOnlyList<TrainingDTO>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [OutputCache(PolicyName = CachePolicies.DefaultQueryCache)]
     public async Task<ActionResult<IReadOnlyList<TrainingDTO>>> GetAll(
         Guid organizationId,
         Guid categoryId,

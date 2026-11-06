@@ -11,31 +11,17 @@ try
     // Create the application builder
     var builder = WebApplication.CreateBuilder(args);
 
-    // Register all required services to DI containers
-    // API Services   
-    builder.Services.AddApiServices();
+    // Register all required services to DI containers    
+    builder.Services.AddApiServices() // API Services   
+        .AddApplicationServices() // Application Services
+        .AddInfrastructureServices(builder.Configuration, builder.Environment) // Infrastructure Services 
+        .AddMessagingServices(builder.Configuration) // Messaging / Real-Time Services
+        .AddCachingServices(builder.Configuration) // Caching Services
+        .AddBackgroundServices(builder.Configuration) // Background Services
+        .AddCORSService(builder.Configuration) // CORS Services
+        .AddRateLimiterService(builder.Configuration) // Rate Limiter Services
+        .AddLoggingService(builder.Configuration); // Logging Services
 
-    // Application Services
-    builder.Services.AddApplicationServices();
-
-    // Infrastructure Services (Data + Other 3rd Party Services)
-    builder.Services.AddInfrastructureServices(builder.Configuration, builder.Environment);
-
-    // Messaging / Real-Time Services
-    builder.Services.AddMessagingServices(builder.Configuration);
-
-    // Caching Services
-    builder.Services.AddCachingServices(builder.Configuration);
-
-    // Background Services
-    builder.Services.AddBackgroundServices(builder.Configuration);
-
-    // Cross-Cutting Services
-    builder.Services.AddCORSService(builder.Configuration);
-    builder.Services.AddRateLimiterService(builder.Configuration);
-    builder.Services.AddLoggingService(builder.Configuration);
-
-   
     // Build the application
     var app = builder.Build();
 

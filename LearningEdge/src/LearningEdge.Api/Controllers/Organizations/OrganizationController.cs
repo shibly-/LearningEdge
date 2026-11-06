@@ -1,4 +1,5 @@
 ﻿using Asp.Versioning;
+using LearningEdge.Api.Constants;
 using LearningEdge.Api.Extensions;
 using LearningEdge.Application.Models.Commands.Organizations;
 using LearningEdge.Application.Models.DTOs;
@@ -6,6 +7,7 @@ using LearningEdge.Application.Models.Queries.Organizations;
 using LearningEdge.Application.Models.Queries.Users;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace LearningEdge.Api.Controllers.Organizations;
 
@@ -87,6 +89,7 @@ public class OrganizationController : ControllerBase
     [EndpointDescription("Returns every user in the organization that has not been deleted, ordered by last name then first name.")]
     [ProducesResponseType(typeof(IReadOnlyList<UserDTO>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [OutputCache(PolicyName = CachePolicies.DefaultQueryCache)]
     public async Task<ActionResult<IReadOnlyList<UserDTO>>> GetUsers(Guid id, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new GetUsersByOrganizationQuery(id), cancellationToken);

@@ -1,5 +1,6 @@
 ﻿using Asp.Versioning;
 using FluentValidation;
+using LearningEdge.Api.Constants;
 using LearningEdge.Api.Hubs;
 using LearningEdge.Application;
 using LearningEdge.Application.Common.Behaviors;
@@ -20,15 +21,6 @@ namespace LearningEdge.Api.Extensions;
 
 public static class ServiceCollectionExtension
 {
-    private const string CorsPolicyName = "AllowWebApp";
-    private const string CorsOrigin = "http://localhost:4200";
-    private const string RateLimiterTokenBucketPolicyName = "api";
-    private const string FileStorageRootPath = "uploads";
-    private const string RedisConnectionString = "127.0.0.1:6380";
-    private const string RabbitMQDefaultHost = "localhost";
-    private const string RabbitMQDefaultUser = "guest";   
-    private const string RabbitMQDefaultPassword = "guest";
-
     public static IServiceCollection AddApiServices(this IServiceCollection services)
     {
         // Add Controllers
@@ -72,31 +64,15 @@ public static class ServiceCollectionExtension
         return services;
     }
 
-    public static IServiceCollection AddInfrastructureServices(
-        this IServiceCollection services,
-        ConfigurationManager configuration,
-        IWebHostEnvironment environment)
+    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, 
+        ConfigurationManager configuration, IWebHostEnvironment environment)
     {
-        // Not stored in appsettings: comes from user secrets locally and from the environment in Docker.
         var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException(
-                "Connection string 'DefaultConnection' is not configured.");
+            ?? throw new InvalidOperationException(DefaultConfigs.DefaultConnectionExceptionMessage);
+        var migrationAssembly = configuration["MigrationsAssembly"] ?? DefaultConfigs.MigrationsAssembly;
+        var fileStorageRoot = Path.Combine(environment.ContentRootPath,configuration["FileStorage:RootPath"] ?? DefaultConfigs.FileStorageRootPath);
 
-        // Register App DbContext (Infrastructure)
-        services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseSqlServer(
-                connectionString, 
-                opts => { opts.MigrationsAssembly(configuration["MigrationsAssembly"] ?? "LearningEdge.Infrastructure.Migrations"); }
-            )
-        );
-
-        // Register Other Infrastructure Services
-        // Relative paths are resolved against the content root.
-        var fileStorageRoot = Path.Combine(
-            environment.ContentRootPath,
-            configuration["FileStorage:RootPath"] ?? FileStorageRootPath);
-
-        services.AddInfrastructure(fileStorageRoot);
+        services.AddInfrastructure(connectionString, migrationAssembly, fileStorageRoot);
 
         return services;
     }    
@@ -118,10 +94,10 @@ public static class ServiceCollectionExtension
                 //cfg.Message<IQuestionGenerationSubmitted>(message =>
                 //    message.SetEntityName(configuration["RabbitMQ:QuestionGenerationRequestEvent"] ?? "le-question-generation-requested"));
 
-                cfg.Host(configuration["RabbitMQ:Host"] ?? RabbitMQDefaultHost, h =>                                    
+                cfg.Host(configuration["RabbitMQ:Host"] ?? DefaultConfigs.RabbitMQDefaultHost, h =>                                    
                 {
-                    h.Username(configuration["RabbitMQ:Username"] ?? RabbitMQDefaultUser);
-                    h.Password(configuration["RabbitMQ:Password"] ?? RabbitMQDefaultPassword);
+                    h.Username(configuration["RabbitMQ:Username"] ?? DefaultConfigs.RabbitMQDefaultUser);
+                    h.Password(configuration["RabbitMQ:Password"] ?? DefaultConfigs.RabbitMQDefaultPassword);
                 });
 
                 // Automatically configure endpoints for all registered consumers
@@ -152,10 +128,21 @@ public static class ServiceCollectionExtension
 
     public static IServiceCollection AddCachingServices(this IServiceCollection services, ConfigurationManager configuration)
     {
-        var redisConnection = configuration["Redis:Connection"] ?? RedisConnectionString;
+        var redisConnection = configuration["Redis:Connection"] ?? DefaultConfigs.RedisConnectionString;
         
         services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnection))
             .AddSingleton<ICacheService, RedisCacheService>();
+
+        // add
+
+        services.AddOutputCache(options =>
+        {
+            // Define a custom named policy for read endpoints
+            options.AddPolicy(CachePolicies.DefaultQueryCache, policy =>
+            {
+                policy.Expire(TimeSpan.FromSeconds(configuration.GetValue<int>("OutputCache:DefaultQueryCache:ExpiryPeriodInSeconds")));
+            });
+        });
 
         return services;
     }
@@ -173,9 +160,9 @@ public static class ServiceCollectionExtension
     {
         services.AddCors(options =>
         {
-            options.AddPolicy(configuration["Cors:Policy"] ?? CorsPolicyName, policy =>
+            options.AddPolicy(configuration["Cors:Policy"] ?? DefaultConfigs.CorsPolicyName, policy =>
             {
-                policy.WithOrigins(configuration["Cors:Origin"] ?? CorsOrigin)
+                policy.WithOrigins(configuration["Cors:Origin"] ?? DefaultConfigs.CorsOrigin)
                     .AllowAnyHeader()
                     .AllowAnyMethod()
                     .AllowCredentials();
@@ -188,7 +175,7 @@ public static class ServiceCollectionExtension
     {
         services.AddRateLimiter(options =>
         {
-            options.AddTokenBucketLimiter(configuration["RateLimiter:TokenBucket:PolicyName"] ?? RateLimiterTokenBucketPolicyName, opt =>
+            options.AddTokenBucketLimiter(configuration["RateLimiter:TokenBucket:PolicyName"] ?? DefaultConfigs.RateLimiterTokenBucketPolicyName, opt =>
             {
                 opt.TokenLimit = configuration.GetValue<int>("RateLimiter:TokenBucket:TokenLimit");
                 opt.TokensPerPeriod = configuration.GetValue<int>("RateLimiter:TokenBucket:TokensPerPeriod");
