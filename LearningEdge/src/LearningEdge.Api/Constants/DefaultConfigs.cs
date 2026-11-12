@@ -11,5 +11,5 @@ public static class DefaultConfigs
     public const string RabbitMQDefaultUser = "guest";
     public const string RabbitMQDefaultPassword = "guest";
     public const string MigrationsAssembly = "MigrationsAssembly";
-    public const string DefaultConnectionExceptionMessage = "Connection string 'DefaultConnection' is not configured.";
+    public const string DefaultConnectionExceptionMessage = "Connection string 'DefaultConnection' is not configured.";            
 }

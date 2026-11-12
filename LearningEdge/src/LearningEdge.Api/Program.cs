@@ -13,7 +13,7 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     // Register all required services to DI containers    
-    builder.Services.AddApiServices() // API Services   
+    builder.Services.AddApiServices(builder.Configuration) // API Services   
         .AddApplicationServices() // Application Services
         .AddInfrastructureServices(builder.Configuration, builder.Environment) // Infrastructure Services 
         .AddMessagingServices(builder.Configuration) // Messaging / Real-Time Services

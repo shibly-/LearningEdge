@@ -17,6 +17,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Serilog;
@@ -29,14 +31,19 @@ public static class ServiceCollectionExtension
 {
     private static readonly string AutoMapperLicense = Environment.GetEnvironmentVariable("AUTOMAPPER_LICENSE_PATH") ?? string.Empty;
     
-    public static IServiceCollection AddApiServices(this IServiceCollection services)
+    public static IServiceCollection AddApiServices(this IServiceCollection services, ConfigurationManager configuration)
     {
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {
-            options.Authority = "https://localhost:8443/realms/learningedge";
-            options.RequireHttpsMetadata = true;
-            options.TokenValidationParameters.ValidAudience = "le-web-api";
+            options.Authority = configuration["Keycloak:Authority"];
+            options.RequireHttpsMetadata = bool.Parse(configuration["Keycloak:RequireHttpsMetadata"] ?? "false");
+            options.TokenValidationParameters.ValidAudience = configuration["Keycloak:APIClientId"];
+            options.ConfigurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(
+            configuration["Keycloak:ConfigurationMetadataURL"],
+            new OpenIdConnectConfigurationRetriever());
+            options.RefreshInterval = TimeSpan.FromMinutes(int.Parse(configuration["Keycloak:RefreshInterval"] ?? "5"));
+            options.AutomaticRefreshInterval = TimeSpan.FromHours(int.Parse(configuration["Keycloak:AutomaticRefreshInterval"] ?? "12"));            
         });
 
         services.AddAuthorization();
@@ -60,19 +67,19 @@ public static class ServiceCollectionExtension
         });
 
         // Add OpenAPI/Swagger support
-        services.AddOpenApi("v1", options =>
+        services.AddOpenApi(configuration["OpenApi:v1:Version"] ?? "v1", options =>
         {
             options.AddDocumentTransformer((document, ctx, ct) =>
             {
-                document.Info.Title = "LearningEdge API";
-                document.Info.Version = "v1";
+                document.Info.Title = configuration["OpenApi:v1:Title"] ?? "LearningEdge API";
+                document.Info.Version = configuration["OpenApi:v1:Version"] ?? "v1";
 
                 document.Components ??= new();
                 document.Components.SecuritySchemes ??=
     new Dictionary<string, IOpenApiSecurityScheme>();
 
                 document.Components.SecuritySchemes.Add(
-                    "Keycloak",
+                    configuration["Keycloak:Provider"] ?? string.Empty,
                     new OpenApiSecurityScheme
                     {
                         Type = SecuritySchemeType.OAuth2,
@@ -80,16 +87,12 @@ public static class ServiceCollectionExtension
                         {
                             AuthorizationCode = new OpenApiOAuthFlow
                             {
-                                AuthorizationUrl = new Uri(
-                                    "https://localhost:8443/realms/learningedge/protocol/openid-connect/auth"),
-
-                                TokenUrl = new Uri(
-                                    "https://localhost:8443/realms/learningedge/protocol/openid-connect/token"),
-
+                                AuthorizationUrl = new Uri(configuration["Keycloak:AuthorizationUrl"] ?? string.Empty),
+                                TokenUrl = new Uri(configuration["Keycloak:TokenUrl"] ?? string.Empty),
                                 Scopes = new Dictionary<string, string>
                                 {
-                                    ["openid"] = "OpenID Connect",
-                                    ["profile"] = "User Profile"
+                                    ["openid"] = configuration["Keycloak:ScopesOpenid"] ?? string.Empty,
+                                    ["profile"] = configuration["Keycloak:ScopesProfile"] ?? string.Empty
                                 }
                             }
                         }
@@ -116,7 +119,7 @@ public static class ServiceCollectionExtension
                     new OpenApiSecurityRequirement
                     {
                         [
-                            new OpenApiSecuritySchemeReference("Keycloak")
+                            new OpenApiSecuritySchemeReference(configuration["Keycloak:Provider"] ?? string.Empty)
                         ] = []
                     });
 
@@ -125,12 +128,12 @@ public static class ServiceCollectionExtension
 
         });
 
-        services.AddOpenApi("v2", options =>
+        services.AddOpenApi(configuration["OpenApi:v2:Version"] ?? "v2", options =>
         {
             options.AddDocumentTransformer((document, ctx, ct) =>
             {
-                document.Info.Title = "LearningEdge API - Extended";
-                document.Info.Version = "v2";
+                document.Info.Title = configuration["OpenApi:v2:Title"] ?? "LearningEdge API - Extended";
+                document.Info.Version = configuration["OpenApi:v2:Version"] ?? "v2";
                 return Task.CompletedTask;
             });
         });
