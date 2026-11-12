@@ -9,14 +9,13 @@ export const environment: AppEnvironment = {
   production: true,
   apiBaseUrl: 'https://localhost:5001',
   apiVersion: 'v1',
-  useMockApi: true,
-  useOidc: false,
-  oidc: {
-    authority: '',
-    clientId: 'learningedge-ui',
-    scope: 'openid profile email org_id',
+  useMockApi: false,
+  keycloak: {
+    url: 'https://localhost:8443',
+    realm: 'learningedge',
+    clientId: 'le-web-ui',
+    sessionTimeoutMs: 1_800_000,
   },
-  mockCredentials: [],
   rateLimitRetry: {
     maxAttempts: 4,
     baseDelayMs: 500,

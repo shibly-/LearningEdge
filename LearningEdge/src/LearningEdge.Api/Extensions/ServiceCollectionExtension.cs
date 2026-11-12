@@ -46,7 +46,7 @@ public static class ServiceCollectionExtension
             options.AutomaticRefreshInterval = TimeSpan.FromHours(int.Parse(configuration["Keycloak:AutomaticRefreshInterval"] ?? "12"));            
         });
 
-        services.AddAuthorization();
+        services.AddAuthorizationBuilder();
 
         // Add Controllers
         services.AddControllers();

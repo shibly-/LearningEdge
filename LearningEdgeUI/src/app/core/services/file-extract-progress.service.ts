@@ -1,10 +1,7 @@
-import { Injectable, signal } from '@angular/core';
-import {
-  HubConnection,
-  HubConnectionBuilder,
-  HubConnectionState,
-} from '@microsoft/signalr';
+import { Injectable, inject, signal } from '@angular/core';
+import { HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { environment } from '../../../environments/environment';
+import { AuthService } from '../auth/auth.service';
 
 export interface FileExtractProgress {
   readonly fileId: string;
@@ -14,6 +11,8 @@ export interface FileExtractProgress {
 
 @Injectable({ providedIn: 'root' })
 export class FileExtractProgressService {
+  private readonly auth = inject(AuthService);
+
   private readonly updates = signal<Readonly<Record<string, FileExtractProgress>>>({});
   private readonly watched = new Set<string>();
 
@@ -87,7 +86,11 @@ export class FileExtractProgressService {
   private async connect(): Promise<void> {
     if (this.connection === null) {
       const connection = new HubConnectionBuilder()
-        .withUrl(`${environment.apiBaseUrl}/hubs/file-extract`, { withCredentials: true })
+        .withUrl(`${environment.apiBaseUrl}/hubs/file-extract`, {
+          withCredentials: true,
+          // Read per attempt so a reconnect after a refresh sends the new token.
+          accessTokenFactory: () => this.auth.accessToken() ?? '',
+        })
         .withAutomaticReconnect()
         .build();
 

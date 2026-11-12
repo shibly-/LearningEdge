@@ -20,6 +20,14 @@ export abstract class UserRepository {
   abstract getById(id: string): Observable<UserDto | null>;
   abstract create(command: CreateUserCommand): Observable<string>;
   abstract update(id: string, command: UpdateUserCommand): Observable<UserDto>;
+  /**
+   * The record for the signed-in principal, or null when none exists yet.
+   *
+   * The live route derives the principal from the bearer token and ignores
+   * `email`; the sample-data route has no token to read, so it matches on the
+   * email claim instead.
+   */
+  abstract me(email: string): Observable<UserDto | null>;
 }
 
 @Injectable()
@@ -45,6 +53,10 @@ export class HttpUserRepository extends UserRepository {
 
   override update(id: string, command: UpdateUserCommand): Observable<UserDto> {
     return this.api.put<UpdateUserCommand, UserDto>(apiPaths.user.byId(id), command);
+  }
+
+  override me(_email: string): Observable<UserDto | null> {
+    return this.api.getOptional<UserDto>(apiPaths.user.me());
   }
 }
 
@@ -76,6 +88,12 @@ export class MockUserRepository extends UserRepository {
 
   override getById(id: string): Observable<UserDto | null> {
     return of(this.db.users.find((user) => user.id === id) ?? null).pipe(delay(MOCK_LATENCY_MS));
+  }
+
+  override me(email: string): Observable<UserDto | null> {
+    const wanted = email.trim().toLowerCase();
+    const match = this.db.users.find((user) => user.email.trim().toLowerCase() === wanted) ?? null;
+    return of(match).pipe(delay(MOCK_LATENCY_MS));
   }
 
   override create(command: CreateUserCommand): Observable<string> {

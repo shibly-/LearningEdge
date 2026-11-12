@@ -12,7 +12,6 @@ using Microsoft.AspNetCore.OutputCaching;
 
 namespace LearningEdge.Api.Controllers.Organizations;
 
-[Authorize]
 [ApiController]
 [Route("api/v{version:apiVersion}/[controller]")]
 [ApiVersion("1.0")]
@@ -136,7 +135,6 @@ public class OrganizationController : ControllerBase
         return Ok(result.Data);
     }
 
-    //[Authorize]
     [HttpGet]
     [MapToApiVersion("2.0")]
     public IActionResult GetV2() => Ok("v2");

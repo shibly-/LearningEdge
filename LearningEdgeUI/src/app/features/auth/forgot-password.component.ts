@@ -3,8 +3,8 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { RouterLink } from '@angular/router';
 
 /**
- * MOCK: no backend endpoint. Password reset belongs to the identity provider,
- * which is not stood up yet (spec 3.9).
+ * Superseded by Keycloak, which offers its own reset link on the sign-in page.
+ * Kept only so an existing bookmark does not 404; nothing here sends an email.
  */
 @Component({
   selector: 'app-forgot-password',

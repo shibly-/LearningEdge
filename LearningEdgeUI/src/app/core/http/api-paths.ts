@@ -25,6 +25,8 @@ export const apiPaths = {
     },
     create: () => `${base()}/user`,
     byId: (id: string) => `${base()}/user/${seg(id)}`,
+    /** The record for the bearer token's principal. */
+    me: () => `${base()}/user/me`,
   },
   category: {
     list: (organizationId: string) => `${base()}/organization/${seg(organizationId)}/category`,

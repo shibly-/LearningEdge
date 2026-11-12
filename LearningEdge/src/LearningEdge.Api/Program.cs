@@ -23,16 +23,6 @@ try
         .AddRateLimiterService(builder.Configuration) // Rate Limiter Services
         .AddLoggingService(builder.Configuration); // Logging Services
 
-    //builder.Services
-    //.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    //.AddJwtBearer(options =>
-    //{
-    //    options.Authority = "https://localhost:8443/realms/learningedge";
-    //    options.Audience = "le_web_api";
-    //    options.RequireHttpsMetadata = false; // local development only
-    //});
-    //builder.Services.AddAuthorization();
-
     // Build the application
     var app = builder.Build();
 
@@ -40,7 +30,7 @@ try
 
     // Configure the middleware pipeline
     app.ConfigureMiddlewarePipelines(builder.Configuration)         
-        .MapControllers();
+        .MapControllers().RequireAuthorization();
     
     // Run the application
     app.Run();

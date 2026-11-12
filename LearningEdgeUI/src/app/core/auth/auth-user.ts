@@ -1,6 +1,10 @@
 import type { UserRole } from '../models/user-role';
 
 export interface AuthUser {
+  /**
+   * The LearningEdge user id, recorded as the actor on writes. Falls back to
+   * the Keycloak subject for a platform operator with no user record yet.
+   */
   readonly id: string;
   readonly username: string;
   readonly displayName: string;
@@ -8,11 +12,6 @@ export interface AuthUser {
   readonly role: UserRole;
   /** null for platform scope (SysAdmin); a GUID for every tenant-scoped role. */
   readonly organizationId: string | null;
-  /** Accepted-and-ignored today: the API registers no authentication scheme. */
-  readonly accessToken: string | null;
-}
-
-export interface Credentials {
-  readonly username: string;
-  readonly password: string;
+  /** false when no API user record backs this identity. */
+  readonly isProvisioned: boolean;
 }

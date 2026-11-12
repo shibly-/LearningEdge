@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Checking sign-in status</title>
+  </head>
+  <body>
+    <!--
+      Loaded by keycloak-js in a hidden iframe to resolve an existing session
+      without a full page redirect. It must stay on the app's own origin.
+    -->
+    <script>
+      parent.postMessage(location.href, location.origin);
+    </script>
+  </body>
+</html>

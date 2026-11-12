@@ -17,7 +17,7 @@ function userWith(role: UserRole, organizationId: string | null): AuthUser {
     email: 'tester@example.com',
     role,
     organizationId,
-    accessToken: null,
+    isProvisioned: true,
   };
 }
 

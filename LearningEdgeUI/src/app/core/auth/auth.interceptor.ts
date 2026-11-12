@@ -5,9 +5,11 @@ import { OrganizationContextService } from '../services/organization-context.ser
 import { AuthService } from './auth.service';
 
 /**
- * Attaches the bearer token when one exists and the active tenant as
- * X-Organization-Id. The API ignores both today — it registers no
- * authentication scheme — but the UI contract is stable (spec 4.3).
+ * Attaches the Keycloak bearer token when one exists and the active tenant as
+ * X-Organization-Id (spec 4.3).
+ *
+ * The token is read per request rather than captured: keycloak-js rotates it on
+ * refresh, so a cached copy would start failing validation mid-session.
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   if (req.context.get(SKIP_API_CONCERNS)) {

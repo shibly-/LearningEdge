@@ -20,6 +20,8 @@
     "@angular/platform-browser": "^22.0.0",
     "@angular/router": "^22.0.0",
     "@microsoft/signalr": "^10.0.11",
+    "keycloak-angular": "^22.0.0",
+    "keycloak-js": "^26.2.5",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

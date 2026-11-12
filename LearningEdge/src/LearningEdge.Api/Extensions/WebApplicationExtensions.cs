@@ -83,13 +83,13 @@ public static class WebApplicationExtensions
 
         if (app.Environment.IsDevelopment())
         {
-            app.MapOpenApi("/openapi/{documentName}.json");
+            app.MapOpenApi("/openapi/{documentName}.json").AllowAnonymous();
             app.MapScalarApiReference(options =>
             {
                 options.WithTitle("LearningEdge API");
                 options.AddDocument("v1");
                 options.AddDocument("v2");
-            });
+            }).AllowAnonymous();
         }
 
         app.UseOutputCache();

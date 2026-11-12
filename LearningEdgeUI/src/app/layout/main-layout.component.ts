@@ -1,7 +1,6 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
   ElementRef,
   computed,
   inject,
@@ -9,7 +8,6 @@ import {
   viewChild,
 } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../core/auth/auth.service';
 import { OrganizationContextService } from '../core/services/organization-context.service';
 import { OrganizationStore } from '../core/stores/organization.store';
@@ -30,7 +28,6 @@ export class MainLayoutComponent {
   private readonly context = inject(OrganizationContextService);
   private readonly organizations = inject(OrganizationStore);
   private readonly router = inject(Router);
-  private readonly destroyRef = inject(DestroyRef);
 
   private readonly sidebarOpen = signal(true);
   private readonly menuToggle = viewChild.required<ElementRef<HTMLButtonElement>>('menuToggle');
@@ -84,13 +81,8 @@ export class MainLayoutComponent {
     return window.matchMedia('(max-width: 768px)').matches;
   }
 
+  /** Ends the Keycloak session too, otherwise check-sso would sign us straight back in. */
   protected logout(): void {
-    this.auth
-      .logout()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => void this.router.navigate(['/login']),
-        error: () => void this.router.navigate(['/login']),
-      });
+    void this.auth.signOut().catch(() => void this.router.navigate(['/login']));
   }
 }

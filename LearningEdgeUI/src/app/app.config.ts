@@ -6,12 +6,13 @@ import {
 } from '@angular/core';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
+import { AutoRefreshTokenService, UserActivityService, provideKeycloak } from 'keycloak-angular';
 
 import { routes } from './app.routes';
 import { environment } from '../environments/environment';
 import { AUTH_PROVIDER } from './core/auth/auth-provider';
-import { MockAuthProvider } from './core/auth/mock-auth.provider';
-import { OidcAuthProvider } from './core/auth/oidc-auth.provider';
+import { KeycloakAuthProvider } from './core/auth/keycloak-auth.provider';
+import { KeycloakBootstrap } from './core/auth/keycloak-bootstrap';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { retryInterceptor } from './core/http/retry.interceptor';
 import {
@@ -39,7 +40,11 @@ import {
   HttpQuestionBankRepository,
   MockQuestionBankRepository,
 } from './core/services/question-bank.repository';
-import { ExamRepository, HttpExamRepository, MockExamRepository } from './core/services/exam.repository';
+import {
+  ExamRepository,
+  HttpExamRepository,
+  MockExamRepository,
+} from './core/services/exam.repository';
 import {
   AssignmentRepository,
   MockAssignmentRepository,
@@ -91,6 +96,24 @@ const mockOnlyRepositories = [
  */
 const mockDataProviders = [provideAppInitializer(() => inject(MockDataLoader).load())];
 
+/**
+ * `initOptions` is deliberately omitted. keycloak-js would then self-initialize
+ * from its own app initializer, and Angular runs initializers concurrently — so
+ * the identity lookup could race the token. KeycloakBootstrap orders the two.
+ */
+const authProviders = [
+  provideKeycloak({
+    config: {
+      url: environment.keycloak.url,
+      realm: environment.keycloak.realm,
+      clientId: environment.keycloak.clientId,
+    },
+    providers: [AutoRefreshTokenService, UserActivityService],
+  }),
+  { provide: AUTH_PROVIDER, useClass: KeycloakAuthProvider },
+  provideAppInitializer(() => inject(KeycloakBootstrap).initialize()),
+];
+
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
@@ -102,10 +125,7 @@ export const appConfig: ApplicationConfig = {
     // Functional interceptors only. retryInterceptor runs closest to the
     // backend so it can absorb 503s before anything else observes them.
     provideHttpClient(withInterceptors([authInterceptor, retryInterceptor])),
-    {
-      provide: AUTH_PROVIDER,
-      useClass: environment.useOidc ? OidcAuthProvider : MockAuthProvider,
-    },
+    ...authProviders,
     ...apiBackedRepositories,
     ...mockOnlyRepositories,
     ...mockDataProviders,

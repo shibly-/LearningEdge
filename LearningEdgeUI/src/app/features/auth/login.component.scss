@@ -30,11 +30,18 @@ h1 {
   color: var(--le-danger);
 }
 
+.note {
+  margin: 0 0 20px;
+  font-size: 0.9rem;
+  color: var(--le-text-muted);
+}
+
 .submit {
   width: 100%;
   justify-content: center;
 }
 
+// Also used by the register and forgot-password screens.
 .links {
   display: flex;
   gap: 8px;
@@ -44,57 +51,5 @@ h1 {
 
   a {
     color: var(--le-brand-600);
-  }
-}
-
-.hints {
-  margin-top: 22px;
-  padding-top: 16px;
-  border-top: 1px dashed var(--le-border);
-}
-
-.hints-title {
-  margin: 0 0 8px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--le-text-muted);
-}
-
-.hints-empty,
-.hints-note {
-  margin: 8px 0 0;
-  font-size: 0.85rem;
-  color: var(--le-text-muted);
-}
-
-.hints ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.hints li {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  justify-content: space-between;
-
-  button {
-    border: 1px solid var(--le-border);
-    border-radius: var(--le-radius);
-    padding: 4px 10px;
-    background: var(--le-surface);
-    font: inherit;
-    cursor: pointer;
-  }
-
-  span {
-    font-size: 0.85rem;
-    color: var(--le-text-muted);
   }
 }

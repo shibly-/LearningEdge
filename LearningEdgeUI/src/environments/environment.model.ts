@@ -1,28 +1,23 @@
-import { UserRole } from '../app/core/models/user-role';
-
 /**
- * A dev-only login. The password is checked in the browser.
- *
- * With `useMockApi: false` the login is matched to the API user with the same
- * `email`, and that record's id, role and organization are used; `userId` and
- * `organizationId` below then only matter for mock data. A SysAdmin login with
- * no matching API user still signs in, so an empty database can be seeded.
+ * Keycloak is the only sign-in path. The realm and both client ids are
+ * configured server-side in LearningEdge.Api's `Keycloak` settings section;
+ * the values here must agree with them.
  */
-export interface MockCredential {
-  readonly username: string;
-  readonly password: string;
-  readonly role: UserRole;
-  /** Mock data only. null for platform scope (SysAdmin). */
-  readonly organizationId: string | null;
+export interface KeycloakSettings {
+  /** Keycloak origin, no trailing slash and no /realms segment. */
+  readonly url: string;
+  readonly realm: string;
   /**
-   * Mock data only: id of the matching record in
-   * public/mock-data/tms-sample-data.json, so the learner and instructor
-   * screens have sample rows to show.
+   * The public browser client. Note this is *not* the audience the API
+   * validates: tokens issued to it must carry the API's client id in `aud`,
+   * which an audience mapper on the realm supplies.
    */
-  readonly userId?: string;
-  readonly displayName?: string;
-  /** Required for every non-SysAdmin login when using the live API. */
-  readonly email?: string;
+  readonly clientId: string;
+  /**
+   * Inactivity window. When the access token expires the session is refreshed
+   * if the user interacted within this window, and ended otherwise.
+   */
+  readonly sessionTimeoutMs: number;
 }
 
 export interface AppEnvironment {
@@ -36,14 +31,7 @@ export interface AppEnvironment {
    * are in-memory either way — the API has no endpoints for them yet.
    */
   readonly useMockApi: boolean;
-  /** Swaps MockAuthProvider for OidcAuthProvider. */
-  readonly useOidc: boolean;
-  readonly oidc: {
-    readonly authority: string;
-    readonly clientId: string;
-    readonly scope: string;
-  };
-  readonly mockCredentials: readonly MockCredential[];
+  readonly keycloak: KeycloakSettings;
   /**
    * GET /api/v1/user/{id} is limited to 5 requests per 10s and rejects with
    * HTTP 503 because RejectionStatusCode is not configured server-side.
