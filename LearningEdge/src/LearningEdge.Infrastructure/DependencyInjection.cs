@@ -1,4 +1,5 @@
 ﻿using LearningEdge.Application.Interfaces;
+using LearningEdge.Infrastructure.Constants;
 using LearningEdge.Infrastructure.Persistence;
 using LearningEdge.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,10 @@ public static class DependencyInjection
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(
                 connectionString,
-                opts => { opts.MigrationsAssembly(migrationAssembly); }
+                opts => { 
+                    opts.MigrationsAssembly(migrationAssembly); 
+                    //opts.EnableRetryOnFailure(DbContextDefaultOptions.MaxRetryCount, TimeSpan.FromSeconds(DbContextDefaultOptions.MaxRetryDelay), null);
+                }
             )
         );
 

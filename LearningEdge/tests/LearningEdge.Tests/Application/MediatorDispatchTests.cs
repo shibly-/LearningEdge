@@ -77,7 +77,7 @@ public class MediatorDispatchTests
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
         services.AddSingleton<IFileStorage, InMemoryFileStorage>();
         services.AddSingleton<IMapper>(new MapperConfiguration(config =>
-            config.AddMaps(typeof(AssemblyMarker).Assembly)).CreateMapper());
+            config.AddMaps(typeof(AssemblyMarker).Assembly), null).CreateMapper());
         services.AddMediatR(config =>
         {
             config.RegisterServicesFromAssembly(typeof(AssemblyMarker).Assembly);

@@ -138,7 +138,7 @@ public class UserCommandHandlersTests
 
     private static IMapper CreateMapper()
     {
-        var configuration = new MapperConfiguration(config => config.AddProfile<UserProfile>());
+        var configuration = new MapperConfiguration(config => config.AddProfile<UserProfile>(), null);
         return configuration.CreateMapper();
     }
 }

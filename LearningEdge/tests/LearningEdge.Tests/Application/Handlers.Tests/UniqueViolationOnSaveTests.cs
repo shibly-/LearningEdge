@@ -115,7 +115,7 @@ public class UniqueViolationOnSaveTests
         {
             config.AddProfile<OrganizationProfile>();
             config.AddProfile<UserProfile>();
-        });
+        }, null);
         return configuration.CreateMapper();
     }
 }

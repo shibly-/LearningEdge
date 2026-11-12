@@ -161,5 +161,5 @@ public class CategoryCommandHandlersTests
             .Options);
 
     private static IMapper CreateMapper() =>
-        new MapperConfiguration(config => config.AddProfile<CategoryProfile>()).CreateMapper();
+        new MapperConfiguration(config => config.AddProfile<CategoryProfile>(), null).CreateMapper();
 }

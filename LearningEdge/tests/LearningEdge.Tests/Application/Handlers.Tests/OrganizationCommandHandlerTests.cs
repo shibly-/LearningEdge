@@ -151,7 +151,7 @@ public class OrganizationCommandHandlerTests
 
     private static IMapper CreateMapper()
     {
-        var configuration = new MapperConfiguration(config => config.AddProfile<OrganizationProfile>());
+        var configuration = new MapperConfiguration(config => config.AddProfile<OrganizationProfile>(), null);
         return configuration.CreateMapper();
     }
 }

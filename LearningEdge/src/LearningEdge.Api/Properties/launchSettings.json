@@ -8,17 +8,20 @@
       "applicationUrl": "http://localhost:5087",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "SKIP_DB_MIGRATION": "false"
+        "SKIP_DB_MIGRATION": "false",
+        "AUTOMAPPER_LICENSE_PATH": "eyJhbGciOiJSUzI1NiIsImtpZCI6Ikx1Y2t5UGVubnlTb2Z0d2FyZUxpY2Vuc2VLZXkvYmJiMTNhY2I1OTkwNGQ4OWI0Y2IxYzg1ZjA4OGNjZjkiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2x1Y2t5cGVubnlzb2Z0d2FyZS5jb20iLCJhdWQiOiJMdWNreVBlbm55U29mdHdhcmUiLCJleHAiOiIxODI4Mzk2ODAwIiwiaWF0IjoiMTc5NDMxODY0NSIsImFjY291bnRfaWQiOiIwMWExYzViOTNkZjE3ZjFiOTdkMTViOTBiYmVmYjRjYiIsImN1c3RvbWVyX2lkIjoiMDFhMWM1YjkzZGYxN2YxYjk3ZDE1YjkwYmJlZmI0Y2IiLCJzdWJfaWQiOiItIiwiZWRpdGlvbiI6IjAiLCJ0eXBlIjoiMiIsInRlcm1fZW5kIjoiMTgyNTgwNDgwMCJ9.rw-KfqE3G8F-O1GSIMzah3fp46b2esxiUk0kPyljd8xLALLjPAFaPY14pinwDZqbCZh1nToG3Vg_DOmCt42HLlGee0I8jWJzmaHMVp_PPJSUE0X-9D4I5WhbixviMllwwcBL6fXEQV2K3otue48D2NZQwYPCINpAv-FsKZZo0iA9O8mpw1dZQMAdQNW7Zl6hSXhFec6VKWPhnEtmqkx8BkhVUvZbt2KHpv6tSIkNw6HhsucbXNHKvnz9VT-TEApKUC1tt6wZz0Wraxw9scJJSHQqKYVhN2HpZc0y6-lFEdhl9IxR6AHq3WWuT4QX8d3cFakVE4E1tZyXdl_yiSsYaw"
       }
     },
     "https": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
+      "launchUrl": "scalar",
       "applicationUrl": "https://localhost:7176;http://localhost:5087",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "SKIP_DB_MIGRATION": "false"
+        "SKIP_DB_MIGRATION": "false",
+        "AUTOMAPPER_LICENSE_PATH": "eyJhbGciOiJSUzI1NiIsImtpZCI6Ikx1Y2t5UGVubnlTb2Z0d2FyZUxpY2Vuc2VLZXkvYmJiMTNhY2I1OTkwNGQ4OWI0Y2IxYzg1ZjA4OGNjZjkiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2x1Y2t5cGVubnlzb2Z0d2FyZS5jb20iLCJhdWQiOiJMdWNreVBlbm55U29mdHdhcmUiLCJleHAiOiIxODI4Mzk2ODAwIiwiaWF0IjoiMTc5NDMxODY0NSIsImFjY291bnRfaWQiOiIwMWExYzViOTNkZjE3ZjFiOTdkMTViOTBiYmVmYjRjYiIsImN1c3RvbWVyX2lkIjoiMDFhMWM1YjkzZGYxN2YxYjk3ZDE1YjkwYmJlZmI0Y2IiLCJzdWJfaWQiOiItIiwiZWRpdGlvbiI6IjAiLCJ0eXBlIjoiMiIsInRlcm1fZW5kIjoiMTgyNTgwNDgwMCJ9.rw-KfqE3G8F-O1GSIMzah3fp46b2esxiUk0kPyljd8xLALLjPAFaPY14pinwDZqbCZh1nToG3Vg_DOmCt42HLlGee0I8jWJzmaHMVp_PPJSUE0X-9D4I5WhbixviMllwwcBL6fXEQV2K3otue48D2NZQwYPCINpAv-FsKZZo0iA9O8mpw1dZQMAdQNW7Zl6hSXhFec6VKWPhnEtmqkx8BkhVUvZbt2KHpv6tSIkNw6HhsucbXNHKvnz9VT-TEApKUC1tt6wZz0Wraxw9scJJSHQqKYVhN2HpZc0y6-lFEdhl9IxR6AHq3WWuT4QX8d3cFakVE4E1tZyXdl_yiSsYaw"
       }
     }
   }

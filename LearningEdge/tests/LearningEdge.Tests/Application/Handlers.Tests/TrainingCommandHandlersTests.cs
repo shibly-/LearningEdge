@@ -409,5 +409,5 @@ public class TrainingCommandHandlersTests
             .Options);
 
     private static IMapper CreateMapper() =>
-        new MapperConfiguration(config => config.AddProfile<TrainingProfile>()).CreateMapper();
+        new MapperConfiguration(config => config.AddProfile<TrainingProfile>(), null).CreateMapper();
 }

@@ -1,9 +1,12 @@
-﻿using System.Text.Json;
+﻿using LearningEdge.Api.Constants;
+using LearningEdge.Api.Hubs;
 using LearningEdge.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
 using Serilog;
+using System.Text.Json;
 
 namespace LearningEdge.Api.Extensions;
 
@@ -37,6 +40,8 @@ public static class WebApplicationExtensions
                 await Task.Delay(TimeSpan.FromSeconds(2));
             }
         }
+
+        throw new InvalidOperationException("Database is not reachable.");
     }
 
     public static WebApplication ConfigureMiddlewarePipelines(this WebApplication app, ConfigurationManager configuration)
@@ -71,22 +76,27 @@ public static class WebApplicationExtensions
         app.UseSerilogRequestLogging()
             .UseHttpsRedirection()
             // .UseRouting() this is not required in .NET 8/9/10 Web APIs, it is managed by the framework automatically
-            .UseCors(configuration["Cors:Policy"] ?? "AllowWebApp")
-            // .UseAuthentication() // will implement authentication in the future
-            // .UseAuthorization()  // will configure authorization in the future
+            .UseCors(configuration["Cors:Policy"] ?? DefaultConfigs.CorsPolicyName)
+            .UseAuthentication() // will implement authentication in the future
+            .UseAuthorization()  // will configure authorization in the future
             .UseRateLimiter();
 
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi("/openapi/{documentName}.json");
-            app.UseSwaggerUI(options =>
+            app.MapScalarApiReference(options =>
             {
-                options.SwaggerEndpoint("/openapi/v1.json", "v1");
-                options.SwaggerEndpoint("/openapi/v2.json", "v2");
+                options.WithTitle("LearningEdge API");
+                options.AddDocument("v1");
+                options.AddDocument("v2");
             });
         }
 
         app.UseOutputCache();
+
+        app.MapHub<FileExtractProgressHub>("/hubs/file-extract");
+
+        app.MapHealthChecks("/health");
 
         return app;
     }

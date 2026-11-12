@@ -6,14 +6,17 @@ using LearningEdge.Application.Models.DTOs;
 using LearningEdge.Application.Models.Queries.Organizations;
 using LearningEdge.Application.Models.Queries.Users;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 
 namespace LearningEdge.Api.Controllers.Organizations;
 
+[Authorize]
 [ApiController]
 [Route("api/v{version:apiVersion}/[controller]")]
 [ApiVersion("1.0")]
+[ApiVersion("2.0")]
 public class OrganizationController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -65,7 +68,7 @@ public class OrganizationController : ControllerBase
         return Ok(result.Data);
     }
 
-    // GET: api/v1/organization
+    // GET: api/v1/organization    
     [HttpGet]
     [MapToApiVersion("1.0")]
     [EndpointSummary("Get all organizations")]
@@ -84,7 +87,7 @@ public class OrganizationController : ControllerBase
 
     // GET: api/v1/organization/{id}/users
     [HttpGet("{id:guid}/users")]
-    [MapToApiVersion("1.0")]
+    [MapToApiVersion("1.0")]    
     [EndpointSummary("Get the users of an organization")]
     [EndpointDescription("Returns every user in the organization that has not been deleted, ordered by last name then first name.")]
     [ProducesResponseType(typeof(IReadOnlyList<UserDTO>), StatusCodes.Status200OK)]
@@ -116,4 +119,25 @@ public class OrganizationController : ControllerBase
 
         return Ok(result.Data);
     }
+
+    // GET: api/v1/organization/{id}
+    [HttpGet("{id}")]
+    [MapToApiVersion("2.0")]
+    [ProducesResponseType(typeof(OrganizationDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<OrganizationDTO>> GetByIdExt(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetOrganizationByIdQuery(id), cancellationToken);
+        if (!result.Success)
+        {
+            return result.ToErrorResult();
+        }
+
+        return Ok(result.Data);
+    }
+
+    //[Authorize]
+    [HttpGet]
+    [MapToApiVersion("2.0")]
+    public IActionResult GetV2() => Ok("v2");
 }

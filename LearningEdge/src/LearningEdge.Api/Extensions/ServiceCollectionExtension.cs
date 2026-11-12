@@ -1,4 +1,5 @@
 ﻿using Asp.Versioning;
+using Azure;
 using FluentValidation;
 using LearningEdge.Api.Constants;
 using LearningEdge.Api.Hubs;
@@ -11,8 +12,13 @@ using LearningEdge.Infrastructure.Messaging.Consumers;
 using LearningEdge.Infrastructure.Persistence;
 using LearningEdge.Messaging.Contracts.Events;
 using MassTransit;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using Serilog;
 using StackExchange.Redis;
 using System.Threading.RateLimiting;
@@ -21,14 +27,28 @@ namespace LearningEdge.Api.Extensions;
 
 public static class ServiceCollectionExtension
 {
+    private static readonly string AutoMapperLicense = Environment.GetEnvironmentVariable("AUTOMAPPER_LICENSE_PATH") ?? string.Empty;
+    
     public static IServiceCollection AddApiServices(this IServiceCollection services)
     {
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.Authority = "https://localhost:8443/realms/learningedge";
+            options.RequireHttpsMetadata = true;
+            options.TokenValidationParameters.ValidAudience = "le-web-api";
+        });
+
+        services.AddAuthorization();
+
         // Add Controllers
         services.AddControllers();
 
         // Add API versioning
         services.AddApiVersioning(options =>
         {
+            options.DefaultApiVersion = new ApiVersion(1, 0);
+            options.AssumeDefaultVersionWhenUnspecified = true;            
             options.ReportApiVersions = true;
             options.ApiVersionReader = new UrlSegmentApiVersionReader();
         })
@@ -40,14 +60,87 @@ public static class ServiceCollectionExtension
         });
 
         // Add OpenAPI/Swagger support
-        services.AddOpenApi("v1");
-        services.AddOpenApi("v2");
+        services.AddOpenApi("v1", options =>
+        {
+            options.AddDocumentTransformer((document, ctx, ct) =>
+            {
+                document.Info.Title = "LearningEdge API";
+                document.Info.Version = "v1";
+
+                document.Components ??= new();
+                document.Components.SecuritySchemes ??=
+    new Dictionary<string, IOpenApiSecurityScheme>();
+
+                document.Components.SecuritySchemes.Add(
+                    "Keycloak",
+                    new OpenApiSecurityScheme
+                    {
+                        Type = SecuritySchemeType.OAuth2,
+                        Flows = new OpenApiOAuthFlows
+                        {
+                            AuthorizationCode = new OpenApiOAuthFlow
+                            {
+                                AuthorizationUrl = new Uri(
+                                    "https://localhost:8443/realms/learningedge/protocol/openid-connect/auth"),
+
+                                TokenUrl = new Uri(
+                                    "https://localhost:8443/realms/learningedge/protocol/openid-connect/token"),
+
+                                Scopes = new Dictionary<string, string>
+                                {
+                                    ["openid"] = "OpenID Connect",
+                                    ["profile"] = "User Profile"
+                                }
+                            }
+                        }
+                    });
+
+                return Task.CompletedTask;
+            });
+
+            options.AddOperationTransformer((operation, context, cancellationToken) =>
+            {
+                var requiresAuth =
+                    context.Description.ActionDescriptor.EndpointMetadata
+                        .OfType<AuthorizeAttribute>()
+                        .Any();
+
+                if (!requiresAuth)
+                {
+                    return Task.CompletedTask;
+                }
+
+                operation.Security ??= [];
+
+                operation.Security.Add(
+                    new OpenApiSecurityRequirement
+                    {
+                        [
+                            new OpenApiSecuritySchemeReference("Keycloak")
+                        ] = []
+                    });
+
+                return Task.CompletedTask;
+            });
+
+        });
+
+        services.AddOpenApi("v2", options =>
+        {
+            options.AddDocumentTransformer((document, ctx, ct) =>
+            {
+                document.Info.Title = "LearningEdge API - Extended";
+                document.Info.Version = "v2";
+                return Task.CompletedTask;
+            });
+        });
 
         return services;
     }
 
     public static IServiceCollection AddApplicationServices(this IServiceCollection services) 
-    {
+    {        
+
         // Add MediatR
         services.AddMediatR(config =>
         {
@@ -56,7 +149,11 @@ public static class ServiceCollectionExtension
         });
 
         // AutoMapper → scans Application assembly for profiles
-        services.AddAutoMapper(typeof(AssemblyMarker).Assembly);
+        services.AddAutoMapper(cfg =>
+        {
+            cfg.LicenseKey = AutoMapperLicense;
+            cfg.AddMaps(typeof(AssemblyMarker).Assembly);
+        });
 
         // FluentValidation → scans Application assembly for validators
         services.AddValidatorsFromAssembly(typeof(AssemblyMarker).Assembly);
@@ -82,6 +179,8 @@ public static class ServiceCollectionExtension
         // Register MassTransit
         services.AddMassTransit(bus =>
         {
+            
+
             // Register consumers
             bus.AddConsumer<ExtractRequestCompletedConsumer>();
 

@@ -21,14 +21,15 @@
   </ItemGroup>  
 
   <ItemGroup>
+	<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />  
 	<PackageReference Include="MediatR" />
-	<PackageReference Include="AutoMapper" />
-	<PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" />
+	<PackageReference Include="AutoMapper" />	
 	<PackageReference Include="FluentValidation" />
 	<PackageReference Include="FluentValidation.DependencyInjectionExtensions" />  
 	<PackageReference Include="Asp.Versioning.Mvc" />
 	<PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" />
-	<PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+	<PackageReference Include="Microsoft.AspNetCore.OpenApi" />  
+	<PackageReference Include="Scalar.AspNetCore" />
 	<PackageReference Include="Microsoft.EntityFrameworkCore" />
 	<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
 	<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" />  
@@ -40,8 +41,7 @@
 	<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
 	<PackageReference Include="Serilog.AspNetCore" />
 	<PackageReference Include="Serilog.Enrichers.Environment" />
-	<PackageReference Include="Serilog.Enrichers.Thread" />
-	<PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />	
+	<PackageReference Include="Serilog.Enrichers.Thread" />		
   </ItemGroup>	
 
 </Project>
