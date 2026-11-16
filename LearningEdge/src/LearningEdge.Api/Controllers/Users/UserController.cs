@@ -1,6 +1,7 @@
 ﻿using Asp.Versioning;
 using LearningEdge.Api.Constants;
 using LearningEdge.Api.Extensions;
+using LearningEdge.Api.Security;
 using LearningEdge.Application.Models.Commands.Users;
 using LearningEdge.Application.Models.DTOs;
 using LearningEdge.Application.Models.Queries.Users;
@@ -9,7 +10,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using System.Security.Claims;
-using System.Text.Json;
 using static LearningEdge.Domain.Common.Enums;
 
 namespace LearningEdge.Api.Controllers.Users;
@@ -34,6 +34,30 @@ public class UserController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<Guid>> Create([FromBody] CreateUserCommand command, CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(command, cancellationToken);
+        if (!result.Success)
+        {
+            return result.ToErrorResult();
+        }
+
+        return this.ToCreatedResult(nameof(GetById), result.Data);
+    }
+
+    // POST: api/v1/user/organization-admin
+    [HttpPost("organization-admin")]
+    [Authorize(Policy = AuthPolicies.SysAdmin)]
+    [MapToApiVersion("1.0")]
+    [EndpointSummary("Create an organization admin")]
+    [EndpointDescription("System admin only. Creates the organization admin in LearningEdge and in Keycloak, so the person can sign in with the password in this request.")]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<Guid>> CreateOrganizationAdmin(
+        [FromBody] CreateOrganizationAdminCommand command,
+        CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(command, cancellationToken);
         if (!result.Success)
@@ -82,7 +106,7 @@ public class UserController : ControllerBase
             ?? User.FindFirstValue("email")
             ?? User.FindFirstValue("preferred_username")
             ?? string.Empty;
-        var hasPlatformRole = HasRealmRole(User, "OrgAdmin");
+        var hasPlatformRole = KeycloakRoles.Has(User, "OrgAdmin");
 
         if (string.IsNullOrWhiteSpace(email) && !hasPlatformRole)
         {
@@ -125,6 +149,7 @@ public class UserController : ControllerBase
 
     // GET: api/v1/user?organizationId={id}&role=OrgAdmin&role=Learner
     [HttpGet]
+    [Authorize(Policy = AuthPolicies.SysAdmin)]
     [MapToApiVersion("1.0")]
     [EndpointSummary("List users")]
     [EndpointDescription("Returns users that have not been deleted, across all organizations unless organizationId is given. Repeat role to match any of several roles; omit it for every role. Ordered by last name then first name.")]
@@ -196,46 +221,5 @@ public class UserController : ControllerBase
         }
 
         return Ok(result.Data);
-    }
-
-    private static bool HasRealmRole(ClaimsPrincipal user, string role)
-    {
-        if (user.Claims.Any(claim =>
-            (claim.Type is "role" or ClaimTypes.Role)
-            && string.Equals(claim.Value, role, StringComparison.OrdinalIgnoreCase)))
-        {
-            return true;
-        }
-
-        var raw = user.FindFirst("realm_access")?.Value;
-        if (string.IsNullOrWhiteSpace(raw) || !raw.TrimStart().StartsWith('{'))
-        {
-            return false;
-        }
-
-        try
-        {
-            using var document = JsonDocument.Parse(raw);
-            if (!document.RootElement.TryGetProperty("roles", out var roles)
-                || roles.ValueKind != JsonValueKind.Array)
-            {
-                return false;
-            }
-
-            foreach (var entry in roles.EnumerateArray())
-            {
-                if (entry.ValueKind == JsonValueKind.String
-                    && string.Equals(entry.GetString(), role, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-
-        return false;
     }
 }

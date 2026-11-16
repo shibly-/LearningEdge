@@ -66,7 +66,16 @@ public class DefaultWorkerService : BackgroundService
             var searchResults = await _qdrant.QueryAsync(
                 collectionName: collectionName,
                 query: queryVector,
-                limit: 10,
+                limit: 5,
+                scoreThreshold: 0.70f, // Drops weak matches so your LLM doesn't hallucinate from bad context
+                searchParams: new SearchParams
+                {
+                    Quantization = new QuantizationSearchParams
+                    {
+                        Rescore = true,      // Re-ranks using exact float32 vectors on disk
+                        Oversampling = 2.0   // Fetches 10 candidates in RAM, returns exact top 5
+                    }
+                },
                 vectorsSelector: false,
                 cancellationToken: stoppingToken
             );

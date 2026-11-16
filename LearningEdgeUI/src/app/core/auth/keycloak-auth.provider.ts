@@ -66,22 +66,25 @@ function toAuthUser(identity: TokenIdentity, record: UserDto | null): AuthUser {
 
   // A platform operator can work without a user record: creating the first
   // organization and its admin is how a fresh database is seeded.
-  if (identity.role !== UserRole.SysAdmin) {
-    throw new ApiFailure(
-      'not-found',
-      `No LearningEdge user has the email ${identity.email || identity.username}. Ask a system admin to create this user first.`,
-    );
+  if (identity.role === UserRole.SysAdmin) {
+    return {
+      id: identity.subject,
+      username: identity.username,
+      displayName: identity.displayName,
+      email: identity.email,
+      role: UserRole.SysAdmin,
+      organizationId: null,
+      isProvisioned: false,
+    };
   }
 
-  return {
-    id: identity.subject,
-    username: identity.username,
-    displayName: identity.displayName,
-    email: identity.email,
-    role: UserRole.SysAdmin,
-    organizationId: null,
-    isProvisioned: false,
-  };
+  const who = identity.email || identity.username;
+  throw new ApiFailure(
+    'not-found',
+    identity.role === null
+      ? `Signed in as ${who}, but this token has no LearningEdge role. A system admin needs the Keycloak realm role SysAdmin.`
+      : `No LearningEdge user has the email ${who}. Ask a system admin to create this user first.`,
+  );
 }
 
 /** Keycloak rejects a redirect the client does not list, but validate anyway. */

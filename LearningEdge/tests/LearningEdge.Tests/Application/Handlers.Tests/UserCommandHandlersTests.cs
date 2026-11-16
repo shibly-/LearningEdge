@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using LearningEdge.Application.Common.Exceptions;
 using LearningEdge.Application.Common.Mappings;
 using LearningEdge.Application.Common.Results;
 using LearningEdge.Application.Handlers.Users;
@@ -237,6 +238,90 @@ public class UserCommandHandlersTests
         Assert.Equal(UserActivationStatus.Active, result.Data!.ActivationStatus);
     }
 
+    [Fact]
+    public async Task Handle_ShouldRejectOrgAdmin_OnTheGenericCreate()
+    {
+        await using var context = CreateContext();
+        var organization = new Organization("Acme");
+        context.Organizations.Add(organization);
+        await context.SaveChangesAsync();
+
+        var handler = new UserCommandHandlers(context, CreateMapper());
+        var result = await handler.Handle(
+            new CreateUserCommand("Ada", "Lovelace", "ada@example.com", UserRole.OrgAdmin, organization.Id),
+            CancellationToken.None);
+
+        Assert.Equal(ResultErrorKind.Validation, result.Kind);
+        Assert.Empty(context.Users);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldProvisionAnOrganizationAdmin()
+    {
+        await using var context = CreateContext();
+        var organization = new Organization("Acme");
+        context.Organizations.Add(organization);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        var keycloak = new RecordingKeycloak();
+        var handler = new UserCommandHandlers(context, CreateMapper(), keycloakUsers: keycloak);
+        var result = await handler.Handle(
+            new CreateOrganizationAdminCommand("Ada", "Lovelace", "ada@example.com", "Password1", organization.Id),
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal("ada@example.com", keycloak.Email);
+        Assert.Equal("Password1", keycloak.Password);
+        Assert.Equal(1, keycloak.OrganizationAdmins);
+        var saved = await context.Users.SingleAsync();
+        Assert.Equal(UserRole.OrgAdmin, saved.Role);
+        Assert.Equal("kc-admin", saved.KeycloakUserId);
+        Assert.Equal(UserActivationStatus.Active, saved.ActivationStatus);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldNotSave_WhenKeycloakRejectsTheOrganizationAdmin()
+    {
+        await using var context = CreateContext();
+        var organization = new Organization("Acme");
+        context.Organizations.Add(organization);
+        await context.SaveChangesAsync();
+
+        var keycloak = new RecordingKeycloak
+        {
+            Failure = new KeycloakProvisioningException("The Keycloak realm is missing the 'OrgAdmin' role."),
+        };
+        var handler = new UserCommandHandlers(context, CreateMapper(), keycloakUsers: keycloak);
+        var result = await handler.Handle(
+            new CreateOrganizationAdminCommand("Ada", "Lovelace", "ada@example.com", "Password1", organization.Id),
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("OrgAdmin", result.Error);
+        Assert.Empty(context.Users);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldKeepAnOrganizationAdminRoleFixed()
+    {
+        await using var context = CreateContext();
+        var organization = new Organization("Acme");
+        var admin = User.CreateOrganizationAdmin("Ada", "Lovelace", "ada@example.com", organization.Id, "kc-1");
+        context.Organizations.Add(organization);
+        context.Users.Add(admin);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        var handler = new UserCommandHandlers(context, CreateMapper());
+        var result = await handler.Handle(
+            new UpdateUserCommand(admin.Id, "Ada", "Lovelace", "ada@example.com", UserRole.Learner, organization.Id),
+            CancellationToken.None);
+
+        Assert.Equal(ResultErrorKind.Validation, result.Kind);
+        Assert.Equal(UserRole.OrgAdmin, (await context.Users.SingleAsync()).Role);
+    }
+
     private static ApplicationDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -272,12 +357,34 @@ public class UserCommandHandlersTests
     {
         public string? Email { get; private set; }
         public string? Password { get; private set; }
+        public int OrganizationAdmins { get; private set; }
+        public Exception? Failure { get; init; }
 
-        public Task<string> CreateLearnerAsync(KeycloakLearnerAccount account, CancellationToken cancellationToken)
+        public Task<string> CreateLearnerAsync(KeycloakAccount account, CancellationToken cancellationToken)
         {
             Email = account.Email;
             Password = account.Password;
             return Task.FromResult("kc-1");
         }
+
+        public Task<string> CreateOrganizationAdminAsync(KeycloakAccount account, CancellationToken cancellationToken)
+        {
+            if (Failure is not null)
+            {
+                throw Failure;
+            }
+
+            Email = account.Email;
+            Password = account.Password;
+            OrganizationAdmins++;
+            return Task.FromResult("kc-admin");
+        }
+
+        public Task UpdateProfileAsync(
+            string keycloakUserId,
+            string email,
+            string firstName,
+            string lastName,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

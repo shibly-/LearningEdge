@@ -15,6 +15,7 @@ public sealed class KeycloakAdminSettings
     public required string ClientId { get; init; }
     public required string ClientSecret { get; init; }
     public required string LearnerRole { get; init; }
+    public required string OrgAdminRole { get; init; }
 }
 
 /// <summary>
@@ -34,19 +35,70 @@ public sealed class KeycloakAdminClient : IKeycloakUserDirectory
         _settings = settings;
     }
 
-    public async Task<string> CreateLearnerAsync(KeycloakLearnerAccount account, CancellationToken cancellationToken)
+    public Task<string> CreateLearnerAsync(KeycloakAccount account, CancellationToken cancellationToken) =>
+        CreateWithRoleAsync(account, _settings.LearnerRole, cancellationToken);
+
+    public Task<string> CreateOrganizationAdminAsync(KeycloakAccount account, CancellationToken cancellationToken) =>
+        CreateWithRoleAsync(account, _settings.OrgAdminRole, cancellationToken);
+
+    public async Task UpdateProfileAsync(
+        string keycloakUserId,
+        string email,
+        string firstName,
+        string lastName,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_settings.ClientId) || string.IsNullOrWhiteSpace(_settings.ClientSecret))
+        EnsureConfigured();
+
+        try
         {
-            throw new KeycloakProvisioningException(
-                "Keycloak admin client is not configured. Set Keycloak:AdminClientId and Keycloak:AdminClientSecret.");
+            var token = await RequestTokenAsync(cancellationToken);
+            using var response = await SendAsync(
+                HttpMethod.Put,
+                $"{_settings.AdminRoot}/users/{keycloakUserId}",
+                token,
+                new UpdateKeycloakUser
+                {
+                    Username = email,
+                    Email = email,
+                    FirstName = firstName,
+                    LastName = lastName,
+                    Enabled = true,
+                    EmailVerified = true,
+                },
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw await Failure(response, "Keycloak could not update the user.", cancellationToken);
+            }
         }
+        catch (KeycloakProvisioningException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new KeycloakProvisioningException("Cannot reach Keycloak to update the user.", ex);
+        }
+        catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new KeycloakProvisioningException("Keycloak did not respond in time.", ex);
+        }
+    }
+
+    private async Task<string> CreateWithRoleAsync(
+        KeycloakAccount account,
+        string realmRole,
+        CancellationToken cancellationToken)
+    {
+        EnsureConfigured();
 
         try
         {
             var token = await RequestTokenAsync(cancellationToken);
             var userId = await CreateOrReuseUserAsync(token, account, cancellationToken);
-            await AssignRealmRoleAsync(token, userId, cancellationToken);
+            await AssignRealmRoleAsync(token, userId, realmRole, cancellationToken);
             return userId;
         }
         catch (KeycloakProvisioningException)
@@ -62,6 +114,17 @@ public sealed class KeycloakAdminClient : IKeycloakUserDirectory
             throw new KeycloakProvisioningException("Keycloak did not respond in time.", ex);
         }
     }
+
+    private static void EnsureConfigured(KeycloakAdminSettings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ClientId) || string.IsNullOrWhiteSpace(settings.ClientSecret))
+        {
+            throw new KeycloakProvisioningException(
+                "Keycloak admin client is not configured. Set Keycloak:AdminClientId and Keycloak:AdminClientSecret.");
+        }
+    }
+
+    private void EnsureConfigured() => EnsureConfigured(_settings);
 
     private async Task<string> RequestTokenAsync(CancellationToken cancellationToken)
     {
@@ -89,7 +152,7 @@ public sealed class KeycloakAdminClient : IKeycloakUserDirectory
 
     private async Task<string> CreateOrReuseUserAsync(
         string token,
-        KeycloakLearnerAccount account,
+        KeycloakAccount account,
         CancellationToken cancellationToken)
     {
         var created = await SendAsync(
@@ -130,7 +193,7 @@ public sealed class KeycloakAdminClient : IKeycloakUserDirectory
 
     private async Task<string> ReuseExistingUserAsync(
         string token,
-        KeycloakLearnerAccount account,
+        KeycloakAccount account,
         CancellationToken cancellationToken)
     {
         var lookup = $"{_settings.AdminRoot}/users?email={Uri.EscapeDataString(account.Email)}&exact=true";
@@ -173,26 +236,30 @@ public sealed class KeycloakAdminClient : IKeycloakUserDirectory
         return userId;
     }
 
-    private async Task AssignRealmRoleAsync(string token, string userId, CancellationToken cancellationToken)
+    private async Task AssignRealmRoleAsync(
+        string token,
+        string userId,
+        string realmRole,
+        CancellationToken cancellationToken)
     {
-        var roleUrl = $"{_settings.AdminRoot}/roles/{Uri.EscapeDataString(_settings.LearnerRole)}";
+        var roleUrl = $"{_settings.AdminRoot}/roles/{Uri.EscapeDataString(realmRole)}";
         using var roleResponse = await SendAsync(HttpMethod.Get, roleUrl, token, null, cancellationToken);
         if (roleResponse.StatusCode == HttpStatusCode.NotFound)
         {
             throw new KeycloakProvisioningException(
-                $"The Keycloak realm is missing the '{_settings.LearnerRole}' role.");
+                $"The Keycloak realm is missing the '{realmRole}' role.");
         }
 
         if (!roleResponse.IsSuccessStatusCode)
         {
-            throw await Failure(roleResponse, "Keycloak could not read the learner role.", cancellationToken);
+            throw await Failure(roleResponse, $"Keycloak could not read the '{realmRole}' role.", cancellationToken);
         }
 
         var role = await roleResponse.Content.ReadFromJsonAsync<KeycloakRole>(JsonOptions, cancellationToken);
         if (role is null || string.IsNullOrWhiteSpace(role.Id))
         {
             throw new KeycloakProvisioningException(
-                $"The Keycloak realm role '{_settings.LearnerRole}' has no id.");
+                $"The Keycloak realm role '{realmRole}' has no id.");
         }
 
         using var assigned = await SendAsync(
@@ -205,7 +272,7 @@ public sealed class KeycloakAdminClient : IKeycloakUserDirectory
         // 409 means the user already has the role, which is the state we want.
         if (!assigned.IsSuccessStatusCode && assigned.StatusCode != HttpStatusCode.Conflict)
         {
-            throw await Failure(assigned, "Keycloak could not assign the learner role.", cancellationToken);
+            throw await Failure(assigned, $"Keycloak could not assign the '{realmRole}' role.", cancellationToken);
         }
     }
 
@@ -295,6 +362,16 @@ public sealed class KeycloakAdminClient : IKeycloakUserDirectory
     {
         [JsonPropertyName("access_token")]
         public string AccessToken { get; set; } = "";
+    }
+
+    private sealed class UpdateKeycloakUser
+    {
+        public string Username { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public bool Enabled { get; set; }
+        public bool EmailVerified { get; set; }
     }
 
     private sealed class NewKeycloakUser

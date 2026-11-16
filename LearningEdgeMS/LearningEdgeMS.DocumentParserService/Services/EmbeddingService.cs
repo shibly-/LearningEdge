@@ -64,7 +64,8 @@ public class EmbeddingService
             {
                 { "text", new Value { StringValue = chunkText } },
                 { "chunk_type", new Value { StringValue = "semantic" } },
-                { "inserted_at", new Value { StringValue = DateTime.UtcNow.ToString("o") } }
+                { "inserted_at", new Value { StringValue = DateTime.UtcNow.ToString("o") } },
+                { "file_id", new Value { StringValue = fileId.ToString() } }
             };
 
             // Build the individual point point object

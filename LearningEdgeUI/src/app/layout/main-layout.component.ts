@@ -7,10 +7,14 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../core/auth/auth.service';
 import { OrganizationContextService } from '../core/services/organization-context.service';
+import { OrganizationRepository } from '../core/services/organization.repository';
 import { OrganizationStore } from '../core/stores/organization.store';
+import { describeError } from '../core/stores/async-collection.store';
+import { ToastService } from '../core/services/toast.service';
 import { roleLabel } from '../core/models/user-role';
 import { OrgSwitcherComponent } from './org-switcher.component';
 import { navItemsFor } from './nav-items';
@@ -27,9 +31,13 @@ export class MainLayoutComponent {
   private readonly auth = inject(AuthService);
   private readonly context = inject(OrganizationContextService);
   private readonly organizations = inject(OrganizationStore);
+  private readonly organizationRepository = inject(OrganizationRepository);
+  private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
 
   private readonly sidebarOpen = signal(true);
+  /** Name for a tenant user. The full organization list is system-admin only. */
+  private readonly homeOrgName = signal<string | null>(null);
   private readonly menuToggle = viewChild.required<ElementRef<HTMLButtonElement>>('menuToggle');
 
   protected readonly isSidebarOpen = this.sidebarOpen.asReadonly();
@@ -48,14 +56,35 @@ export class MainLayoutComponent {
     if (id === null) {
       return this.canSwitchOrganization() ? 'All organizations' : 'No organization';
     }
-    return this.organizations.findById(id)?.name ?? 'Current organization';
+    if (this.auth.isPlatformUser()) {
+      return this.organizations.findById(id)?.name ?? 'Current organization';
+    }
+    return this.homeOrgName() ?? 'Current organization';
   });
 
   constructor() {
-    // The switcher and the navbar label both need the organization list.
-    if (this.organizations.status() === 'idle') {
-      this.organizations.loadAll();
+    if (this.auth.isPlatformUser()) {
+      if (this.organizations.status() === 'idle') {
+        this.organizations.loadAll();
+      }
+      return;
     }
+
+    const id = this.context.activeOrganizationId();
+    if (id === null) {
+      return;
+    }
+
+    // The public directory is id and name only, which is all the navbar needs.
+    this.organizationRepository
+      .directory()
+      .pipe(takeUntilDestroyed())
+      .subscribe({
+        next: (choices) => {
+          this.homeOrgName.set(choices.find((choice) => choice.id === id)?.name ?? null);
+        },
+        error: (error: unknown) => this.toast.error(describeError(error)),
+      });
   }
 
   protected toggleSidebar(): void {

@@ -14,7 +14,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Platform Overview', route: '/platform', roles: [UserRole.SysAdmin] },
   { label: 'Organizations', route: '/platform/organizations', roles: [UserRole.SysAdmin] },
   { label: 'Organization Admins', route: '/platform/org-admins', roles: [UserRole.SysAdmin] },
-  { label: 'Users & Staff', route: '/platform/users', roles: [UserRole.SysAdmin] },
 
   { label: 'Dashboard', route: '/dashboard/admin', roles: [UserRole.OrgAdmin] },
   { label: 'Dashboard', route: '/dashboard/staff', roles: [UserRole.Instructor] },

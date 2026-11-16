@@ -3,7 +3,13 @@ import { Observable, delay, of, throwError } from 'rxjs';
 import { ApiService } from '../http/api.service';
 import { ApiFailure } from '../http/api-result';
 import { apiPaths } from '../http/api-paths';
-import type { CreateUserCommand, RegisterLearnerCommand, UpdateUserCommand, UserDto } from '../models/user';
+import type {
+  CreateOrganizationAdminCommand,
+  CreateUserCommand,
+  RegisterLearnerCommand,
+  UpdateUserCommand,
+  UserDto,
+} from '../models/user';
 import { UserActivationStatus } from '../models/user';
 import { UserRole } from '../models/user-role';
 import { MockDb } from './mock/mock-db';
@@ -21,6 +27,8 @@ export abstract class UserRepository {
   abstract listByOrganization(organizationId: string): Observable<readonly UserDto[]>;
   abstract getById(id: string): Observable<UserDto | null>;
   abstract create(command: CreateUserCommand): Observable<string>;
+  /** Provisions the Keycloak login as well as the LearningEdge record. */
+  abstract createOrganizationAdmin(command: CreateOrganizationAdminCommand): Observable<string>;
   abstract register(command: RegisterLearnerCommand): Observable<string>;
   abstract approve(id: string): Observable<UserDto>;
   abstract update(id: string, command: UpdateUserCommand): Observable<UserDto>;
@@ -53,6 +61,10 @@ export class HttpUserRepository extends UserRepository {
 
   override create(command: CreateUserCommand): Observable<string> {
     return this.api.post(apiPaths.user.create(), command);
+  }
+
+  override createOrganizationAdmin(command: CreateOrganizationAdminCommand): Observable<string> {
+    return this.api.post(apiPaths.user.createOrganizationAdmin(), command);
   }
 
   override register(command: RegisterLearnerCommand): Observable<string> {
@@ -113,6 +125,17 @@ export class MockUserRepository extends UserRepository {
   }
 
   override create(command: CreateUserCommand): Observable<string> {
+    if (command.role === UserRole.OrgAdmin || command.role === UserRole.SysAdmin) {
+      return throwError(
+        () =>
+          new ApiFailure(
+            'validation',
+            'Organization admins are created through the organization-admin endpoint. System admins are provisioned in Keycloak.',
+            400,
+          ),
+      );
+    }
+
     const problem = this.validate(command, null);
     if (problem !== null) {
       return throwError(() => problem);
@@ -120,6 +143,49 @@ export class MockUserRepository extends UserRepository {
 
     const id = this.db.nextGuid();
     this.db.users = [...this.db.users, this.toDto(id, command)];
+    return of(id).pipe(delay(MOCK_LATENCY_MS));
+  }
+
+  // MOCK: no Keycloak. Stores the admin without a realm account.
+  override createOrganizationAdmin(command: CreateOrganizationAdminCommand): Observable<string> {
+    if (command.password.length < 8) {
+      return throwError(
+        () => new ApiFailure('validation', 'Password must be at least 8 characters.', 400),
+      );
+    }
+
+    const email = command.email.trim().toLowerCase();
+    if (this.db.users.some((user) => user.email.toLowerCase() === email)) {
+      return throwError(
+        () => new ApiFailure('conflict', `A user with email ${command.email} already exists.`, 409),
+      );
+    }
+
+    const problem = this.validate(
+      {
+        firstName: command.firstName,
+        lastName: command.lastName,
+        email: command.email,
+        role: UserRole.OrgAdmin,
+        organizationId: command.organizationId,
+      },
+      null,
+    );
+    if (problem !== null) {
+      return throwError(() => problem);
+    }
+
+    const id = this.db.nextGuid();
+    this.db.users = [
+      ...this.db.users,
+      this.toDto(id, {
+        firstName: command.firstName,
+        lastName: command.lastName,
+        email: command.email,
+        role: UserRole.OrgAdmin,
+        organizationId: command.organizationId,
+      }),
+    ];
     return of(id).pipe(delay(MOCK_LATENCY_MS));
   }
 

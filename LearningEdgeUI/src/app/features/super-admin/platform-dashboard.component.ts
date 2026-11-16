@@ -49,10 +49,7 @@ import { StatCardComponent } from '../../shared/components/stat-card.component';
 
       <section class="le-card le-table-wrap">
         <table class="le-table">
-          <caption>
-            All organizations. Per-tenant metrics need list endpoints that the API does not expose
-            yet.
-          </caption>
+          <caption>All organizations</caption>
           <thead>
             <tr>
               <th scope="col">Organization</th>

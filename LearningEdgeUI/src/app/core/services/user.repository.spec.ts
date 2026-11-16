@@ -33,6 +33,10 @@ describe('apiPaths.user.list', () => {
     expect(apiPaths.user.list()).toMatch(/\/api\/v\d+\/user$/);
   });
 
+  it('points organization-admin creation at its own route', () => {
+    expect(apiPaths.user.createOrganizationAdmin()).toMatch(/\/user\/organization-admin$/);
+  });
+
   it('repeats role and encodes the organization id', () => {
     expect(
       apiPaths.user.list({ organizationId: 'a b', roles: [UserRole.Instructor, UserRole.Learner] }),

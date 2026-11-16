@@ -36,6 +36,15 @@ describe('readTokenIdentity', () => {
     expect(identity?.role).toBe(UserRole.SysAdmin);
   });
 
+  it('recognises the realm role names a system-admin client often uses', () => {
+    expect(
+      readTokenIdentity(token({ realm_access: { roles: ['system-admin'] } }))?.role,
+    ).toBe(UserRole.SysAdmin);
+    expect(
+      readTokenIdentity(token({ realm_access: { roles: ['super_admin'] } }))?.role,
+    ).toBe(UserRole.SysAdmin);
+  });
+
   it('takes the highest role when several are assigned', () => {
     const identity = readTokenIdentity(
       token({ realm_access: { roles: ['Learner', 'OrgAdmin', 'Instructor'] } }),

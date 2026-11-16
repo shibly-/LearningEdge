@@ -9,7 +9,7 @@ namespace LearningEdgeMS.DocumentParserService.Services;
 
 public class DocumentParsingService
 {
-    public async Task<string> ExtractTextAsync(string filePath)
+    public static async Task<string> ExtractTextAsync(string filePath)
     {
         string extension = Path.GetExtension(filePath).ToLowerInvariant();
 
@@ -23,7 +23,7 @@ public class DocumentParsingService
         };
     }
 
-    private string ExtractPdf(string filePath)
+    private static string ExtractPdf(string filePath)
     {
         var stringBuilder = new StringBuilder();
 
@@ -42,7 +42,7 @@ public class DocumentParsingService
         return stringBuilder.ToString();
     }
 
-    private string ExtractDocx(string filePath)
+    private static string ExtractDocx(string filePath)
     {
         var stringBuilder = new StringBuilder();
 
@@ -60,7 +60,7 @@ public class DocumentParsingService
         return stringBuilder.ToString();
     }
 
-    private string ExtractPptx(string filePath)
+    private static string ExtractPptx(string filePath)
     {
         var stringBuilder = new StringBuilder();
 

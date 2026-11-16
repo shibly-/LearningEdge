@@ -16,6 +16,7 @@ using LearningEdge.Messaging.Contracts.Events;
 using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.RateLimiting;
@@ -46,10 +47,25 @@ public static class ServiceCollectionExtension
             configuration["Keycloak:ConfigurationMetadataURL"],
             new OpenIdConnectConfigurationRetriever());
             options.RefreshInterval = TimeSpan.FromMinutes(int.Parse(configuration["Keycloak:RefreshInterval"] ?? "5"));
-            options.AutomaticRefreshInterval = TimeSpan.FromHours(int.Parse(configuration["Keycloak:AutomaticRefreshInterval"] ?? "12"));            
+            options.AutomaticRefreshInterval = TimeSpan.FromHours(int.Parse(configuration["Keycloak:AutomaticRefreshInterval"] ?? "12"));
+            options.Events = new JwtBearerEvents
+            {
+                OnTokenValidated = context =>
+                {
+                    if (context.Principal?.Identity is ClaimsIdentity identity)
+                    {
+                        KeycloakRoles.EnsureRoleClaims(identity);
+                    }
+
+                    return Task.CompletedTask;
+                }
+            };
         });
 
-        services.AddAuthorizationBuilder();
+        services.AddAuthorizationBuilder()
+            .AddPolicy(AuthPolicies.SysAdmin, policy =>
+                policy.RequireAuthenticatedUser()
+                    .RequireAssertion(context => KeycloakRoles.Has(context.User, AuthPolicies.SysAdmin)));
 
         // Add Controllers
         services.AddControllers();
@@ -208,6 +224,7 @@ public static class ServiceCollectionExtension
 
         var origin = authorityUri.GetLeftPart(UriPartial.Authority);
         var learnerRole = configuration["Keycloak:LearnerRole"];
+        var orgAdminRole = configuration["Keycloak:OrgAdminRole"];
         return new KeycloakAdminSettings
         {
             TokenUrl = configuration["Keycloak:TokenUrl"]
@@ -216,6 +233,7 @@ public static class ServiceCollectionExtension
             ClientId = configuration["Keycloak:AdminClientId"] ?? string.Empty,
             ClientSecret = configuration["Keycloak:AdminClientSecret"] ?? string.Empty,
             LearnerRole = string.IsNullOrWhiteSpace(learnerRole) ? "learner" : learnerRole,
+            OrgAdminRole = string.IsNullOrWhiteSpace(orgAdminRole) ? "OrgAdmin" : orgAdminRole,
         };
     }    
 

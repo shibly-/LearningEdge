@@ -12,6 +12,7 @@ import { map, type Subscription } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
 import type { UpdateUserCommand, UserDto } from '../../core/models/user';
 import { activationLabel, isPendingActivation } from '../../core/models/user';
+import { UserRole } from '../../core/models/user-role';
 import { UserRepository } from '../../core/services/user.repository';
 import { describeError } from '../../core/stores/async-collection.store';
 import { UserStore } from '../../core/stores/user.store';
@@ -55,7 +56,7 @@ type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
           Approve
         </button>
       }
-      @if (state() === 'loaded') {
+      @if (state() === 'loaded' && !isOrganizationAdmin()) {
         <button type="button" class="le-btn" (click)="editing.set(true)">Edit</button>
       }
     </app-page-header>
@@ -188,6 +189,11 @@ export class UserDetailComponent {
 
   protected isPending(): boolean {
     return isPendingActivation(this.userState()?.activationStatus);
+  }
+
+  /** Organization admins are appointed and edited by a system admin. */
+  protected isOrganizationAdmin(): boolean {
+    return this.userState()?.role === UserRole.OrgAdmin;
   }
 
   protected approve(): void {

@@ -4,6 +4,7 @@ using LearningEdge.Api.Extensions;
 using LearningEdge.Application.Models.Commands.Organizations;
 using LearningEdge.Application.Models.DTOs;
 using LearningEdge.Application.Models.Queries.Organizations;
+using LearningEdge.Api.Security;
 using LearningEdge.Application.Models.Queries.Users;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -27,6 +28,7 @@ public class OrganizationController : ControllerBase
 
     // POST: api/v1/organization
     [HttpPost]
+    [Authorize(Policy = AuthPolicies.SysAdmin)]
     [MapToApiVersion("1.0")]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -46,6 +48,7 @@ public class OrganizationController : ControllerBase
 
     // PUT: api/v1/organization/{id}
     [HttpPut("{id}")]
+    [Authorize(Policy = AuthPolicies.SysAdmin)]
     [MapToApiVersion("1.0")]
     [EndpointSummary("Update an organization")]
     [EndpointDescription("Replaces the name and description of an organization.")]
@@ -67,8 +70,9 @@ public class OrganizationController : ControllerBase
         return Ok(result.Data);
     }
 
-    // GET: api/v1/organization    
+    // GET: api/v1/organization
     [HttpGet]
+    [Authorize(Policy = AuthPolicies.SysAdmin)]
     [MapToApiVersion("1.0")]
     [EndpointSummary("Get all organizations")]
     [EndpointDescription("Returns every organization that has not been deleted, ordered by name.")]
@@ -126,6 +130,7 @@ public class OrganizationController : ControllerBase
 
     // GET: api/v1/organization/{id}
     [HttpGet("{id}")]
+    [Authorize(Policy = AuthPolicies.SysAdmin)]
     [MapToApiVersion("1.0")]
     [ProducesResponseType(typeof(OrganizationDTO), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -142,6 +147,7 @@ public class OrganizationController : ControllerBase
 
     // GET: api/v1/organization/{id}
     [HttpGet("{id}")]
+    [Authorize(Policy = AuthPolicies.SysAdmin)]
     [MapToApiVersion("2.0")]
     [ProducesResponseType(typeof(OrganizationDTO), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

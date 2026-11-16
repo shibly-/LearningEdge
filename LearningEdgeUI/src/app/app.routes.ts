@@ -120,16 +120,6 @@ export const routes: Routes = [
             (m) => m.OrgAdminCreatorComponent,
           ),
       },
-      {
-        path: 'platform/users',
-        canActivate: [roleGuard],
-        data: { roles: [UserRole.SysAdmin] },
-        title: 'Users & Staff · LearningEdge',
-        loadComponent: () =>
-          import('./features/super-admin/platform-user-list.component').then(
-            (m) => m.PlatformUserListComponent,
-          ),
-      },
 
       // Tenant scope.
       {

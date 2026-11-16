@@ -60,7 +60,39 @@ public class KeycloakAdminClientTests
         Assert.Contains("Password1", handler.Calls[3].Body);
     }
 
-    private static KeycloakLearnerAccount Account() =>
+    [Fact]
+    public async Task CreateOrganizationAdmin_ShouldAssignTheOrgAdminRole()
+    {
+        var handler = new StubHandler();
+        handler.Respond(_ => Json(HttpStatusCode.OK, """{"access_token":"admin-token"}"""));
+        handler.Respond(_ => Created("https://keycloak.test/admin/realms/learningedge/users/kc-admin"));
+        handler.Respond(_ => Json(HttpStatusCode.OK, """{"id":"role-admin","name":"OrgAdmin"}"""));
+        handler.Respond(_ => new HttpResponseMessage(HttpStatusCode.NoContent));
+        var client = new KeycloakAdminClient(new HttpClient(handler), Settings());
+
+        var id = await client.CreateOrganizationAdminAsync(Account(), CancellationToken.None);
+
+        Assert.Equal("kc-admin", id);
+        Assert.Contains("/roles/OrgAdmin", handler.Calls[2].Url);
+    }
+
+    [Fact]
+    public async Task UpdateProfile_ShouldSendTheNewNameAndEmail()
+    {
+        var handler = new StubHandler();
+        handler.Respond(_ => Json(HttpStatusCode.OK, """{"access_token":"admin-token"}"""));
+        handler.Respond(_ => new HttpResponseMessage(HttpStatusCode.NoContent));
+        var client = new KeycloakAdminClient(new HttpClient(handler), Settings());
+
+        await client.UpdateProfileAsync("kc-1", "ada@example.com", "Ada", "Lovelace", CancellationToken.None);
+
+        Assert.Equal(HttpMethod.Put, handler.Calls[1].Method);
+        Assert.EndsWith("/users/kc-1", handler.Calls[1].Url);
+        Assert.Contains("ada@example.com", handler.Calls[1].Body);
+        Assert.Contains("Lovelace", handler.Calls[1].Body);
+    }
+
+    private static KeycloakAccount Account() =>
         new("ada@example.com", "Ada", "Lovelace", "Password1");
 
     private static KeycloakAdminSettings Settings(string secret = "secret") => new()
@@ -70,6 +102,7 @@ public class KeycloakAdminClientTests
         ClientId = "le-realm-admin",
         ClientSecret = secret,
         LearnerRole = "learner",
+        OrgAdminRole = "OrgAdmin",
     };
 
     private static HttpResponseMessage Json(HttpStatusCode status, string body) =>

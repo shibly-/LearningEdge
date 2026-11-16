@@ -4,10 +4,8 @@ import { UserRole, roleLabel } from '../../core/models/user-role';
 import { USER_LIMITS, type CreateUserCommand, type UserDto } from '../../core/models/user';
 import { SpinnerComponent } from '../../shared/components/spinner.component';
 
-const ROLE_OPTIONS = [UserRole.Learner, UserRole.Instructor, UserRole.OrgAdmin].map((value) => ({
-  value,
-  label: roleLabel(value),
-}));
+/** Staff and trainees. Organization admins are appointed by a system admin. */
+const TENANT_ROLES: readonly UserRole[] = [UserRole.Learner, UserRole.Instructor];
 
 /**
  * Mirrors the server-side guards on User: FirstName and Email throw
@@ -74,6 +72,9 @@ const ROLE_OPTIONS = [UserRole.Learner, UserRole.Instructor, UserRole.OrgAdmin].
             <option [value]="option.value">{{ option.label }}</option>
           }
         </select>
+        @if (roleLocked) {
+          <span class="le-hint">This role is managed by a system admin.</span>
+        }
       </div>
 
       <div class="actions">
@@ -116,6 +117,11 @@ export class UserFormComponent implements OnInit {
   readonly saving = input(false);
   /** Pre-fills the form for editing; null for a new user. */
   readonly initial = input<UserDto | null>(null);
+  /**
+   * Roles this form may assign. Defaults to staff and trainee. The system
+   * admin page passes organization admin only.
+   */
+  readonly assignableRoles = input<readonly UserRole[] | null>(null);
   readonly save = output<CreateUserCommand>();
   readonly cancel = output<void>();
 
@@ -123,8 +129,11 @@ export class UserFormComponent implements OnInit {
 
   private readonly fb = inject(NonNullableFormBuilder);
 
-  /** OrgAdmin may create staff and trainees, not platform admins. */
-  protected roleOptions = ROLE_OPTIONS;
+  protected roleOptions: { value: UserRole; label: string }[] = TENANT_ROLES.map((value) => ({
+    value,
+    label: roleLabel(value),
+  }));
+  protected roleLocked = false;
 
   protected readonly form = this.fb.group({
     firstName: this.fb.control('', [
@@ -141,19 +150,29 @@ export class UserFormComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    const allowed = this.assignableRoles() ?? TENANT_ROLES;
+    this.roleOptions = allowed.map((value) => ({ value, label: roleLabel(value) }));
+    this.form.controls.role.setValue(allowed[0] ?? UserRole.Learner);
+
     const initial = this.initial();
     if (initial === null) {
       return;
     }
-    if (!ROLE_OPTIONS.some((option) => option.value === initial.role)) {
-      this.roleOptions = [...ROLE_OPTIONS, { value: initial.role, label: roleLabel(initial.role) }];
+
+    if (!allowed.includes(initial.role)) {
+      this.roleLocked = true;
+      this.roleOptions = [{ value: initial.role, label: roleLabel(initial.role) }];
     }
+
     this.form.reset({
       firstName: initial.firstName,
       lastName: initial.lastName,
       email: initial.email,
       role: initial.role,
     });
+    if (this.roleLocked) {
+      this.form.controls.role.disable();
+    }
   }
 
   protected submit(): void {

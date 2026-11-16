@@ -18,6 +18,12 @@ export interface TokenIdentity {
  */
 const ROLE_BY_REALM_ROLE: Readonly<Record<string, UserRole>> = {
   sysadmin: UserRole.SysAdmin,
+  'system-admin': UserRole.SysAdmin,
+  system_admin: UserRole.SysAdmin,
+  systemadmin: UserRole.SysAdmin,
+  superadmin: UserRole.SysAdmin,
+  'super-admin': UserRole.SysAdmin,
+  super_admin: UserRole.SysAdmin,
   orgadmin: UserRole.OrgAdmin,
   instructor: UserRole.Instructor,
   learner: UserRole.Learner,

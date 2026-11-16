@@ -30,6 +30,8 @@ export const apiPaths = {
       return `${base()}/user${query.length > 0 ? `?${query.join('&')}` : ''}`;
     },
     create: () => `${base()}/user`,
+    /** System admin only. Also creates the Keycloak user. */
+    createOrganizationAdmin: () => `${base()}/user/organization-admin`,
     byId: (id: string) => `${base()}/user/${seg(id)}`,
     register: () => `${base()}/user/register`,
     approve: (id: string) => `${base()}/user/${seg(id)}/approve`,

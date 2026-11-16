@@ -73,6 +73,23 @@ public class UserTests
     }
 
     [Fact]
+    public void CreateOrganizationAdmin_ShouldBeActiveAndLinkedToKeycloak()
+    {
+        var user = User.CreateOrganizationAdmin("Ada", "Lovelace", "ada@example.com", Guid.NewGuid(), "kc-9");
+
+        Assert.Equal(UserRole.OrgAdmin, user.Role);
+        Assert.Equal(UserActivationStatus.Active, user.ActivationStatus);
+        Assert.Equal("kc-9", user.KeycloakUserId);
+    }
+
+    [Fact]
+    public void CreateOrganizationAdmin_ShouldThrow_WhenKeycloakIdIsMissing()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            User.CreateOrganizationAdmin("Ada", "Lovelace", "ada@example.com", Guid.NewGuid(), " "));
+    }
+
+    [Fact]
     public void RegisterLearner_ShouldStayPendingUntilApproved()
     {
         var user = User.RegisterLearner("Ada", "Lovelace", "ada@example.com", Guid.NewGuid());

@@ -1,9 +1,8 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { USER_LIMITS } from '../../core/models/user';
-import { UserRole } from '../../core/models/user-role';
 import { UserRepository } from '../../core/services/user.repository';
 import { ToastService } from '../../core/services/toast.service';
 import { OrganizationStore } from '../../core/stores/organization.store';
@@ -15,8 +14,8 @@ import { SkeletonComponent } from '../../shared/components/skeleton.component';
 import { SpinnerComponent } from '../../shared/components/spinner.component';
 
 /**
- * Provisions an OrgAdmin into a chosen tenant. This uses the live
- * POST /api/v1/user endpoint, which returns only the new GUID (spec 3.3).
+ * Appoints an OrgAdmin and creates the matching Keycloak user, so they can
+ * sign in with the password entered here. System admin only.
  */
 @Component({
   selector: 'app-org-admin-creator',
@@ -33,7 +32,7 @@ import { SpinnerComponent } from '../../shared/components/spinner.component';
   template: `
     <app-page-header
       title="Add organization admin"
-      subtitle="Provision an administrator for a tenant."
+      subtitle="Creates the administrator in LearningEdge and in Keycloak, so they can sign in."
     >
       <a class="le-btn le-btn-secondary" routerLink="/platform/org-admins">Back to admins</a>
     </app-page-header>
@@ -110,6 +109,58 @@ import { SpinnerComponent } from '../../shared/components/spinner.component';
             }
           </div>
 
+          <div class="row">
+            <div
+              class="le-field"
+              [class.is-invalid]="form.controls.password.touched && form.controls.password.invalid"
+            >
+              <label for="admin-password">Password</label>
+              <input
+                id="admin-password"
+                type="password"
+                formControlName="password"
+                autocomplete="new-password"
+                maxlength="128"
+              />
+              <span class="le-hint">At least 8 characters. This is their Keycloak sign-in password.</span>
+              @if (form.controls.password.touched && form.controls.password.hasError('required')) {
+                <span class="le-error">Password is required.</span>
+              }
+              @if (form.controls.password.touched && form.controls.password.hasError('minlength')) {
+                <span class="le-error">Password must be at least 8 characters.</span>
+              }
+            </div>
+
+            <div
+              class="le-field"
+              [class.is-invalid]="
+                form.controls.confirmPassword.touched &&
+                (form.controls.confirmPassword.invalid || form.hasError('passwordMismatch'))
+              "
+            >
+              <label for="admin-confirm">Confirm password</label>
+              <input
+                id="admin-confirm"
+                type="password"
+                formControlName="confirmPassword"
+                autocomplete="new-password"
+                maxlength="128"
+              />
+              @if (
+                form.controls.confirmPassword.touched && form.controls.confirmPassword.hasError('required')
+              ) {
+                <span class="le-error">Confirm the password.</span>
+              }
+              @if (
+                form.controls.confirmPassword.touched &&
+                form.hasError('passwordMismatch') &&
+                !form.controls.confirmPassword.hasError('required')
+              ) {
+                <span class="le-error">Passwords do not match.</span>
+              }
+            </div>
+          </div>
+
           <button type="submit" class="le-btn" [disabled]="isSaving()">
             @if (isSaving()) {
               <app-spinner [size]="14" label="Creating" />
@@ -120,10 +171,9 @@ import { SpinnerComponent } from '../../shared/components/spinner.component';
           </button>
         </form>
 
-        @if (lastCreatedId() !== null) {
+        @if (lastCreatedEmail() !== null) {
           <p class="created">
-            Created with id <code>{{ lastCreatedId() }}</code
-            >. The API returns only the identifier, so re-fetch if you need the full record.
+            {{ lastCreatedEmail() }} can sign in with the password you just set.
           </p>
         }
       </div>
@@ -164,26 +214,44 @@ export class OrgAdminCreatorComponent {
   private readonly users = inject(UserRepository);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
 
   private readonly saving = signal(false);
-  private readonly createdId = signal<string | null>(null);
+  private readonly createdEmail = signal<string | null>(null);
 
   protected readonly isSaving = this.saving.asReadonly();
-  protected readonly lastCreatedId = this.createdId.asReadonly();
+  protected readonly lastCreatedEmail = this.createdEmail.asReadonly();
 
-  protected readonly form = this.fb.group({
-    organizationId: this.fb.control('', [Validators.required]),
-    firstName: this.fb.control('', [
-      Validators.required,
-      Validators.maxLength(USER_LIMITS.firstName),
-    ]),
-    lastName: this.fb.control('', [Validators.maxLength(USER_LIMITS.lastName)]),
-    email: this.fb.control('', [
-      Validators.required,
-      Validators.email,
-      Validators.maxLength(USER_LIMITS.email),
-    ]),
-  });
+  protected readonly form = this.fb.group(
+    {
+      organizationId: this.fb.control(
+        this.route.snapshot.queryParamMap.get('organizationId') ?? '',
+        [Validators.required],
+      ),
+      firstName: this.fb.control('', [
+        Validators.required,
+        Validators.maxLength(USER_LIMITS.firstName),
+      ]),
+      lastName: this.fb.control('', [Validators.maxLength(USER_LIMITS.lastName)]),
+      email: this.fb.control('', [
+        Validators.required,
+        Validators.email,
+        Validators.maxLength(USER_LIMITS.email),
+      ]),
+      password: this.fb.control('', [
+        Validators.required,
+        Validators.minLength(8),
+        Validators.maxLength(128),
+      ]),
+      confirmPassword: this.fb.control('', [Validators.required]),
+    },
+    {
+      validators: (group) =>
+        group.get('password')?.value === group.get('confirmPassword')?.value
+          ? null
+          : { passwordMismatch: true },
+    },
+  );
 
   constructor() {
     if (this.organizations.status() === 'idle') {
@@ -208,14 +276,27 @@ export class OrgAdminCreatorComponent {
     const value = this.form.getRawValue();
 
     this.users
-      .create({ ...value, role: UserRole.OrgAdmin })
+      .createOrganizationAdmin({
+        organizationId: value.organizationId,
+        firstName: value.firstName,
+        lastName: value.lastName,
+        email: value.email,
+        password: value.password,
+      })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (id) => {
+        next: () => {
           this.saving.set(false);
-          this.createdId.set(id);
-          this.toast.success(`Administrator created for the selected organization.`);
-          this.form.reset({ organizationId: value.organizationId });
+          this.createdEmail.set(value.email);
+          this.toast.success(`${value.email} can now sign in.`);
+          this.form.reset({
+            organizationId: value.organizationId,
+            firstName: '',
+            lastName: '',
+            email: '',
+            password: '',
+            confirmPassword: '',
+          });
         },
         error: (error: unknown) => {
           this.saving.set(false);

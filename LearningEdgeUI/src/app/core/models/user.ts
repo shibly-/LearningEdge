@@ -26,12 +26,24 @@ export interface RegisterLearnerCommand {
   readonly organizationId: string;
 }
 
-/** POST /api/v1/user -> 201 with the new GUID */
+/** POST /api/v1/user -> 201 with the new GUID. Staff and trainees only. */
 export interface CreateUserCommand {
   readonly firstName: string;
   readonly lastName: string;
   readonly email: string;
   readonly role: UserRole;
+  readonly organizationId: string;
+}
+
+/**
+ * POST /api/v1/user/organization-admin -> 201 with the new GUID.
+ * System admin only. The password is the Keycloak sign-in password.
+ */
+export interface CreateOrganizationAdminCommand {
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly email: string;
+  readonly password: string;
   readonly organizationId: string;
 }
 

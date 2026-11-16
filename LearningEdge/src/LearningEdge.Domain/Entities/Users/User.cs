@@ -43,6 +43,27 @@ public class User: BaseEntity<Guid>
         return user;
     }
 
+    /// <summary>
+    /// An organization admin appointed by a system admin. Already active,
+    /// because Keycloak received the account before this row was saved.
+    /// </summary>
+    public static User CreateOrganizationAdmin(
+        string firstName,
+        string lastName,
+        string email,
+        Guid organizationId,
+        string keycloakUserId)
+    {
+        if (string.IsNullOrWhiteSpace(keycloakUserId))
+        {
+            throw new ArgumentException("Keycloak user id is required.", nameof(keycloakUserId));
+        }
+
+        var user = new User(firstName, lastName, email, UserRole.OrgAdmin, organizationId);
+        user.KeycloakUserId = keycloakUserId;
+        return user;
+    }
+
     public void HoldPendingPassword(string protectedPassword)
     {
         if (ActivationStatus != UserActivationStatus.Pending)

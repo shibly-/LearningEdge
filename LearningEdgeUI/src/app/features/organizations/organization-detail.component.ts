@@ -19,6 +19,7 @@ import { ErrorStateComponent } from '../../shared/components/error-state.compone
 import { ModalShellComponent } from '../../shared/components/modal-shell.component';
 import { PageHeaderComponent } from '../../shared/components/page-header.component';
 import { SkeletonComponent } from '../../shared/components/skeleton.component';
+import { OrganizationAdminsComponent } from './organization-admins.component';
 import { OrganizationFormComponent } from './organization-form.component';
 
 type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
@@ -34,6 +35,7 @@ type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
     ErrorStateComponent,
     ModalShellComponent,
     OrganizationFormComponent,
+    OrganizationAdminsComponent,
   ],
   template: `
     <app-page-header [title]="organization()?.name ?? 'Organization'" subtitle="Tenant detail">
@@ -80,6 +82,9 @@ type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
             <code>{{ organization()?.id }}</code>
           </dd>
         </dl>
+        @if (organization(); as current) {
+          <app-organization-admins [organizationId]="current.id" />
+        }
       }
     }
   `,

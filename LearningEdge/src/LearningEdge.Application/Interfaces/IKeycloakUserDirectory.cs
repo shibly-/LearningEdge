@@ -1,7 +1,7 @@
 namespace LearningEdge.Application.Interfaces;
 
-/// <summary>The account the admin API creates in Keycloak when a registration is approved.</summary>
-public sealed record KeycloakLearnerAccount(
+/// <summary>The account the admin API creates in Keycloak.</summary>
+public sealed record KeycloakAccount(
     string Email,
     string FirstName,
     string LastName,
@@ -13,6 +13,17 @@ public sealed record KeycloakLearnerAccount(
 /// </summary>
 public interface IKeycloakUserDirectory
 {
-    /// <summary>Returns the Keycloak user id.</summary>
-    Task<string> CreateLearnerAsync(KeycloakLearnerAccount account, CancellationToken cancellationToken);
+    /// <summary>Returns the Keycloak user id. Assigns the configured learner role.</summary>
+    Task<string> CreateLearnerAsync(KeycloakAccount account, CancellationToken cancellationToken);
+
+    /// <summary>Returns the Keycloak user id. Assigns the configured organization-admin role.</summary>
+    Task<string> CreateOrganizationAdminAsync(KeycloakAccount account, CancellationToken cancellationToken);
+
+    /// <summary>Keeps the realm user's name and email aligned with the LearningEdge record.</summary>
+    Task UpdateProfileAsync(
+        string keycloakUserId,
+        string email,
+        string firstName,
+        string lastName,
+        CancellationToken cancellationToken);
 }

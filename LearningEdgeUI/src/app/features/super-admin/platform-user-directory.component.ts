@@ -10,7 +10,7 @@ import {
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import type { UpdateUserCommand, UserDto } from '../../core/models/user';
 import { UserActivationStatus, activationLabel, isPendingActivation } from '../../core/models/user';
-import type { UserRole } from '../../core/models/user-role';
+import { UserRole } from '../../core/models/user-role';
 import { OrganizationStore } from '../../core/stores/organization.store';
 import { PlatformUserStore } from '../../core/stores/platform-user.store';
 import { EmptyStateComponent } from '../../shared/components/empty-state.component';
@@ -169,6 +169,7 @@ export interface RoleScope {
         <app-user-form
           [organizationId]="user.organizationId"
           [initial]="user"
+          [assignableRoles]="adminOnly"
           [saving]="store.isSaving()"
           (save)="update(user.id, $event)"
           (cancel)="editing.set(null)"
@@ -186,6 +187,8 @@ export class PlatformUserDirectoryComponent implements OnInit {
 
   protected readonly store = inject(PlatformUserStore);
   protected readonly organizations = inject(OrganizationStore);
+  /** This directory only edits organization admins, so the role cannot change. */
+  protected readonly adminOnly: readonly UserRole[] = [UserRole.OrgAdmin];
 
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);

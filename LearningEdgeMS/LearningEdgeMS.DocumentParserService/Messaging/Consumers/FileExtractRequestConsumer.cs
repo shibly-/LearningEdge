@@ -19,7 +19,7 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
     private readonly ApplicationDbContext _appDbContext;    
     private readonly DocumentParserSettings _settings;
     private readonly QdrantClient _qdrantClient;
-    private readonly DocumentParsingService _parserService;
+    
     private readonly EmbeddingService _embeddingService;
     private readonly ILogger<FileExtractRequestConsumer> _logger;
     private readonly ICacheService _cache;
@@ -39,8 +39,7 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
         _collectionName = _configuration["VectorDB:Qdrant:CollectionName"] ?? "le_docs";
         _appDbContext = appDbContext;        
         _settings = settings;
-        _qdrantClient = qdrantClient;
-        _parserService = parserService;
+        _qdrantClient = qdrantClient;        
         _embeddingService = embeddingService;
         _cache = cache;
         _logger = logger;
@@ -120,7 +119,7 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
             Stopwatch stopwatch = Stopwatch.StartNew();
 
             // Extract raw text dynamically based on extension
-            string rawText = await _parserService.ExtractTextAsync(filePath);
+            string rawText = await DocumentParsingService.ExtractTextAsync(filePath);
 
             stopwatch.Stop();
             TimeSpan elapsedTime = stopwatch.Elapsed;
@@ -278,8 +277,18 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
                 {
                     //default output dimension of 'qwen3-embedding:0.6b'
                     Size = (ulong)int.Parse(_configuration["VectorDB:VectorParams:VectorSize"] ?? "1024"),
-                    Distance = Enum.Parse<Distance>(_configuration["VectorDB:VectorParams:Distance"] ?? "Cosine")
-                });
+                    Distance = Enum.Parse<Distance>(_configuration["VectorDB:VectorParams:Distance"] ?? "Cosine"),
+                    Memory = Memory.Cold
+                },
+                quantizationConfig: new QuantizationConfig
+                {
+                    Turboquant = new TurboQuantization
+                    {
+                        Bits = TurboQuantBitSize.Bits8, // 4-bit TurboQuant
+                        Memory = Memory.Pinned          // Locks compact vectors
+                    }
+                }
+            );
             _logger.LogInformation("Qdrant collection '{collection}' is ready to use...", collectionName);
         }
         else

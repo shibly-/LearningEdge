@@ -14,6 +14,7 @@ namespace LearningEdge.Application.Handlers.Users;
 
 public class UserCommandHandlers :
     IRequestHandler<CreateUserCommand, Result<Guid>>,
+    IRequestHandler<CreateOrganizationAdminCommand, Result<Guid>>,
     IRequestHandler<UpdateUserCommand, Result<UserDTO>>,
     IRequestHandler<RegisterLearnerCommand, Result<Guid>>,
     IRequestHandler<ApproveUserCommand, Result<UserDTO>>
@@ -37,6 +38,12 @@ public class UserCommandHandlers :
 
     public async Task<Result<Guid>> Handle(CreateUserCommand request, CancellationToken cancellationToken)
     {
+        if (request.Role is UserRole.OrgAdmin or UserRole.SysAdmin)
+        {
+            return Result<Guid>.Validation(
+                "Organization admins are created by a system admin through the organization-admin endpoint. System admins are provisioned in Keycloak.");
+        }
+
         var organizationExists = await _appDbContext.Organizations
             .AnyAsync(organization => organization.Id == request.OrganizationId, cancellationToken);
 
@@ -72,6 +79,67 @@ public class UserCommandHandlers :
         return Result<Guid>.Ok(user.Id);
     }
 
+    public async Task<Result<Guid>> Handle(CreateOrganizationAdminCommand request, CancellationToken cancellationToken)
+    {
+        if (_keycloakUsers is null)
+        {
+            return Result<Guid>.Fail("Keycloak provisioning is not configured.");
+        }
+
+        var email = request.Email.Trim();
+        var firstName = request.FirstName.Trim();
+        var lastName = request.LastName?.Trim() ?? string.Empty;
+
+        var organizationExists = await _appDbContext.Organizations
+            .AnyAsync(organization => organization.Id == request.OrganizationId, cancellationToken);
+
+        if (!organizationExists)
+        {
+            return Result<Guid>.NotFound($"No organization found with Id {request.OrganizationId}.");
+        }
+
+        // Keycloak usernames are the email, so the address has to be unique
+        // across the whole realm, not just inside one organization.
+        var emailTaken = await _appDbContext.Users
+            .AnyAsync(user => user.Email == email, cancellationToken);
+
+        if (emailTaken)
+        {
+            return Result<Guid>.Conflict($"A user with email {email} already exists.");
+        }
+
+        string keycloakUserId;
+        try
+        {
+            keycloakUserId = await _keycloakUsers.CreateOrganizationAdminAsync(
+                new KeycloakAccount(email, firstName, lastName, request.Password),
+                cancellationToken);
+        }
+        catch (KeycloakProvisioningException ex)
+        {
+            return Result<Guid>.Fail(ex.Message);
+        }
+
+        var admin = User.CreateOrganizationAdmin(
+            firstName,
+            lastName,
+            email,
+            request.OrganizationId,
+            keycloakUserId);
+        _appDbContext.Users.Add(admin);
+
+        try
+        {
+            await _appDbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (UniqueConstraintViolationException)
+        {
+            return Result<Guid>.Conflict($"A user with email {email} already exists.");
+        }
+
+        return Result<Guid>.Ok(admin.Id);
+    }
+
     public async Task<Result<UserDTO>> Handle(UpdateUserCommand request, CancellationToken cancellationToken)
     {
         var user = await _appDbContext.Users
@@ -103,7 +171,46 @@ public class UserCommandHandlers :
                 $"User with email {request.Email} already exists in organization {request.OrganizationId}.");
         }
 
-        user.Update(request.FirstName, request.LastName, request.Email, request.Role, request.OrganizationId);
+        if (user.Role == UserRole.OrgAdmin && request.Role != UserRole.OrgAdmin)
+        {
+            return Result<UserDTO>.Validation(
+                "An organization admin's role is fixed. Create a staff member or trainee instead of changing this role.");
+        }
+
+        if (request.Role is UserRole.SysAdmin
+            || (request.Role == UserRole.OrgAdmin && user.Role != UserRole.OrgAdmin))
+        {
+            return Result<UserDTO>.Validation(
+                "Organization admins are appointed when a system admin creates them. This endpoint cannot grant that role.");
+        }
+
+        if (_keycloakUsers is not null
+            && !string.IsNullOrWhiteSpace(user.KeycloakUserId)
+            && (!string.Equals(user.Email, request.Email, StringComparison.Ordinal)
+                || !string.Equals(user.FirstName, request.FirstName, StringComparison.Ordinal)
+                || !string.Equals(user.LastName, request.LastName ?? string.Empty, StringComparison.Ordinal)))
+        {
+            try
+            {
+                await _keycloakUsers.UpdateProfileAsync(
+                    user.KeycloakUserId,
+                    request.Email,
+                    request.FirstName,
+                    request.LastName ?? string.Empty,
+                    cancellationToken);
+            }
+            catch (KeycloakProvisioningException ex)
+            {
+                return Result<UserDTO>.Fail(ex.Message);
+            }
+        }
+
+        user.Update(
+            request.FirstName,
+            request.LastName ?? string.Empty,
+            request.Email,
+            request.Role,
+            request.OrganizationId);
 
         try
         {
@@ -214,7 +321,7 @@ public class UserCommandHandlers :
         try
         {
             keycloakUserId = await _keycloakUsers.CreateLearnerAsync(
-                new KeycloakLearnerAccount(user.Email, user.FirstName, user.LastName, password),
+                new KeycloakAccount(user.Email, user.FirstName, user.LastName, password),
                 cancellationToken);
         }
         catch (KeycloakProvisioningException ex)
