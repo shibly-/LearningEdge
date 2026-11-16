@@ -58,6 +58,28 @@ describe('parseMockDataset', () => {
     );
 
     expect(dataset.users[0].role).toBe(3);
+    expect(dataset.users[0].activationStatus).toBe(2);
+  });
+
+  it('reads a pending activation status when the sample includes one', () => {
+    const dataset = parseMockDataset(
+      {
+        users: [
+          {
+            id: 'user-a1',
+            firstName: 'Mark',
+            lastName: 'Price',
+            email: 'Mark@example.com',
+            role: 1,
+            organizationId: 'org-a',
+            activationStatus: 1,
+          },
+        ],
+      },
+      NOW,
+    );
+
+    expect(dataset.users[0].activationStatus).toBe(1);
   });
 
   it('rejects a role outside the backend enum', () => {

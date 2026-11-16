@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { CreateUserCommand } from '../../core/models/user';
+import type { CreateUserCommand, UserDto } from '../../core/models/user';
+import { UserActivationStatus, activationLabel, isPendingActivation } from '../../core/models/user';
 import { OrganizationContextService } from '../../core/services/organization-context.service';
 import { UserStore } from '../../core/stores/user.store';
 import { EmptyStateComponent } from '../../shared/components/empty-state.component';
@@ -11,7 +12,7 @@ import { SkeletonComponent } from '../../shared/components/skeleton.component';
 import { RoleLabelPipe } from '../../shared/pipes/role-label.pipe';
 import { UserFormComponent } from './user-form.component';
 
-type RoleFilter = 'all' | 'staff' | 'trainees' | 'admins';
+type RoleFilter = 'all' | 'staff' | 'trainees' | 'admins' | 'pending';
 
 @Component({
   selector: 'app-user-list',
@@ -46,7 +47,11 @@ export class UserListComponent {
     { id: 'admins', label: 'Admins' },
     { id: 'staff', label: 'Staff' },
     { id: 'trainees', label: 'Trainees' },
+    { id: 'pending', label: 'Pending approval' },
   ];
+
+  protected readonly activationText = activationLabel;
+  protected readonly pending = isPendingActivation;
 
   protected readonly visible = computed(() => {
     const byRole = this.byRole();
@@ -94,6 +99,10 @@ export class UserListComponent {
     this.store.loadForActiveOrganization();
   }
 
+  protected approve(user: UserDto): void {
+    this.store.approve(user);
+  }
+
   private byRole() {
     switch (this.filter()) {
       case 'staff':
@@ -102,6 +111,8 @@ export class UserListComponent {
         return this.store.trainees();
       case 'admins':
         return this.store.admins();
+      case 'pending':
+        return this.store.items().filter((user) => user.activationStatus === UserActivationStatus.Pending);
       case 'all':
         return this.store.items();
     }

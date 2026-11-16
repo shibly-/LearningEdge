@@ -5,6 +5,7 @@ import { ApiFailure } from '../http/api-result';
 import { apiPaths } from '../http/api-paths';
 import type {
   CreateOrganizationCommand,
+  OrganizationChoice,
   OrganizationDto,
   UpdateOrganizationCommand,
 } from '../models/organization';
@@ -13,6 +14,7 @@ import { MOCK_LATENCY_MS } from './repository-support';
 
 export abstract class OrganizationRepository {
   abstract list(): Observable<readonly OrganizationDto[]>;
+  abstract directory(): Observable<readonly OrganizationChoice[]>;
   abstract getById(id: string): Observable<OrganizationDto | null>;
   abstract create(command: CreateOrganizationCommand): Observable<string>;
   abstract update(id: string, command: UpdateOrganizationCommand): Observable<OrganizationDto>;
@@ -24,6 +26,10 @@ export class HttpOrganizationRepository extends OrganizationRepository {
 
   override list(): Observable<readonly OrganizationDto[]> {
     return this.api.get<readonly OrganizationDto[]>(apiPaths.organization.list());
+  }
+
+  override directory(): Observable<readonly OrganizationChoice[]> {
+    return this.api.get<readonly OrganizationChoice[]>(apiPaths.organization.directory());
   }
 
   override getById(id: string): Observable<OrganizationDto | null> {
@@ -48,6 +54,11 @@ export class MockOrganizationRepository extends OrganizationRepository {
 
   override list(): Observable<readonly OrganizationDto[]> {
     return of([...this.db.organizations]).pipe(delay(MOCK_LATENCY_MS));
+  }
+
+  override directory(): Observable<readonly OrganizationChoice[]> {
+    const choices = this.db.organizations.map((org) => ({ id: org.id, name: org.name }));
+    return of(choices).pipe(delay(MOCK_LATENCY_MS));
   }
 
   override getById(id: string): Observable<OrganizationDto | null> {

@@ -3,6 +3,7 @@ import Keycloak from 'keycloak-js';
 import { firstValueFrom, of } from 'rxjs';
 import { ApiFailure } from '../http/api-result';
 import type { UserDto } from '../models/user';
+import { UserActivationStatus } from '../models/user';
 import { UserRole } from '../models/user-role';
 import { UserRepository } from '../services/user.repository';
 import { KeycloakAuthProvider } from './keycloak-auth.provider';
@@ -27,6 +28,7 @@ function record(overrides: Partial<UserDto> = {}): UserDto {
     email: 'mark.price@simplelearn.com',
     role: UserRole.OrgAdmin,
     organizationId: ORG_ID,
+    activationStatus: UserActivationStatus.Active,
     ...overrides,
   };
 }

@@ -19,5 +19,11 @@ export interface CreateOrganizationCommand {
 /** PUT /api/v1/organization/{id} -> OrganizationDTO */
 export type UpdateOrganizationCommand = CreateOrganizationCommand;
 
+/** GET /api/v1/organization/directory — public, name only. */
+export interface OrganizationChoice {
+  readonly id: string;
+  readonly name: string;
+}
+
 /** Mirrors the server-side validators. */
 export const ORGANIZATION_LIMITS = { name: 100, description: 500 } as const;

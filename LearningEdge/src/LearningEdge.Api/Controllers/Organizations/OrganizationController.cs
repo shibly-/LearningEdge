@@ -84,6 +84,27 @@ public class OrganizationController : ControllerBase
         return Ok(result.Data);
     }
 
+    // GET: api/v1/organization/directory
+    [HttpGet("directory")]
+    [AllowAnonymous]
+    [MapToApiVersion("1.0")]
+    [EndpointSummary("List organizations for registration")]
+    [EndpointDescription("Returns id and name for every organization, so a visitor can choose one while registering. No description is included.")]
+    [ProducesResponseType(typeof(IReadOnlyList<OrganizationChoice>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<OrganizationChoice>>> Directory(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetOrganizationsQuery(), cancellationToken);
+        if (!result.Success)
+        {
+            return result.ToErrorResult();
+        }
+
+        var choices = result.Data!
+            .Select(organization => new OrganizationChoice(organization.Id, organization.Name))
+            .ToList();
+        return Ok(choices);
+    }
+
     // GET: api/v1/organization/{id}/users
     [HttpGet("{id:guid}/users")]
     [MapToApiVersion("1.0")]    

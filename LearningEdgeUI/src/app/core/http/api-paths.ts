@@ -10,21 +10,29 @@ const seg = encodeURIComponent;
 export const apiPaths = {
   organization: {
     list: () => `${base()}/organization`,
+    directory: () => `${base()}/organization/directory`,
     create: () => `${base()}/organization`,
     byId: (id: string) => `${base()}/organization/${seg(id)}`,
     users: (id: string) => `${base()}/organization/${seg(id)}/users`,
   },
   user: {
     /** `role` repeats in the query string; the API matches any of them. */
-    list: (filter: { organizationId?: string | null; roles?: readonly number[] } = {}) => {
+    list: (filter: {
+      organizationId?: string | null;
+      roles?: readonly number[];
+      activationStatus?: number;
+    } = {}) => {
       const query = [
         ...(filter.organizationId ? [`organizationId=${seg(filter.organizationId)}`] : []),
         ...(filter.roles ?? []).map((role) => `role=${role}`),
+        ...(filter.activationStatus != null ? [`activationStatus=${filter.activationStatus}`] : []),
       ];
       return `${base()}/user${query.length > 0 ? `?${query.join('&')}` : ''}`;
     },
     create: () => `${base()}/user`,
     byId: (id: string) => `${base()}/user/${seg(id)}`,
+    register: () => `${base()}/user/register`,
+    approve: (id: string) => `${base()}/user/${seg(id)}/approve`,
     /** The record for the bearer token's principal. */
     me: () => `${base()}/user/me`,
   },

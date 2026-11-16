@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { finalize } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { UpdateUserCommand, UserDto } from '../models/user';
+import { fullName } from '../models/user';
 import { ToastService } from '../services/toast.service';
 import { UserRepository, type UserListFilter } from '../services/user.repository';
 import { AsyncCollectionStore, describeError } from './async-collection.store';
@@ -46,6 +47,27 @@ export class PlatformUserStore extends AsyncCollectionStore<UserDto> {
           this.toast.success(`${user.firstName} ${user.lastName} updated.`.trim());
           onUpdated(user);
           // The edit may move the user out of the current role or organization filter.
+          this.reload();
+        },
+        error: (error: unknown) => this.toast.error(describeError(error)),
+      });
+  }
+
+  approve(user: UserDto): void {
+    if (this.savingState()) {
+      return;
+    }
+    this.savingState.set(true);
+
+    this.repository
+      .approve(user.id)
+      .pipe(
+        finalize(() => this.savingState.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (approved) => {
+          this.toast.success(`${fullName(approved)} can now sign in.`);
           this.reload();
         },
         error: (error: unknown) => this.toast.error(describeError(error)),

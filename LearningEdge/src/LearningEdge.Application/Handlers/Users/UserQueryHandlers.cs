@@ -5,6 +5,7 @@ using LearningEdge.Application.Models.DTOs;
 using LearningEdge.Application.Models.Queries.Users;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using static LearningEdge.Domain.Common.Enums;
 
 namespace LearningEdge.Application.Handlers.Users;
 
@@ -61,6 +62,12 @@ public class UserQueryHandlers :
                 $"The email {email} belongs to more than one organization. Each sign-in must map to a single user.");
         }
 
+        if (matches[0].ActivationStatus == UserActivationStatus.Pending)
+        {
+            return Result<UserDTO>.Forbidden(
+                "This account is waiting for an administrator to approve it.");
+        }
+
         return Result<UserDTO>.Ok(_mapper.Map<UserDTO>(matches[0]));
     }
 
@@ -109,6 +116,11 @@ public class UserQueryHandlers :
         {
             var roles = request.Roles.Distinct().ToList();
             query = query.Where(user => roles.Contains(user.Role));
+        }
+
+        if (request.ActivationStatus is { } activationStatus)
+        {
+            query = query.Where(user => user.ActivationStatus == activationStatus);
         }
 
         var users = await query

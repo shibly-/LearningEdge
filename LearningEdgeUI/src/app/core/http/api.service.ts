@@ -33,6 +33,11 @@ export class ApiService {
     return this.http.post<unknown>(url, body).pipe(map(readCreatedId), catchError(toApiFailure));
   }
 
+  /** POST that returns the response body, such as approving a user. */
+  postResult<TBody, TResult>(url: string, body: TBody): Observable<TResult> {
+    return this.http.post<TResult>(url, body).pipe(catchError(toApiFailure));
+  }
+
   put<TBody, TResult>(url: string, body: TBody): Observable<TResult> {
     return this.http.put<TResult>(url, body).pipe(catchError(toApiFailure));
   }

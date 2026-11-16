@@ -431,3 +431,6 @@ FodyWeavers.xsd
 
 # Training files uploaded by a locally running API
 LearningEdge/src/LearningEdge.Api/uploads/
+
+# Data-protection keys for pending registration passwords
+LearningEdge/src/LearningEdge.Api/dp-keys/

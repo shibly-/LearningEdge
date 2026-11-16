@@ -9,5 +9,6 @@ public record UserDTO (
     string LastName,
     string Email,    
     UserRole Role,
-    Guid OrganizationId
+    Guid OrganizationId,
+    UserActivationStatus ActivationStatus
 );

@@ -9,7 +9,7 @@ import type {
   TrainingFile,
   TrainingResult,
 } from '../../models/training';
-import type { UserDto } from '../../models/user';
+import { UserActivationStatus, type UserDto } from '../../models/user';
 import { UserRole, isUserRole } from '../../models/user-role';
 import type { MockDataset } from './mock-data.model';
 
@@ -189,7 +189,20 @@ function parseUser(entry: unknown, field: string): UserDto {
     email: str(record, 'email', field),
     role: role as UserRole,
     organizationId: str(record, 'organizationId', field),
+    activationStatus: parseActivationStatus(record['activationStatus'], field),
   };
+}
+
+function parseActivationStatus(value: unknown, field: string): UserActivationStatus {
+  if (value === undefined) {
+    return UserActivationStatus.Active;
+  }
+  if (value === UserActivationStatus.Pending || value === UserActivationStatus.Active) {
+    return value;
+  }
+  throw new MockDataError(
+    `${field}.activationStatus must be 1 (pending) or 2 (active) when it is present.`,
+  );
 }
 
 function parseCategory(entry: unknown, field: string): Category {

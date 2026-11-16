@@ -18,4 +18,14 @@ public class Enums
         [EnumMember(Value = "SysAdmin")]
         SysAdmin = 4
     }
+
+    /// <summary>
+    /// Self-registered learners stay <see cref="Pending"/> until an OrgAdmin or
+    /// SysAdmin approves them. Approval is what creates the Keycloak user.
+    /// </summary>
+    public enum UserActivationStatus
+    {
+        Pending = 1,
+        Active = 2
+    }
 }

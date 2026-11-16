@@ -7,13 +7,16 @@ using LearningEdge.Application;
 using LearningEdge.Application.Common.Behaviors;
 using LearningEdge.Application.Interfaces;
 using LearningEdge.Infrastructure;
+using LearningEdge.Api.Security;
 using LearningEdge.Infrastructure.Caching;
+using LearningEdge.Infrastructure.Identity;
 using LearningEdge.Infrastructure.Messaging.Consumers;
 using LearningEdge.Infrastructure.Persistence;
 using LearningEdge.Messaging.Contracts.Events;
 using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -174,7 +177,46 @@ public static class ServiceCollectionExtension
 
         services.AddInfrastructure(connectionString, migrationAssembly, fileStorageRoot);
 
+        var keysPath = Path.Combine(environment.ContentRootPath, "dp-keys");
+        Directory.CreateDirectory(keysPath);
+        services.AddDataProtection()
+            .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+        services.AddSingleton<IPendingCredentialProtector, PendingCredentialProtector>();
+        services.AddSingleton(BuildKeycloakAdminSettings(configuration));
+        services.AddHttpClient<IKeycloakUserDirectory, KeycloakAdminClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
         return services;
+    }
+
+    private static KeycloakAdminSettings BuildKeycloakAdminSettings(IConfiguration configuration)
+    {
+        var authority = configuration["Keycloak:Authority"];
+        if (string.IsNullOrWhiteSpace(authority) || !Uri.TryCreate(authority, UriKind.Absolute, out var authorityUri))
+        {
+            throw new InvalidOperationException("Keycloak:Authority must be an absolute URL.");
+        }
+
+        var segments = authorityUri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var realm = segments.Length > 0 ? segments[^1] : string.Empty;
+        if (string.IsNullOrWhiteSpace(realm))
+        {
+            throw new InvalidOperationException("Keycloak:Authority must include the realm.");
+        }
+
+        var origin = authorityUri.GetLeftPart(UriPartial.Authority);
+        var learnerRole = configuration["Keycloak:LearnerRole"];
+        return new KeycloakAdminSettings
+        {
+            TokenUrl = configuration["Keycloak:TokenUrl"]
+                ?? $"{origin}/realms/{realm}/protocol/openid-connect/token",
+            AdminRoot = $"{origin}/admin/realms/{realm}",
+            ClientId = configuration["Keycloak:AdminClientId"] ?? string.Empty,
+            ClientSecret = configuration["Keycloak:AdminClientSecret"] ?? string.Empty,
+            LearnerRole = string.IsNullOrWhiteSpace(learnerRole) ? "learner" : learnerRole,
+        };
     }    
 
     public static IServiceCollection AddMessagingServices(this IServiceCollection services, ConfigurationManager configuration)

@@ -5,6 +5,7 @@ import { firstValueFrom, type Observable } from 'rxjs';
 import { ApiFailure } from '../http/api-result';
 import { apiPaths } from '../http/api-paths';
 import type { UserDto } from '../models/user';
+import { UserActivationStatus } from '../models/user';
 import { UserRole } from '../models/user-role';
 import { MockDb } from './mock/mock-db';
 import { HttpUserRepository, MockUserRepository } from './user.repository';
@@ -16,7 +17,15 @@ function user(
   role: UserRole,
   organizationId: string,
 ): UserDto {
-  return { id, firstName, lastName, email: `${id}@test.example`, role, organizationId };
+  return {
+    id,
+    firstName,
+    lastName,
+    email: `${id}@test.example`,
+    role,
+    organizationId,
+    activationStatus: UserActivationStatus.Active,
+  };
 }
 
 describe('apiPaths.user.list', () => {
@@ -119,5 +128,26 @@ describe('MockUserRepository.listAll', () => {
     await expect(settle(repository.listAll({ organizationId: 'missing' }))).rejects.toBeInstanceOf(
       ApiFailure,
     );
+  });
+
+  it('keeps a self-registration pending until it is approved', async () => {
+    const id = await settle(
+      repository.register({
+        firstName: 'New',
+        lastName: 'Trainee',
+        email: 'new@test.example',
+        password: 'Password1',
+        organizationId: 'org-1',
+      }),
+    );
+
+    const pending = await settle(
+      repository.listAll({ activationStatus: UserActivationStatus.Pending }),
+    );
+    expect(pending.map((user) => user.id)).toEqual([id]);
+    expect(pending[0].role).toBe(UserRole.Learner);
+
+    const approved = await settle(repository.approve(id));
+    expect(approved.activationStatus).toBe(UserActivationStatus.Active);
   });
 });

@@ -61,6 +61,7 @@
             <th scope="col">Name</th>
             <th scope="col">Email</th>
             <th scope="col">Role</th>
+            <th scope="col">Status</th>
             <th scope="col"><span class="le-visually-hidden">Actions</span></th>
           </tr>
         </thead>
@@ -70,7 +71,21 @@
               <th scope="row">{{ user.firstName }} {{ user.lastName }}</th>
               <td>{{ user.email }}</td>
               <td>{{ user.role | roleLabel }}</td>
-              <td><a [routerLink]="['/users', user.id]">View</a></td>
+              <td>{{ activationText(user.activationStatus) }}</td>
+              <td>
+                @if (pending(user.activationStatus)) {
+                  <button
+                    type="button"
+                    class="le-btn le-btn-sm"
+                    [disabled]="store.isSaving()"
+                    [attr.aria-label]="'Approve ' + user.firstName + ' ' + user.lastName"
+                    (click)="approve(user)"
+                  >
+                    Approve
+                  </button>
+                }
+                <a [routerLink]="['/users', user.id]">View</a>
+              </td>
             </tr>
           }
         </tbody>

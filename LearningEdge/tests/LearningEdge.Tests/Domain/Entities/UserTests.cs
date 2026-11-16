@@ -69,5 +69,29 @@ public class UserTests
     {
         var user = new User("Harry", "Potter", "harry.potter@test.com", role, Guid.NewGuid());
         Assert.Equal(role, user.Role);
+        Assert.Equal(UserActivationStatus.Active, user.ActivationStatus);
+    }
+
+    [Fact]
+    public void RegisterLearner_ShouldStayPendingUntilApproved()
+    {
+        var user = User.RegisterLearner("Ada", "Lovelace", "ada@example.com", Guid.NewGuid());
+        Assert.Equal(UserRole.Learner, user.Role);
+        Assert.Equal(UserActivationStatus.Pending, user.ActivationStatus);
+
+        user.HoldPendingPassword("protected-secret");
+        user.MarkApproved("keycloak-user");
+
+        Assert.Equal(UserActivationStatus.Active, user.ActivationStatus);
+        Assert.Equal("keycloak-user", user.KeycloakUserId);
+        Assert.Null(user.PendingPasswordProtected);
+        Assert.NotNull(user.UpdatedAt);
+    }
+
+    [Fact]
+    public void MarkApproved_ShouldThrow_WhenUserIsAlreadyActive()
+    {
+        var user = new User("Ada", "Lovelace", "ada@example.com", UserRole.Learner, Guid.NewGuid());
+        Assert.Throws<InvalidOperationException>(() => user.MarkApproved("keycloak-user"));
     }
 }

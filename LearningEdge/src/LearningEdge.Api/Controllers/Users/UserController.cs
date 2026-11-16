@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using System.Security.Claims;
+using System.Text.Json;
 using static LearningEdge.Domain.Common.Enums;
 
 namespace LearningEdge.Api.Controllers.Users;
@@ -41,6 +42,62 @@ public class UserController : ControllerBase
         }
 
         return this.ToCreatedResult(nameof(GetById), result.Data);
+    }
+
+    // POST: api/v1/user/register
+    [HttpPost("register")]
+    [AllowAnonymous]
+    [MapToApiVersion("1.0")]
+    [EndpointSummary("Register a trainee")]
+    [EndpointDescription("Creates a Learner that stays pending until an OrgAdmin or SysAdmin approves it. Does not create a Keycloak user.")]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<Guid>> Register(
+        [FromBody] RegisterLearnerCommand command,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(command, cancellationToken);
+        if (!result.Success)
+        {
+            return result.ToErrorResult();
+        }
+
+        return this.ToCreatedResult(nameof(GetById), result.Data);
+    }
+
+    // POST: api/v1/user/{id}/approve
+    [HttpPost("{id:guid}/approve")]
+    [MapToApiVersion("1.0")]
+    [EndpointSummary("Approve a pending trainee")]
+    [EndpointDescription("OrgAdmin (same organization) or SysAdmin only. Creates the user in Keycloak and activates the account.")]
+    [ProducesResponseType(typeof(UserDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<UserDTO>> Approve(Guid id, CancellationToken cancellationToken)
+    {
+        var email = User.FindFirstValue(ClaimTypes.Email)
+            ?? User.FindFirstValue("email")
+            ?? User.FindFirstValue("preferred_username")
+            ?? string.Empty;
+        var hasPlatformRole = HasRealmRole(User, "OrgAdmin");
+
+        if (string.IsNullOrWhiteSpace(email) && !hasPlatformRole)
+        {
+            return Unauthorized();
+        }
+
+        var result = await _mediator.Send(
+            new ApproveUserCommand(id, email, hasPlatformRole),
+            cancellationToken);
+        if (!result.Success)
+        {
+            return result.ToErrorResult();
+        }
+
+        return Ok(result.Data);
     }
 
     // PUT: api/v1/user/{id}
@@ -77,9 +134,12 @@ public class UserController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<UserDTO>>> List(
         [FromQuery] Guid? organizationId,
         [FromQuery(Name = "role")] UserRole[]? roles,
+        [FromQuery] UserActivationStatus? activationStatus,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetUsersQuery(organizationId, roles ?? []), cancellationToken);
+        var result = await _mediator.Send(
+            new GetUsersQuery(organizationId, roles ?? [], activationStatus),
+            cancellationToken);
         if (!result.Success)
         {
             return result.ToErrorResult();
@@ -136,5 +196,46 @@ public class UserController : ControllerBase
         }
 
         return Ok(result.Data);
+    }
+
+    private static bool HasRealmRole(ClaimsPrincipal user, string role)
+    {
+        if (user.Claims.Any(claim =>
+            (claim.Type is "role" or ClaimTypes.Role)
+            && string.Equals(claim.Value, role, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        var raw = user.FindFirst("realm_access")?.Value;
+        if (string.IsNullOrWhiteSpace(raw) || !raw.TrimStart().StartsWith('{'))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(raw);
+            if (!document.RootElement.TryGetProperty("roles", out var roles)
+                || roles.ValueKind != JsonValueKind.Array)
+            {
+                return false;
+            }
+
+            foreach (var entry in roles.EnumerateArray())
+            {
+                if (entry.ValueKind == JsonValueKind.String
+                    && string.Equals(entry.GetString(), role, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+
+        return false;
     }
 }

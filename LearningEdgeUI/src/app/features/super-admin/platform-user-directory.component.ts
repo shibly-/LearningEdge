@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import type { UpdateUserCommand, UserDto } from '../../core/models/user';
+import { UserActivationStatus, activationLabel, isPendingActivation } from '../../core/models/user';
 import type { UserRole } from '../../core/models/user-role';
 import { OrganizationStore } from '../../core/stores/organization.store';
 import { PlatformUserStore } from '../../core/stores/platform-user.store';
@@ -24,6 +25,7 @@ export interface RoleScope {
   readonly id: string;
   readonly label: string;
   readonly roles: readonly UserRole[];
+  readonly activationStatus?: UserActivationStatus;
 }
 
 /**
@@ -117,6 +119,7 @@ export interface RoleScope {
               <th scope="col">Name</th>
               <th scope="col">Email</th>
               <th scope="col">Role</th>
+              <th scope="col">Status</th>
               <th scope="col">Organization</th>
               <th scope="col"><span class="le-visually-hidden">Actions</span></th>
             </tr>
@@ -127,12 +130,24 @@ export interface RoleScope {
                 <th scope="row">{{ user.firstName }} {{ user.lastName }}</th>
                 <td>{{ user.email }}</td>
                 <td>{{ user.role | roleLabel }}</td>
+                <td>{{ activationText(user.activationStatus) }}</td>
                 <td>
                   <a [routerLink]="['/platform/organizations', user.organizationId]">
                     {{ organizationName(user.organizationId) }}
                   </a>
                 </td>
                 <td class="row-actions">
+                  @if (pending(user.activationStatus)) {
+                    <button
+                      type="button"
+                      class="le-btn le-btn-sm"
+                      [disabled]="store.isSaving()"
+                      [attr.aria-label]="'Approve ' + user.firstName + ' ' + user.lastName"
+                      (click)="approve(user)"
+                    >
+                      Approve
+                    </button>
+                  }
                   <button
                     type="button"
                     class="le-btn le-btn-secondary"
@@ -184,6 +199,8 @@ export class PlatformUserDirectoryComponent implements OnInit {
 
   protected readonly searchTerm = this.search.asReadonly();
   protected readonly activeScope = computed(() => this.selectedScope() ?? this.scopes()[0]);
+  protected readonly activationText = activationLabel;
+  protected readonly pending = isPendingActivation;
 
   protected readonly visible = computed(() => {
     const term = this.search().trim().toLowerCase();
@@ -232,7 +249,15 @@ export class PlatformUserDirectoryComponent implements OnInit {
     this.store.update(id, command, () => this.editing.set(null));
   }
 
+  protected approve(user: UserDto): void {
+    this.store.approve(user);
+  }
+
   private refresh(): void {
-    this.store.loadWith({ organizationId: this.organizationId(), roles: this.activeScope().roles });
+    this.store.loadWith({
+      organizationId: this.organizationId(),
+      roles: this.activeScope().roles,
+      activationStatus: this.activeScope().activationStatus,
+    });
   }
 }

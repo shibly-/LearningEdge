@@ -53,3 +53,7 @@ h1 {
     color: var(--le-brand-600);
   }
 }
+
+.auth-card.register-card {
+  width: min(480px, 100%);
+}

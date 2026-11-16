@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { UserActivationStatus } from '../../core/models/user';
 import { UserRole } from '../../core/models/user-role';
 import {
   PlatformUserDirectoryComponent,
@@ -23,5 +24,11 @@ export class PlatformUserListComponent {
     { id: 'all', label: 'Everyone', roles: [UserRole.Instructor, UserRole.Learner] },
     { id: 'staff', label: 'Staff', roles: [UserRole.Instructor] },
     { id: 'trainees', label: 'Trainees', roles: [UserRole.Learner] },
+    {
+      id: 'pending',
+      label: 'Pending approval',
+      roles: [],
+      activationStatus: UserActivationStatus.Pending,
+    },
   ];
 }

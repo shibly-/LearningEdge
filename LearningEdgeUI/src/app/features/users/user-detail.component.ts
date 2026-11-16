@@ -11,6 +11,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { map, type Subscription } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
 import type { UpdateUserCommand, UserDto } from '../../core/models/user';
+import { activationLabel, isPendingActivation } from '../../core/models/user';
 import { UserRepository } from '../../core/services/user.repository';
 import { describeError } from '../../core/stores/async-collection.store';
 import { UserStore } from '../../core/stores/user.store';
@@ -44,6 +45,16 @@ type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
   template: `
     <app-page-header [title]="headingText()" subtitle="User detail">
       <a class="le-btn le-btn-secondary" routerLink="/users">Back to users</a>
+      @if (state() === 'loaded' && isPending()) {
+        <button
+          type="button"
+          class="le-btn"
+          [disabled]="store.isSaving()"
+          (click)="approve()"
+        >
+          Approve
+        </button>
+      }
       @if (state() === 'loaded') {
         <button type="button" class="le-btn" (click)="editing.set(true)">Edit</button>
       }
@@ -72,6 +83,8 @@ type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
           <dd>{{ user()?.email }}</dd>
           <dt>Role</dt>
           <dd>{{ user()?.role | roleLabel }}</dd>
+          <dt>Status</dt>
+          <dd>{{ activationText(user()?.activationStatus) }}</dd>
           <dt>Organization</dt>
           <dd>
             <code>{{ user()?.organizationId }}</code>
@@ -134,6 +147,7 @@ export class UserDetailComponent {
   private readonly repository = inject(UserRepository);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly store = inject(UserStore);
+  protected readonly activationText = activationLabel;
 
   protected readonly editing = signal(false);
   private request: Subscription | null = null;
@@ -170,6 +184,18 @@ export class UserDetailComponent {
       this.userState.set(user);
       this.editing.set(false);
     });
+  }
+
+  protected isPending(): boolean {
+    return isPendingActivation(this.userState()?.activationStatus);
+  }
+
+  protected approve(): void {
+    const current = this.userState();
+    if (current === null) {
+      return;
+    }
+    this.store.approve(current, (user) => this.userState.set(user));
   }
 
   protected load(): void {

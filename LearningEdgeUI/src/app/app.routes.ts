@@ -20,7 +20,7 @@ export const routes: Routes = [
   {
     path: 'register',
     canActivate: [anonymousOnlyGuard],
-    title: 'Request access · LearningEdge',
+    title: 'Register · LearningEdge',
     loadComponent: () =>
       import('./features/auth/register.component').then((m) => m.RegisterComponent),
   },

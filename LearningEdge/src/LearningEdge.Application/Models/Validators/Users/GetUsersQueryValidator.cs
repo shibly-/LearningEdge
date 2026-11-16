@@ -11,5 +11,8 @@ public class GetUsersQueryValidator : AbstractValidator<GetUsersQuery>
             .NotEqual(Guid.Empty).WithMessage("Organization id is invalid.");
         RuleForEach(x => x.Roles)
             .IsInEnum().WithMessage("Role is invalid.");
+        RuleFor(x => x.ActivationStatus)
+            .IsInEnum().WithMessage("Activation status is invalid.")
+            .When(x => x.ActivationStatus.HasValue);
     }
 }

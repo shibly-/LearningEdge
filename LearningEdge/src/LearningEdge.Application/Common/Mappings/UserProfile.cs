@@ -18,7 +18,8 @@ public class UserProfile: Profile
                 src.LastName,
                 src.Email,
                 src.Role,
-                src.OrganizationId
+                src.OrganizationId,
+                src.ActivationStatus
             ));
 
         // Command → Domain

@@ -172,6 +172,44 @@ public class UserQueryHandlersTests
         Assert.Equal(ResultErrorKind.NotFound, result.Kind);
     }
 
+    [Fact]
+    public async Task GetByEmail_ShouldRejectAPendingRegistration()
+    {
+        await using var context = CreateContext();
+        var organization = new Organization("Acme");
+        var pending = User.RegisterLearner("Ada", "Lovelace", "ada@example.com", organization.Id);
+        context.Organizations.Add(organization);
+        context.Users.Add(pending);
+        await context.SaveChangesAsync();
+
+        var handler = new UserQueryHandlers(context, CreateMapper());
+        var result = await handler.Handle(new GetUserByEmailQuery("ada@example.com"), CancellationToken.None);
+
+        Assert.Equal(ResultErrorKind.Forbidden, result.Kind);
+        Assert.Contains("approve", result.Error);
+    }
+
+    [Fact]
+    public async Task GetUsers_FiltersByActivationStatus()
+    {
+        await using var context = CreateContext();
+        var organization = new Organization("Acme");
+        var pending = User.RegisterLearner("Ada", "Lovelace", "ada@example.com", organization.Id);
+        context.Organizations.Add(organization);
+        context.Users.Add(pending);
+        context.Users.Add(new User("Ann", "Admin", "ann@example.com", UserRole.OrgAdmin, organization.Id));
+        await context.SaveChangesAsync();
+
+        var handler = new UserQueryHandlers(context, CreateMapper());
+        var result = await handler.Handle(
+            new GetUsersQuery(organization.Id, [], UserActivationStatus.Pending),
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(["ada@example.com"], result.Data!.Select(user => user.Email));
+        Assert.Equal(UserActivationStatus.Pending, result.Data![0].ActivationStatus);
+    }
+
     private static async Task<ApplicationDbContext> SeedTwoOrganizationsAsync()
     {
         var context = CreateContext();
@@ -203,7 +241,16 @@ public class UserQueryHandlersTests
 
     private static IMapper CreateMapper()
     {
-        var configuration = new MapperConfiguration(config => config.AddProfile<UserProfile>(), null);
+        var configuration = new MapperConfiguration(config =>
+        {
+            var license = Environment.GetEnvironmentVariable("AUTOMAPPER_LICENSE_PATH");
+            if (!string.IsNullOrWhiteSpace(license))
+            {
+                config.LicenseKey = license;
+            }
+
+            config.AddProfile<UserProfile>();
+        }, Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance);
         return configuration.CreateMapper();
     }
 }

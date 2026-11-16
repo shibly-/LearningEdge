@@ -1,115 +1,124 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  NonNullableFormBuilder,
+  ReactiveFormsModule,
+  Validators,
+  type AbstractControl,
+  type ValidationErrors,
+} from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import type { OrganizationChoice } from '../../core/models/organization';
+import { OrganizationRepository } from '../../core/services/organization.repository';
+import { ToastService } from '../../core/services/toast.service';
+import { UserRepository } from '../../core/services/user.repository';
+import { describeError } from '../../core/stores/async-collection.store';
 
 /**
- * MOCK: no backend endpoint. Self-service registration is intentionally not
- * wired to POST /api/v1/user — that endpoint requires an organizationId and
- * would let a visitor place themselves inside any tenant. Accounts are
- * provisioned by an administrator; this screen only records interest.
+ * Public trainee registration. The account is stored as pending and is not
+ * created in Keycloak until an OrgAdmin or SysAdmin approves it.
  */
 @Component({
   selector: 'app-register',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, RouterLink],
-  template: `
-    <div class="auth-page">
-      <div class="auth-card le-card">
-        @if (submitted()) {
-          <h1>Contact your administrator</h1>
-          <p class="subtitle">
-            Access requests cannot be sent from this page yet, so nothing has been submitted. Ask
-            the administrator of {{ form.controls.organization.value }} to create an account for
-            {{ form.controls.email.value }}.
-          </p>
-          <a class="le-btn" routerLink="/login">Back to sign in</a>
-        } @else {
-          <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-            <h1>Request access</h1>
-            <p class="subtitle">
-              Accounts are created by your organization administrator. Enter your details to see who
-              to contact.
-            </p>
-
-            <div
-              class="le-field"
-              [class.is-invalid]="form.controls.fullName.touched && form.controls.fullName.invalid"
-            >
-              <label for="fullName">Full name</label>
-              <input
-                id="fullName"
-                type="text"
-                autocomplete="name"
-                formControlName="fullName"
-                maxlength="100"
-              />
-              @if (form.controls.fullName.touched && form.controls.fullName.hasError('required')) {
-                <span class="le-error">Full name is required.</span>
-              }
-            </div>
-
-            <div
-              class="le-field"
-              [class.is-invalid]="form.controls.email.touched && form.controls.email.invalid"
-            >
-              <label for="email">Work email</label>
-              <input
-                id="email"
-                type="email"
-                autocomplete="email"
-                formControlName="email"
-                maxlength="100"
-              />
-              @if (form.controls.email.touched && form.controls.email.hasError('required')) {
-                <span class="le-error">Email is required.</span>
-              }
-              @if (form.controls.email.touched && form.controls.email.hasError('email')) {
-                <span class="le-error">Enter a valid email address.</span>
-              }
-            </div>
-
-            <div
-              class="le-field"
-              [class.is-invalid]="
-                form.controls.organization.touched && form.controls.organization.invalid
-              "
-            >
-              <label for="organization">Organization</label>
-              <input id="organization" type="text" formControlName="organization" maxlength="100" />
-              @if (
-                form.controls.organization.touched &&
-                form.controls.organization.hasError('required')
-              ) {
-                <span class="le-error">Organization is required.</span>
-              }
-            </div>
-
-            <button type="submit" class="le-btn submit">Continue</button>
-            <p class="links"><a routerLink="/login">Back to sign in</a></p>
-          </form>
-        }
-      </div>
-    </div>
-  `,
+  templateUrl: './register.component.html',
   styleUrl: './login.component.scss',
 })
 export class RegisterComponent {
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly organizationsRepo = inject(OrganizationRepository);
+  private readonly users = inject(UserRepository);
+  private readonly toast = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
 
-  private readonly done = signal(false);
-  protected readonly submitted = this.done.asReadonly();
+  protected readonly organizations = signal<readonly OrganizationChoice[]>([]);
+  protected readonly orgStatus = signal<'loading' | 'ready' | 'error'>('loading');
+  protected readonly submitting = signal(false);
+  protected readonly confirmation = signal<{ email: string; organizationName: string } | null>(
+    null,
+  );
 
-  protected readonly form = this.fb.group({
-    fullName: this.fb.control('', [Validators.required]),
-    email: this.fb.control('', [Validators.required, Validators.email]),
-    organization: this.fb.control('', [Validators.required]),
-  });
+  protected readonly form = this.fb.group(
+    {
+      firstName: this.fb.control('', [Validators.required, Validators.maxLength(50)]),
+      lastName: this.fb.control('', [Validators.maxLength(50)]),
+      email: this.fb.control('', [Validators.required, Validators.email, Validators.maxLength(100)]),
+      organizationId: this.fb.control('', [Validators.required]),
+      password: this.fb.control('', [
+        Validators.required,
+        Validators.minLength(8),
+        Validators.maxLength(128),
+      ]),
+      confirmPassword: this.fb.control('', [Validators.required]),
+    },
+    { validators: passwordsMatch },
+  );
+
+  constructor() {
+    this.loadOrganizations();
+  }
+
+  protected loadOrganizations(): void {
+    this.orgStatus.set('loading');
+    this.organizationsRepo
+      .directory()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (organizations) => {
+          this.organizations.set([...organizations].sort((a, b) => a.name.localeCompare(b.name)));
+          this.orgStatus.set('ready');
+        },
+        error: (error: unknown) => {
+          this.orgStatus.set('error');
+          this.toast.error(describeError(error));
+        },
+      });
+  }
 
   protected submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
-    this.done.set(true);
+    if (this.submitting()) {
+      return;
+    }
+
+    const value = this.form.getRawValue();
+    const organizationName =
+      this.organizations().find((org) => org.id === value.organizationId)?.name ??
+      'your organization';
+    this.submitting.set(true);
+
+    this.users
+      .register({
+        firstName: value.firstName,
+        lastName: value.lastName,
+        email: value.email,
+        password: value.password,
+        organizationId: value.organizationId,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.submitting.set(false);
+          this.confirmation.set({ email: value.email, organizationName });
+          this.form.reset();
+          this.toast.success(
+            'Registration submitted. An administrator must approve it before you can sign in.',
+          );
+        },
+        error: (error: unknown) => {
+          this.submitting.set(false);
+          this.toast.error(describeError(error));
+        },
+      });
   }
+}
+
+function passwordsMatch(group: AbstractControl): ValidationErrors | null {
+  const password = group.get('password')?.value;
+  const confirm = group.get('confirmPassword')?.value;
+  return password === confirm ? null : { passwordMismatch: true };
 }
