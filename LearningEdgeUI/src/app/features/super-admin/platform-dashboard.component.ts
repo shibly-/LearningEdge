@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { OrganizationStore } from '../../core/stores/organization.store';
+import { BadgeComponent } from '../../shared/components/badge.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state.component';
 import { ErrorStateComponent } from '../../shared/components/error-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header.component';
@@ -12,6 +13,7 @@ import { StatCardComponent } from '../../shared/components/stat-card.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
+    BadgeComponent,
     PageHeaderComponent,
     StatCardComponent,
     SkeletonComponent,
@@ -39,12 +41,8 @@ import { StatCardComponent } from '../../shared/components/stat-card.component';
     } @else {
       <div class="le-grid-stats">
         <app-stat-card label="Organizations" [value]="store.count()" />
-        <app-stat-card
-          label="Described"
-          [value]="describedCount()"
-          hint="Organizations with a description set"
-        />
-        <app-stat-card label="Newest" [value]="newestName()" />
+        <app-stat-card label="Active" [value]="activeCount()" hint="Organizations that can sign users in" />
+        <app-stat-card label="Inactive" [value]="inactiveCount()" hint="Organizations whose users cannot sign in" />
       </div>
 
       <section class="le-card le-table-wrap">
@@ -54,6 +52,7 @@ import { StatCardComponent } from '../../shared/components/stat-card.component';
             <tr>
               <th scope="col">Organization</th>
               <th scope="col">Description</th>
+              <th scope="col">Status</th>
               <th scope="col"><span class="le-visually-hidden">Actions</span></th>
             </tr>
           </thead>
@@ -62,6 +61,12 @@ import { StatCardComponent } from '../../shared/components/stat-card.component';
               <tr>
                 <th scope="row">{{ org.name }}</th>
                 <td>{{ org.description || '—' }}</td>
+                <td>
+                  <app-badge
+                    [status]="org.isActive ? 'on' : 'off'"
+                    [text]="org.isActive ? 'Active' : 'Inactive'"
+                  />
+                </td>
                 <td><a [routerLink]="['/platform/organizations', org.id]">View</a></td>
               </tr>
             }
@@ -75,14 +80,13 @@ export class PlatformDashboardComponent {
   protected readonly store = inject(OrganizationStore);
   private readonly router = inject(Router);
 
-  protected readonly describedCount = computed(
-    () => this.store.items().filter((org) => org.description.trim().length > 0).length,
+  protected readonly activeCount = computed(
+    () => this.store.items().filter((org) => org.isActive).length,
   );
 
-  protected readonly newestName = computed(() => {
-    const items = this.store.items();
-    return items.length === 0 ? '—' : items[items.length - 1].name;
-  });
+  protected readonly inactiveCount = computed(
+    () => this.store.items().filter((org) => !org.isActive).length,
+  );
 
   constructor() {
     if (this.store.status() === 'idle') {

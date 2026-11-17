@@ -11,6 +11,7 @@
         with this email and password only after that approval.
       </p>
       <a class="le-btn submit" routerLink="/login">Back to sign in</a>
+      <a class="le-btn le-btn-secondary submit" routerLink="/">Back to home</a>
     } @else {
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
         <h1>Register as a trainee</h1>
@@ -144,6 +145,7 @@
         <button type="submit" class="le-btn submit" [disabled]="submitting() || orgStatus() !== 'ready'">
           {{ submitting() ? 'Submitting…' : 'Submit registration' }}
         </button>
+        <a class="le-btn le-btn-secondary submit" routerLink="/">Back to home</a>
         <p class="links"><a routerLink="/login">Back to sign in</a></p>
       </form>
     }

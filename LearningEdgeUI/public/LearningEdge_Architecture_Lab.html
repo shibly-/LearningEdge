@@ -1,0 +1,1113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LearningEdge Architecture Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F1F4F5; --surface:#FFFFFF; --surface-2:#E8EDEF; --ink:#14212A; --ink-2:#425360; --muted:#667783;
+  --line:#D1D9DE; --line-2:#A8B5BE;
+  --c-platform:#1F6B4A; --c-identity:#2F558C; --c-data:#5B45B0; --c-live:#A02B5B; --c-broker:#0A6A8C; --c-docs:#9C5900;
+  --on-arch:#FFFFFF;
+  --good:#1D7A44; --mixed:#9C5900; --poor:#B2271F;
+  --good-bg:#E2F2E7; --mixed-bg:#FAEDD9; --poor-bg:#FAE3E0;
+  --code-bg:#ECF0F2;
+  --font-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --font-body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1317; --surface:#141C21; --surface-2:#1B252C; --ink:#E1E8EC; --ink-2:#A5B3BD; --muted:#82919B;
+    --line:#26333B; --line-2:#3A4B56;
+    --c-platform:#4DC7A2; --c-identity:#8DB0E8; --c-data:#B4A5F5; --c-live:#EF80AC; --c-broker:#63C3E5; --c-docs:#E8AD58;
+    --on-arch:#0D1317;
+    --good:#6BCB8E; --mixed:#E8AD58; --poor:#F18A83;
+    --good-bg:#15301F; --mixed-bg:#33250F; --poor-bg:#3A1A18;
+    --code-bg:#0F171C;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1317; --surface:#141C21; --surface-2:#1B252C; --ink:#E1E8EC; --ink-2:#A5B3BD; --muted:#82919B;
+  --line:#26333B; --line-2:#3A4B56;
+  --c-platform:#4DC7A2; --c-identity:#8DB0E8; --c-data:#B4A5F5; --c-live:#EF80AC; --c-broker:#63C3E5; --c-docs:#E8AD58;
+  --on-arch:#0D1317;
+  --good:#6BCB8E; --mixed:#E8AD58; --poor:#F18A83;
+  --good-bg:#15301F; --mixed-bg:#33250F; --poor-bg:#3A1A18;
+  --code-bg:#0F171C;
+  color-scheme:dark;
+}
+:root[data-theme="light"]{color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.6 var(--font-body);-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--font-display);letter-spacing:-.01em;line-height:1.12;margin:0}
+p{margin:0}
+button,input,select{font:inherit;color:inherit}
+code,.mono{font-family:var(--font-mono)}
+code{font-size:.88em}
+.eyebrow{font:500 11.5px/1.3 var(--font-mono);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+:focus-visible{outline:2px solid var(--arch,var(--ink));outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+.intro .wrap{padding-block:36px 24px;display:grid;gap:18px}
+.intro-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+.intro h1{font-size:clamp(2rem,5vw,3.3rem);font-weight:760;max-width:18ch}
+.lede{font-size:1.05rem;color:var(--ink-2);max-width:68ch}
+.theme{border:1px solid var(--line-2);background:var(--surface);border-radius:7px;padding:6px 10px;cursor:pointer}
+.domain{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(260px,.9fr);gap:18px;border-top:1px solid var(--line);padding-top:18px}
+.domain h2{font-size:1.12rem;font-weight:700;margin-bottom:6px}
+.d-desc{color:var(--ink-2);margin-bottom:12px;max-width:62ch}
+.contexts{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.contexts li,.rules{border:1px solid var(--line);background:var(--surface);border-radius:8px}
+.contexts li{padding:9px 11px}
+.contexts b{display:block;font-size:13.5px}
+.contexts span{display:block;font-size:12.5px;color:var(--muted);line-height:1.4}
+.rules{padding:14px 16px}
+.rules h3{font-size:1rem;margin-bottom:8px}
+.rules ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.rules li{display:grid;grid-template-columns:28px 1fr;gap:6px;font-size:14px}
+.rules .mono{font-size:11.5px;color:var(--muted);padding-top:2px}
+.chapters{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--paper) 90%,transparent);backdrop-filter:blur(10px);border-block:1px solid var(--line)}
+.chapters .wrap{padding-block:8px}
+.ch-row{display:flex;gap:6px;overflow-x:auto}
+.sw{display:flex;gap:8px;align-items:center;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 9px;cursor:pointer;min-width:132px;flex:1}
+.sw-n{font:500 11.5px var(--font-mono);width:22px;height:22px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--c);color:var(--c);flex:none}
+.sw b{display:block;font-family:var(--font-display);font-size:14px;font-weight:700;line-height:1.15}
+.sw small{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sw[aria-pressed="true"]{border-color:var(--c);background:color-mix(in srgb,var(--c) 10%,var(--surface));box-shadow:inset 0 -3px 0 var(--c)}
+.sw[aria-pressed="true"] .sw-n{background:var(--c);color:var(--on-arch)}
+.app{--arch:var(--c-platform)}
+.app[data-arch="identity"]{--arch:var(--c-identity)}
+.app[data-arch="data"]{--arch:var(--c-data)}
+.app[data-arch="live"]{--arch:var(--c-live)}
+.app[data-arch="broker"]{--arch:var(--c-broker)}
+.app[data-arch="docs"]{--arch:var(--c-docs)}
+.app[data-arch="guide"]{--arch:var(--ink-2)}
+.sec{padding-block:32px}
+.sec + .sec{border-top:1px solid var(--line)}
+.arch-head{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(260px,.8fr);gap:22px;align-items:end;margin-bottom:14px}
+.arch-head h2{font-size:clamp(1.7rem,3.6vw,2.45rem);font-weight:760;color:var(--arch);margin:4px 0 8px}
+.def{color:var(--ink-2);max-width:68ch}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.stats div{background:var(--surface);padding:10px 12px}
+.stats dt{font:500 10.5px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stats dd{margin:2px 0 0;font-weight:600;font-size:14px}
+.usewhen{border-left:3px solid var(--arch);padding:2px 0 2px 12px;margin-bottom:16px;max-width:85ch}
+.bench{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:16px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.panel-title{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:10px}
+.panel-title h3,.trace-top h3{font-size:1rem;font-weight:700}
+.svgbox{overflow-x:auto}
+.dsvg{width:100%;height:auto;display:block;min-width:0;font-family:var(--font-body)}
+.dsvg .node rect{fill:var(--surface);stroke:var(--line-2);stroke-width:1.25}
+.dsvg .n-boundary rect{fill:color-mix(in srgb,var(--arch) 6%,var(--surface));stroke:var(--arch);stroke-dasharray:6 4}
+.dsvg .n-ext rect{fill:transparent;stroke-dasharray:4 3}
+.dsvg .n-db rect{fill:var(--surface-2)}
+.dsvg .n-stub rect{stroke-dasharray:3 3}
+.dsvg text{fill:var(--ink)}
+.dsvg .nlabel{font-size:12px;font-weight:600}
+.dsvg .nsub{font-size:10px;fill:var(--muted)}
+.dsvg .edge{fill:none;stroke:var(--line-2);stroke-width:1.4}
+.dsvg .edge.dashed{stroke-dasharray:4 4}
+.dsvg .mk{fill:var(--line-2)}
+.dsvg.stepping .node:not(.on):not(.n-boundary){opacity:.38}
+.dsvg.stepping .edge:not(.on){opacity:.25}
+.dsvg .node.on rect{fill:color-mix(in srgb,var(--arch) 16%,var(--surface));stroke:var(--arch);stroke-width:2}
+.dsvg .edge.on{stroke:var(--arch);stroke-width:2.3;stroke-dasharray:7 5;animation:flow .9s linear infinite}
+.dsvg .mk-on{fill:var(--arch)}
+@keyframes flow{to{stroke-dashoffset:-12}}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.lg{width:18px;height:11px;border-radius:2px;border:1.25px solid var(--line-2);background:var(--surface);display:inline-block}
+.lg.bound{border:1.25px dashed var(--arch);background:color-mix(in srgb,var(--arch) 8%,var(--surface))}
+.lg.ext{border-style:dashed;background:transparent}
+.lg.on{border:2px solid var(--arch);background:color-mix(in srgb,var(--arch) 16%,var(--surface))}
+.lg.stub{border-style:dotted}
+.trace-top{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:7px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer;color:var(--ink-2)}
+.seg button + button{border-left:1px solid var(--line-2)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.seg button[data-path="empty"][aria-pressed="true"]{background:var(--poor);color:#fff}
+.step-card{background:color-mix(in srgb,var(--arch) 10%,var(--surface));border:1px solid color-mix(in srgb,var(--arch) 30%,var(--line));border-radius:8px;padding:14px 16px;min-height:210px;display:grid;align-content:start;gap:7px}
+.sc-meta{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:11.5px;color:var(--muted)}
+.step-card h4{font-size:1.18rem;font-weight:700}
+.where{font-size:12px;color:var(--arch)}
+.why{color:var(--ink-2);border-top:1px solid color-mix(in srgb,var(--arch) 25%,var(--line));padding-top:8px}
+.why b{font:500 10.5px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--arch);display:block;margin-bottom:2px}
+.tag{font:500 10.5px var(--font-mono);letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:999px}
+.t-fail{background:var(--poor-bg);color:var(--poor)}
+.t-stub{background:var(--mixed-bg);color:var(--mixed)}
+.t-live{background:var(--good-bg);color:var(--good)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.btn{font-size:13.5px;font-weight:500;border:1px solid var(--line-2);background:var(--surface);border-radius:7px;padding:7px 14px;cursor:pointer}
+.btn.primary{background:var(--arch);border-color:var(--arch);color:var(--on-arch)}
+.btn:disabled{opacity:.4;cursor:default}
+.kbd{font-size:12px;color:var(--muted);margin-left:auto}
+.rows-head,.row{display:grid;grid-template-columns:24px minmax(0,1fr) 32%;gap:10px;align-items:center}
+.rows-head{font:500 10px var(--font-mono);color:var(--muted);padding:0 8px 4px}
+.axis{display:flex;justify-content:space-between}
+.rows{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.row{width:100%;border:0;background:transparent;text-align:left;padding:6px 8px;border-radius:6px;cursor:pointer}
+.row:hover{background:var(--surface-2)}
+.row.active{background:color-mix(in srgb,var(--arch) 12%,var(--surface))}
+.idx{font:500 11px var(--font-mono);width:22px;height:22px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line-2);color:var(--ink-2)}
+.row.active .idx{background:var(--arch);border-color:var(--arch);color:var(--on-arch)}
+.rt b{display:block;font-size:13px;font-weight:600;line-height:1.3}
+.rt small{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track{position:relative;height:9px;background:var(--surface-2);border-radius:2px}
+.bar{position:absolute;inset:0 auto 0 0;background:var(--arch);border-radius:2px;min-width:3px}
+.note-sm,.note{font-size:12.5px;color:var(--muted);margin-top:8px}
+.gc{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.gains,.costs{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--surface)}
+.gains h3,.costs h3{font-size:.95rem;margin-bottom:8px;display:flex;gap:8px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--good);display:inline-block}
+.costs .dot{background:var(--poor)}
+.gains ul,.costs ul,.plain{margin:0;padding-left:18px;display:grid;gap:4px;font-size:14px}
+.subsec{margin-top:22px}
+.subh{font-size:1.15rem;margin-bottom:8px}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:500 11px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+pre{margin:0;background:var(--code-bg);border-radius:8px;padding:12px 14px;overflow:auto;font:12.5px/1.55 var(--font-mono)}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.card h3{font-size:.98rem;margin-bottom:4px}
+.card p,.card li{font-size:13.5px;color:var(--ink-2)}
+.pillrow{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
+.pill{font:500 11px var(--font-mono);border-radius:999px;padding:3px 8px;border:1px solid var(--line)}
+.pill.live{background:var(--good-bg);color:var(--good);border-color:transparent}
+.pill.stub{background:var(--mixed-bg);color:var(--mixed);border-color:transparent}
+.kv{display:grid;gap:6px}
+.kv div{display:grid;grid-template-columns:minmax(180px,34%) 1fr;gap:8px;font-size:13.5px}
+.kv b{font-weight:600}
+.sim{display:grid;gap:12px}
+.sim label{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:14px}
+.sim input[type="range"]{width:min(280px,46vw)}
+.keys{display:grid;gap:8px}
+.key{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--surface-2)}
+.key .mono{font-size:12.5px;color:var(--arch)}
+.key strong{display:block;margin-top:2px}
+.log{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:4px;max-height:220px;overflow:auto}
+.log li{font:12.5px/1.45 var(--font-mono);padding:6px 8px;border-radius:6px;background:var(--code-bg)}
+.chunks{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.sent{border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px;background:var(--surface)}
+.sent.split{border-color:var(--arch);background:color-mix(in srgb,var(--arch) 12%,var(--surface))}
+.wi{display:grid;gap:8px}
+.wi button.q{width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;cursor:pointer}
+.wi button.q[aria-expanded="true"]{border-color:var(--arch)}
+.ans{padding:8px 12px 12px;color:var(--ink-2);font-size:14px}
+.plan{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.plan li{display:grid;grid-template-columns:64px 1fr;gap:8px;font-size:14px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:900px){
+  .domain,.arch-head,.bench,.gc,.cards,.two{grid-template-columns:1fr}
+  .contexts{grid-template-columns:1fr 1fr}
+  .kbd{display:none}
+}
+</style>
+</head>
+<body>
+<header class="intro">
+  <div class="wrap">
+    <div class="intro-top">
+      <p class="eyebrow">System design walkthrough · LearningEdge</p>
+      <button type="button" class="theme" id="theme">Theme</button>
+    </div>
+    <h1>One training file, the whole platform</h1>
+    <p class="lede">Follow an organization admin starting extraction on a PDF or Word file. The same action crosses the Angular UI, the .NET API, Keycloak, SQL Server, Redis, RabbitMQ, the document parser, Ollama, Qdrant, and SignalR. The question generator is on the map because the contract exists. Its consumer does not generate questions yet.</p>
+    <div class="domain">
+      <div>
+        <h2>The domain: LearningEdge</h2>
+        <p class="d-desc">A multi-tenant training system. An organization owns categories, trainings, files, question banks, and exams. Identity lives in Keycloak. Course data lives in SQL Server. Searchable document meaning lives in Qdrant, one collection per organization.</p>
+        <ul class="contexts">
+          <li><b>Identity</b><span>people, roles, approval</span></li>
+          <li><b>Catalog</b><span>orgs, categories, trainings</span></li>
+          <li><b>Materials</b><span>files on a shared volume</span></li>
+          <li><b>Questions</b><span>banks, prompts, items</span></li>
+          <li><b>Delivery</b><span>exams built from banks</span></li>
+        </ul>
+      </div>
+      <div class="rules">
+        <h3>An extract must</h3>
+        <ul>
+          <li><span class="mono">R1</span><span>Put vectors in that organization's Qdrant collection only.</span></li>
+          <li><span class="mono">R2</span><span>Start only for an OrgAdmin of that org, or a SysAdmin.</span></li>
+          <li><span class="mono">R3</span><span>Skip a file whose Redis status is already Completed.</span></li>
+          <li><span class="mono">R4</span><span>Let workers write Redis. Only the API speaks SignalR.</span></li>
+          <li><span class="mono">R5</span><span>Keep a learner out of Keycloak until an admin approves them.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="chapters" aria-label="Chapters">
+  <div class="wrap">
+    <div class="ch-row" id="chapters"></div>
+  </div>
+</nav>
+
+<main class="app" id="app" data-arch="platform">
+  <div class="view" data-view="platform"></div>
+  <div class="view" data-view="identity" hidden></div>
+  <div class="view" data-view="data" hidden></div>
+  <div class="view" data-view="live" hidden></div>
+  <div class="view" data-view="broker" hidden></div>
+  <div class="view" data-view="docs" hidden></div>
+  <div class="view" data-view="guide" hidden></div>
+</main>
+
+<script>
+const CHAPTERS = [
+  {id:'platform', n:'1', c:'var(--c-platform)', t:'Platform', s:'UI · API'},
+  {id:'identity', n:'2', c:'var(--c-identity)', t:'Identity', s:'Keycloak'},
+  {id:'data', n:'3', c:'var(--c-data)', t:'Data', s:'SQL · Redis'},
+  {id:'live', n:'4', c:'var(--c-live)', t:'Live', s:'SignalR'},
+  {id:'broker', n:'5', c:'var(--c-broker)', t:'Broker', s:'RabbitMQ'},
+  {id:'docs', n:'6', c:'var(--c-docs)', t:'Documents', s:'Ollama · Qdrant'},
+  {id:'guide', n:'7', c:'var(--ink-2)', t:'Guide', s:'walkthrough'}
+];
+
+const NODES = [
+  {id:'ui', x:24, y:16, w:168, h:48, t:'Angular UI', s:':4200 dev · :4300 nginx', kind:'ext'},
+  {id:'kc', x:214, y:16, w:176, h:48, t:'Keycloak 26', s:'realm learningedge · :8443', kind:'ext'},
+  {id:'pg', x:412, y:16, w:168, h:48, t:'Postgres 16', s:'Keycloak data only', kind:'db'},
+  {id:'handlers', x:40, y:112, w:168, h:40, t:'MediatR handlers', s:'', kind:'service'},
+  {id:'hub', x:224, y:112, w:168, h:40, t:'SignalR hub', s:'', kind:'service'},
+  {id:'sql', x:24, y:214, w:176, h:52, t:'SQL Server 2022', s:'LearningEdgeDB · :11433', kind:'db'},
+  {id:'redis', x:216, y:214, w:176, h:52, t:'Redis 7.2', s:'host :6380 → :6379', kind:'db'},
+  {id:'mq', x:408, y:214, w:172, h:52, t:'RabbitMQ 3', s:':5672 · UI :15672', kind:'db'},
+  {id:'files', x:24, y:286, w:176, h:44, t:'uploads volume', s:'shared by API and parser', kind:'ext'},
+  {id:'parser', x:24, y:350, w:200, h:56, t:'Document parser', s:'MassTransit consumer', kind:'service'},
+  {id:'ollama', x:240, y:350, w:164, h:56, t:'Ollama', s:':11434', kind:'ext'},
+  {id:'qdrant', x:420, y:350, w:160, h:56, t:'Qdrant', s:':6333 REST · :6334 gRPC', kind:'db'},
+  {id:'qgs', x:24, y:424, w:280, h:48, t:'Question generator', s:'contract exists · consumer is a stub', kind:'stub'}
+];
+
+const EDGES = [
+  {id:'e-ui-kc', a:'ui', as:'r', b:'kc', bs:'l'},
+  {id:'e-kc-pg', a:'kc', as:'r', b:'pg', bs:'l'},
+  {id:'e-ui-api', a:'ui', as:'b', b:'handlers', bs:'t'},
+  {id:'e-api-kc', a:'handlers', as:'t', b:'kc', bs:'b', dashed:true},
+  {id:'e-api-sql', a:'handlers', as:'b', b:'sql', bs:'t'},
+  {id:'e-hub-redis', a:'hub', as:'b', b:'redis', bs:'t', dashed:true},
+  {id:'e-api-redis', a:'handlers', as:'b', b:'redis', bs:'t'},
+  {id:'e-api-mq', a:'handlers', as:'r', b:'mq', bs:'t'},
+  {id:'e-mq-parser', a:'mq', as:'b', b:'parser', bs:'r'},
+  {id:'e-parser-files', a:'parser', as:'t', b:'files', bs:'b'},
+  {id:'e-parser-ollama', a:'parser', as:'r', b:'ollama', bs:'l'},
+  {id:'e-ollama-q', a:'ollama', as:'r', b:'qdrant', bs:'l'},
+  {id:'e-parser-mq', a:'parser', as:'r', b:'mq', bs:'b', dashed:true},
+  {id:'e-hub-ui', a:'hub', as:'l', b:'ui', bs:'b', dashed:true},
+  {id:'e-qgs', a:'mq', as:'l', b:'qgs', bs:'r', dashed:true}
+];
+
+function anchor(id, side){
+  const n = NODES.find(x => x.id === id);
+  const cx = n.x + n.w / 2, cy = n.y + n.h / 2;
+  if (side === 'l') return [n.x, cy];
+  if (side === 'r') return [n.x + n.w, cy];
+  if (side === 't') return [cx, n.y];
+  return [cx, n.y + n.h];
+}
+
+const HAPPY = [
+  {t:'Present the token', where:'Angular UI → LearningEdge.Api', tag:'live', tagt:'On the request',
+    body:'The instructor is already signed in. The UI calls the API over HTTPS with Authorization: Bearer. JwtBearer checks the issuer, audience, and signature against the Keycloak realm metadata for learningedge.',
+    why:'The API does not issue tokens and does not look the user up in SQL to decide that they are signed in. Keycloak already did that.',
+    nodes:['ui','kc','handlers'], edges:['e-ui-api','e-api-kc'], share:4},
+  {t:'Allow only an admin', where:'TrainingCommandHandlers', tag:'live', tagt:'R2',
+    body:'UpdateTrainingInitiateFileExtractCommand loads the training in that organization. The caller must be a SysAdmin, or an OrgAdmin of the same organization. Anyone else gets a forbidden result.',
+    why:'A realm role is not enough on its own. The handler also checks the organization on the training row.',
+    nodes:['handlers','sql'], edges:['e-api-sql'], share:4},
+  {t:'Publish, then mark Queued', where:'MassTransit + Redis', tag:'live', tagt:'R4',
+    body:'The handler publishes IExtractRequestSubmitted onto the RabbitMQ entity le-file-extract-requested. It then writes two Redis keys for one hour: status Queued and progress 0. The file bytes are already on the shared uploads volume.',
+    why:'The HTTP call can finish before parsing starts. Redis is the board the UI will read. The queue is the work order.',
+    nodes:['handlers','redis','mq','files'], edges:['e-api-redis','e-api-mq'], share:5},
+  {t:'Watch the file', where:'FileExtractProgressHub · /hubs/file-extract', tag:'live', tagt:'SignalR',
+    body:'The UI calls Watch(fileId). The hub joins the connection to the group file-extract:{fileId} and immediately sends the Redis snapshot it can see right now.',
+    why:'The first paint should not wait for the next 500 ms poll. Watch is a snapshot plus a subscription.',
+    nodes:['ui','hub','redis'], edges:['e-hub-redis','e-hub-ui'], share:4},
+  {t:'Claim the message', where:'FileExtractRequestConsumer', tag:'live', tagt:'R3',
+    body:'The document parser reads status from Redis. Completed means stop. Otherwise it sets Processing, resolves the storage key under the uploads root, and sets IsFileExtractionStarted on the TrainingFile row.',
+    why:'RabbitMQ can deliver the same message again. The Redis status is the short-circuit, not a distributed lock.',
+    nodes:['mq','parser','redis','sql','files'], edges:['e-mq-parser','e-parser-files','e-api-sql'], share:6},
+  {t:'Pull the text out', where:'DocumentParsingService', tag:'live', tagt:'pdf · docx',
+    body:'Extension chooses the reader. .pdf and .docx are supported. A missing file or an empty extract becomes a failed completion. No vectors are written.',
+    why:'An empty document is a business failure, not a poison message. The completion event still has to tell the API.',
+    nodes:['parser','files'], edges:['e-parser-files'], share:10},
+  {t:'Cut the text where the topic shifts', where:'EmbeddingService · Ollama', tag:'live', tagt:'Dominates the wait',
+    body:'Each sentence is embedded with qwen3-embedding:0.6b. If cosine similarity with the next sentence drops below 0.72, the chunk closes. Every chunk then gets its own vector, and Redis progress is the percent of chunks finished.',
+    why:'This is the slow step. The progress bar exists so the UI has something true to show while Ollama works.',
+    nodes:['parser','ollama','redis'], edges:['e-parser-ollama','e-hub-redis'], share:48},
+  {t:'Store one organization\'s vectors', where:'Qdrant', tag:'live', tagt:'R1',
+    body:'The collection name is le_docs_ plus the organization id with dashes removed. Each point carries the chunk text, chunk_type semantic, a timestamp, and file_id.',
+    why:'SQL isolation is a column. Vector isolation is a collection. A query for one tenant must not see another tenant\'s chunks.',
+    nodes:['parser','qdrant','ollama'], edges:['e-ollama-q','e-parser-ollama'], share:10},
+  {t:'Tell the API it finished', where:'le-file-extract-completed', tag:'live', tagt:'At least once',
+    body:'The parser sets Redis to Completed and publishes IExtractRequestCompleted. ExtractRequestCompletedConsumer sends UpdateTrainingFileExtractCompletedCommand, which records success on the TrainingFile.',
+    why:'The parser does not update the UI, and it does not own the final training-file status. It announces a fact. The API applies it.',
+    nodes:['parser','mq','handlers','sql','redis'], edges:['e-parser-mq','e-api-sql','e-api-redis'], share:5},
+  {t:'Push only when the board changed', where:'FileExtractProgressPublisher', tag:'live', tagt:'Every 500 ms',
+    body:'A background service reads Redis for files somebody is watching. It sends the progress event to the SignalR group only when status and percent differ from the last push.',
+    why:'The parser never opens a SignalR connection. If Redis is the board, any number of browsers can watch without the worker knowing they exist.',
+    nodes:['redis','hub','ui'], edges:['e-hub-redis','e-hub-ui'], share:4}
+];
+
+const EMPTY = HAPPY.slice(0, 6).concat([
+  {t:'No text came out', where:'Document parser', tag:'fail', tagt:'Stop before Qdrant',
+    body:'The reader returned nothing. Redis status becomes Failed. IExtractRequestCompleted goes out with IsSuccessful false and a reason. Qdrant is not touched. Ollama is not asked to embed.',
+    why:'A failed extract still has to be visible. The completion message is how SQL and, through Redis, the UI learn that.',
+    nodes:['parser','redis','mq'], edges:['e-parser-mq'], share:8},
+  {t:'The API records the failure', where:'ExtractRequestCompletedConsumer', tag:'fail', tagt:'SQL is the record',
+    body:'The same consumer that handles success now records the failure against the training file. The UI\'s next SignalR push shows Failed and the progress reader keeps the percent from climbing to 100.',
+    why:'Completed is the only status the reader forces to 100. Failed stays a failure on the wire.',
+    nodes:['mq','handlers','sql','redis','hub','ui'], edges:['e-parser-mq','e-api-sql','e-hub-ui'], share:8}
+]);
+
+const IDENTITY = [
+  {t:'Two databases, one person', where:'Postgres and SQL Server', tag:'live', tagt:'R5',
+    body:'Keycloak keeps credentials in its own Postgres database. LearningEdge keeps the profile, role, and organization in SQL Server. The link is User.KeycloakUserId.',
+    why:'Losing the app database must not become the identity provider. Losing Keycloak must not become the course catalog.',
+    nodes:['kc','pg','sql','handlers'], edges:['e-kc-pg','e-api-sql'], share:20},
+  {t:'Register a learner as pending', where:'POST the user', tag:'live', tagt:'No Keycloak yet',
+    body:'Self-registration writes a SQL user and holds the password with a reversible protector. It does not call Keycloak. The person cannot sign in.',
+    why:'An organization admin has to accept the learner first. A Keycloak account is the acceptance, not the request.',
+    nodes:['ui','handlers','sql'], edges:['e-ui-api','e-api-sql'], share:20},
+  {t:'Approval creates the account', where:'Keycloak admin REST', tag:'live', tagt:'Service account',
+    body:'An OrgAdmin of that organization, or a SysAdmin, approves. The API\'s confidential client asks Keycloak for an admin token, creates the user, sets the password, assigns the learner realm role, stores the Keycloak id, and clears the protected password.',
+    why:'If Keycloak rejects the call, the handler does not leave an active LearningEdge user that can never sign in.',
+    nodes:['handlers','kc','pg','sql'], edges:['e-api-kc','e-kc-pg','e-api-sql'], share:30},
+  {t:'An org admin is created in both places', where:'CreateOrganizationAdminCommand', tag:'live', tagt:'SysAdmin',
+    body:'A system admin sends the new admin\'s password once. The handler creates the Keycloak user with the OrgAdmin realm role and the SQL user together. A missing realm role fails the operation.',
+    why:'SysAdmin itself is provisioned in Keycloak. The app does not have a "create system admin" command.',
+    nodes:['ui','handlers','kc','sql'], edges:['e-ui-api','e-api-kc','e-api-sql'], share:15},
+  {t:'Every later call re-reads the token', where:'JwtBearer + KeycloakRoles', tag:'live', tagt:'realm_access',
+    body:'The authority is https://localhost:8443/realms/learningedge. On each token, roles inside the realm_access JSON are copied onto role claims. SysAdmin also matches system-admin, superadmin, and the other aliases in KeycloakRoles.',
+    why:'Keycloak\'s default shape is a nested roles array. ASP.NET role checks do not read that shape unless something copies it.',
+    nodes:['ui','kc','handlers'], edges:['e-ui-api','e-api-kc'], share:15}
+];
+
+const state = {
+  chapter: 'platform',
+  path: 'happy',
+  step: 0,
+  playing: false,
+  timer: null,
+  theme: document.documentElement.getAttribute('data-theme') || ''
+};
+
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
+
+function stepsFor(){
+  if (state.chapter === 'identity') return IDENTITY;
+  if (state.chapter === 'platform') return state.path === 'empty' ? EMPTY : HAPPY;
+  return HAPPY;
+}
+
+function renderChapters(){
+  $('#chapters').innerHTML = CHAPTERS.map(ch => `
+    <button type="button" class="sw" data-ch="${ch.id}" style="--c:${ch.c}" aria-pressed="${state.chapter===ch.id}">
+      <span class="sw-n">${ch.n}</span><span class="sw-t"><b>${ch.t}</b><small>${ch.s}</small></span>
+    </button>`).join('');
+}
+
+function diagram(active){
+  const nodes = new Set(active?.nodes || []);
+  const edges = new Set(active?.edges || []);
+  const stepping = !!active;
+  const edgeSvg = EDGES.map(e => {
+    const [x1,y1] = anchor(e.a, e.as);
+    const [x2,y2] = anchor(e.b, e.bs);
+    const on = edges.has(e.id);
+    return `<path class="edge${e.dashed?' dashed':''}${on?' on':''}" d="M${x1} ${y1} L${x2} ${y2}" marker-end="url(#${on?'mk-on':'mk'})"/>`;
+  }).join('');
+  const nodeSvg = NODES.map(n => {
+    const on = nodes.has(n.id);
+    const sub = n.s ? `<text class="nsub" x="${n.w/2}" y="36" text-anchor="middle">${n.s}</text>` : '';
+    const ty = n.s ? 20 : (n.h/2 + 4);
+    return `<g class="node n-${n.kind}${on?' on':''}" transform="translate(${n.x},${n.y})">
+      <rect width="${n.w}" height="${n.h}" rx="6"/>
+      <text class="nlabel" x="${n.w/2}" y="${ty}" text-anchor="middle">${n.t}</text>${sub}</g>`;
+  }).join('');
+  return `<svg class="dsvg${stepping?' stepping':''}" viewBox="0 0 604 488" role="img" aria-label="LearningEdge runtime">
+    <defs>
+      <marker id="mk" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0 0 L10 5 L0 10 z"/></marker>
+      <marker id="mk-on" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-on" d="M0 0 L10 5 L0 10 z"/></marker>
+    </defs>
+    <g class="node n-boundary"><rect x="28" y="84" width="380" height="84" rx="8"/></g>
+    <text class="nsub" x="40" y="100">LearningEdge.Api · one process</text>
+    ${edgeSvg}${nodeSvg}
+  </svg>`;
+}
+
+function stepCard(list){
+  const s = list[state.step];
+  const cls = s.tag === 'fail' ? 't-fail' : s.tag === 'stub' ? 't-stub' : 't-live';
+  return `<div class="sc-meta"><span>Step ${state.step+1} of ${list.length}</span><span class="tag ${cls}">${s.tagt}</span></div>
+    <h4>${s.t}</h4><div class="where">${s.where}</div><p>${s.body}</p>
+    <div class="why"><b>Why it is this way</b>${s.why}</div>`;
+}
+
+function rows(list){
+  return list.map((s,i) => `<li><button type="button" class="row${i===state.step?' active':''}" data-i="${i}">
+    <span class="idx">${i+1}</span>
+    <span class="rt"><b>${s.t}</b><small>${s.where}</small></span>
+    <span class="track"><span class="bar" style="width:${s.share}%"></span></span>
+  </button></li>`).join('');
+}
+
+function mountTrace(title, list, withPath){
+  const path = withPath ? `<div class="seg" role="group" aria-label="Which path">
+      <button type="button" data-path="happy" aria-pressed="${state.path==='happy'}">Text extracted</button>
+      <button type="button" data-path="empty" aria-pressed="${state.path==='empty'}">No text in the file</button>
+    </div>` : '';
+  return `<div class="trace-top"><h3>${title}</h3>${path}</div>
+    <div class="step-card" aria-live="polite">${stepCard(list)}</div>
+    <div class="controls">
+      <button type="button" class="btn" id="prev" ${state.step===0?'disabled':''}>← Prev</button>
+      <button type="button" class="btn primary" id="play" aria-pressed="${state.playing}">${state.playing?'Pause':'Play'}</button>
+      <button type="button" class="btn" id="next" ${state.step===list.length-1?'disabled':''}>Next →</button>
+      <span class="kbd">Keys: ← → step · 1–7 chapters</span>
+    </div>
+    <div class="rows-head"><span></span><span>step</span><span class="axis"><span>less of the wait</span><span>more</span></span></div>
+    <ol class="rows">${rows(list)}</ol>
+    <p class="note-sm">Bar length is share of the wait, not a measured benchmark. Embedding is the long pole on a real file.</p>`;
+}
+
+function platformView(){
+  const list = stepsFor();
+  return `<section class="sec"><div class="wrap">
+    <div class="arch-head">
+      <div>
+        <p class="eyebrow">Chapter 1 of 7 · UI and API</p>
+        <h2>A clean-architecture host, with workers beside it</h2>
+        <p class="def">The Angular app talks only to LearningEdge.Api. The API is one deployable: controllers, MediatR handlers, EF Core, MassTransit, and the SignalR hub. Parsing and question generation are separate processes. They share SQL Server, Redis, RabbitMQ, and the uploads volume. They do not share a project reference into the API.</p>
+      </div>
+      <dl class="stats">
+        <div><dt>UI</dt><dd>Angular, Keycloak bearer</dd></div>
+        <div><dt>API shape</dt><dd>/api/v1/{controller}</dd></div>
+        <div><dt>Inside the API</dt><dd>Api → Application → Domain</dd></div>
+        <div><dt>Workers</dt><dd>Document parser, question generator</dd></div>
+      </dl>
+    </div>
+    <p class="usewhen"><b>Dependency direction.</b> Domain has no infrastructure. Application defines the cache, file, and Keycloak ports. Infrastructure and the workers implement them. Messaging.Contracts is the only shared message surface.</p>
+    <div class="bench">
+      <figure class="panel">
+        <div class="panel-title"><h3>Runtime</h3><span class="eyebrow">highlights follow the trace</span></div>
+        <div class="svgbox">${diagram(list[state.step])}</div>
+        <figcaption class="legend">
+          <span><i class="lg bound"></i>API process</span>
+          <span><i class="lg"></i>service or store</span>
+          <span><i class="lg ext"></i>outside the .NET solution</span>
+          <span><i class="lg stub"></i>stub</span>
+          <span><i class="lg on"></i>active in this step</span>
+        </figcaption>
+      </figure>
+      <div class="panel">${mountTrace('Trace: start extract', list, true)}</div>
+    </div>
+    <div class="pillrow">
+      <span class="pill live">Live: UI, API, Keycloak, SQL, Redis, RabbitMQ extract path, parser, Ollama embeddings, Qdrant, SignalR</span>
+      <span class="pill stub">Stub: question generator waits one second and returns. It is not in docker-compose.</span>
+    </div>
+    <div class="gc">
+      <div class="gains"><h3><span class="dot"></span>What this split gives you</h3>
+        <ul>
+          <li>The request that starts an extract returns without waiting for Ollama.</li>
+          <li>A slow PDF does not occupy an API thread for the whole embedding run.</li>
+          <li>The UI can disconnect and reconnect. Progress still sits in Redis for an hour.</li>
+          <li>Contracts are interfaces, so the parser and the API can deploy on different cadences.</li>
+        </ul>
+      </div>
+      <div class="costs"><h3><span class="dot"></span>What it costs</h3>
+        <ul>
+          <li>The file, the queue, Redis, and SQL can disagree for a short time.</li>
+          <li>A message can arrive twice. Consumers have to notice Completed and stop.</li>
+          <li>You operate Keycloak\'s Postgres and the app\'s SQL Server as different systems.</li>
+          <li>The question path is published from the API, and the worker that should finish it is not done.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="subsec">
+      <h3 class="subh">Projects</h3>
+      <div class="cards">
+        <article class="card"><h3>LearningEdge.Api</h3><p>Controllers, JWT, SignalR hub, the 500 ms progress publisher, MassTransit host for the completion queue.</p></article>
+        <article class="card"><h3>Application + Domain</h3><p>Commands, handlers, entities. Users, organizations, trainings, files, banks, questions, exams, prompt requests.</p></article>
+        <article class="card"><h3>Infrastructure</h3><p>EF Core, Redis cache, Keycloak admin client, the extract-completed consumer.</p></article>
+        <article class="card"><h3>Messaging.Contracts</h3><p>IExtractRequestSubmitted, IExtractRequestCompleted, IQuestionGenerationSubmitted, IQuestionGenerationCompleted.</p></article>
+        <article class="card"><h3>DocumentParserService</h3><p>Consumes the extract request. Reads the file, embeds with Ollama, upserts Qdrant, publishes completion.</p></article>
+        <article class="card"><h3>QuestionGeneratorService</h3><p>Consumer is registered. The body delays and returns. Compose does not start this container.</p></article>
+      </div>
+    </div>
+  </div></section>`;
+}
+
+function identityView(){
+  const list = IDENTITY;
+  return `<section class="sec"><div class="wrap">
+    <div class="arch-head">
+      <div>
+        <p class="eyebrow">Chapter 2 of 7 · Authentication</p>
+        <h2>Keycloak signs people in. The API provisions them.</h2>
+        <p class="def">Browsers use the realm learningedge on port 8443. The API validates access tokens and, for two admin actions, calls Keycloak\'s admin REST API with a confidential client. Learner self-registration does not create a Keycloak user.</p>
+      </div>
+      <dl class="stats">
+        <div><dt>Authority</dt><dd>…/realms/learningedge</dd></div>
+        <div><dt>App roles</dt><dd>Learner, Instructor, OrgAdmin, SysAdmin</dd></div>
+        <div><dt>Token roles</dt><dd>realm_access.roles</dd></div>
+        <div><dt>Keycloak store</dt><dd>Postgres 16, not SQL Server</dd></div>
+      </dl>
+    </div>
+    <p class="usewhen"><b>Rule R5.</b> A pending learner row in SQL Server is not an account. Approval is the moment both stores agree.</p>
+    <div class="bench">
+      <figure class="panel">
+        <div class="panel-title"><h3>Who talks to Keycloak</h3><span class="eyebrow">same runtime map</span></div>
+        <div class="svgbox">${diagram(list[state.step])}</div>
+      </figure>
+      <div class="panel">${mountTrace('Trace: from registration to a trusted call', list, false)}</div>
+    </div>
+    <div class="subsec two">
+      <div class="panel">
+        <h3>What the API checks</h3>
+        <ul class="plain">
+          <li>Issuer and signing keys from the realm metadata.</li>
+          <li>Audience against the API client id.</li>
+          <li>Realm roles, including the SysAdmin aliases, after they are copied onto role claims.</li>
+          <li>For an extract, the SQL organization as well as the role.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>What Keycloak keeps that SQL does not</h3>
+        <ul class="plain">
+          <li>Passwords, after approval. The protected pending password is cleared.</li>
+          <li>Sessions and refresh tokens.</li>
+          <li>The realm role that later appears in the access token.</li>
+          <li>The service-account rights the admin client uses to create users.</li>
+        </ul>
+      </div>
+    </div>
+  </div></section>`;
+}
+
+const redisState = { status:'Processing', progress:35, again:false };
+
+function dataView(){
+  const id = '3f1c0a2e-7b44-4d1a-9c20-6a0e5b91d8f2';
+  const statusKey = `file_extraction:${id}:status`;
+  const progressKey = `file_extraction:${id}:progress`;
+  const skip = redisState.again && redisState.status === 'Completed';
+  return `<section class="sec"><div class="wrap">
+    <div class="arch-head">
+      <div>
+        <p class="eyebrow">Chapter 3 of 7 · SQL Server and Redis</p>
+        <h2>SQL remembers the course. Redis remembers the job.</h2>
+        <p class="def">LearningEdgeDB is the system of record for organizations, people, trainings, files, banks, questions, and exams. Redis holds the extract board: status and percent, for one hour. Output caching of read endpoints is a separate 30-second policy and is not this board.</p>
+      </div>
+      <dl class="stats">
+        <div><dt>Database</dt><dd>LearningEdgeDB on SQL Server 2022</dd></div>
+        <div><dt>Host port</dt><dd>11433 → container 1433</dd></div>
+        <div><dt>Extract TTL</dt><dd>1 hour</dd></div>
+        <div><dt>Redis from the host</dt><dd>6380, because 6379 is often taken</dd></div>
+      </dl>
+    </div>
+    <p class="usewhen"><b>Do not charge a decision to Redis.</b> Authorization and the training-file outcome are SQL. Redis is how a browser sees a long job without asking the parser.</p>
+    <div class="bench">
+      <div class="panel sim" id="redis-sim">
+        <div class="panel-title"><h3>Extract board</h3><span class="eyebrow">one file</span></div>
+        <label>Status
+          <select id="r-status">
+            ${['Queued','Processing','Completed','Failed'].map(s => `<option${s===redisState.status?' selected':''}>${s}</option>`).join('')}
+          </select>
+        </label>
+        <label>Embedding progress <output class="mono" id="r-out">${redisState.progress}%</output>
+          <input id="r-progress" type="range" min="0" max="100" value="${redisState.progress}">
+        </label>
+        <button type="button" class="btn" id="r-again">Deliver the extract message again</button>
+        <p class="note" id="r-note">${skip
+          ? 'The consumer sees Completed and returns. Qdrant is not written a second time. That is rule R3.'
+          : 'A second delivery while status is ' + redisState.status + ' will run the pipeline again. Only Completed is the skip.'}</p>
+      </div>
+      <div class="panel">
+        <h3>Keys the parser and the hub share</h3>
+        <div class="keys">
+          <div class="key"><span class="mono">${statusKey}</span><strong id="r-status-val">${redisState.status}</strong></div>
+          <div class="key"><span class="mono">${progressKey}</span><strong id="r-progress-val">${redisState.status==='Completed' ? '100 (reader forces this)' : redisState.status==='Queued' ? '0 (reader forces this)' : redisState.progress}</strong></div>
+        </div>
+        <p class="note-sm">FileExtractProgressReader reports 0 while Queued, and 100 when Completed, whatever the progress key says. Other statuses use the stored percent, rounded up.</p>
+      </div>
+    </div>
+    <div class="subsec">
+      <h3 class="subh">Tables that matter to this flow</h3>
+      <div class="tablebox"><table>
+        <thead><tr><th>Row</th><th>Kept because</th></tr></thead>
+        <tbody>
+          <tr><td>Organization</td><td>Tenant. Its id, with dashes removed, is the Qdrant collection suffix.</td></tr>
+          <tr><td>User</td><td>Role, organization, KeycloakUserId, and the protected password until approval.</td></tr>
+          <tr><td>Category, Training</td><td>The catalog the file hangs from. Extract checks category, training, and organization together.</td></tr>
+          <tr><td>TrainingFile</td><td>Name, content type, size, storage key, who uploaded it, and whether extraction started or failed.</td></tr>
+          <tr><td>QuestionBank, Question</td><td>MCQ, multi-select, and true/false items the generator is meant to fill.</td></tr>
+          <tr><td>PromptRequest</td><td>The saved prompt. The API commits this row even if the later publish fails.</td></tr>
+          <tr><td>Exam, ExamQuestion</td><td>A later delivery concern. Not on the extract path.</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div></section>`;
+}
+
+const live = { watching:false, progress:0, status:'Queued', last:'', log:['Publisher idle. Nobody is in a group.'] };
+
+function pushLive(forceNote){
+  const token = `${live.status}:${live.status==='Completed'?100:live.progress}`;
+  if (!live.watching){
+    live.log.unshift('No watchers. Redis can change and SignalR stays quiet.');
+  } else if (live.last === token){
+    live.log.unshift(`Tick. ${token} matches the last push. Nothing is sent.`);
+  } else {
+    live.last = token;
+    live.log.unshift(`Send progress to file-extract group. status=${live.status} percent=${live.status==='Completed'?100:live.progress}`);
+  }
+  if (forceNote) live.log.unshift(forceNote);
+  live.log = live.log.slice(0, 8);
+}
+
+function liveView(){
+  return `<section class="sec"><div class="wrap">
+    <div class="arch-head">
+      <div>
+        <p class="eyebrow">Chapter 4 of 7 · Real time</p>
+        <h2>SignalR reads the board. It does not do the work.</h2>
+        <p class="def">The hub is mapped at /hubs/file-extract. Watch joins a group named file-extract:{fileId} and sends the current snapshot to that caller. A hosted service then polls Redis every 500 ms, but only for file ids somebody is still watching, and only pushes when the status:percent token changed.</p>
+      </div>
+      <dl class="stats">
+        <div><dt>Hub method</dt><dd>Watch(fileId) / Unwatch</dd></div>
+        <div><dt>Client event</dt><dd>progress</dd></div>
+        <div><dt>Poll</dt><dd>500 ms, per watched file</dd></div>
+        <div><dt>Worker protocol</dt><dd>None. Workers write Redis.</dd></div>
+      </dl>
+    </div>
+    <p class="usewhen"><b>Rule R4.</b> The document parser can be restarted without dropping browser connections, because the browsers were never connected to it.</p>
+    <div class="bench">
+      <div class="panel sim" id="live-sim">
+        <div class="panel-title"><h3>One browser, one file</h3><span class="eyebrow">illustrative ticks</span></div>
+        <div class="controls">
+          <button type="button" class="btn primary" id="lv-watch">${live.watching?'Unwatch':'Watch'}</button>
+          <button type="button" class="btn" id="lv-tick">Tick 500 ms</button>
+          <button type="button" class="btn" id="lv-chunk">Parser finishes a chunk</button>
+          <button type="button" class="btn" id="lv-done">Mark Completed</button>
+        </div>
+        <p>Watching: <b>${live.watching ? 'yes' : 'no'}</b> · Redis now: <b>${live.status}</b> · <b>${live.status==='Completed'?100:live.progress}%</b></p>
+        <p class="note-sm">Disconnect clears the connection in FileExtractWatchRegistry. If that was the last watcher, the publisher stops reading that file.</p>
+      </div>
+      <div class="panel">
+        <h3>What the hub sent</h3>
+        <ol class="log">${live.log.map(x => `<li>${x}</li>`).join('')}</ol>
+      </div>
+    </div>
+    <div class="subsec two">
+      <article class="panel"><h3>On Watch</h3><p>Add the connection to the group. Read Redis once. Send that snapshot to the caller only, so a second browser does not get a duplicate of someone else\'s first frame.</p></article>
+      <article class="panel"><h3>On the timer</h3><p>Read every active file. Skip the send when the token is unchanged. That is why a quiet file does not flood the socket every half second.</p></article>
+    </div>
+  </div></section>`;
+}
+
+const broker = {
+  queued: 0,
+  unacked: 0,
+  done: 0,
+  prompts: 0,
+  log: ['Extract queue le-file-extract-requested is empty.']
+};
+
+function brokerNote(text){ broker.log.unshift(text); broker.log = broker.log.slice(0, 9); }
+
+function brokerView(){
+  return `<section class="sec"><div class="wrap">
+    <div class="arch-head">
+      <div>
+        <p class="eyebrow">Chapter 5 of 7 · Message broker</p>
+        <h2>RabbitMQ moves facts. It does not share a database transaction.</h2>
+        <p class="def">MassTransit names the extract request le-file-extract-requested. The API listens on le-file-extract-completed. A prompt publish uses IQuestionGenerationSubmitted with an 8 second timeout. The entity-name line for that message, and the API consumer for question-generation completion, are commented out.</p>
+      </div>
+      <dl class="stats">
+        <div><dt>Extract request</dt><dd>le-file-extract-requested</dd></div>
+        <div><dt>Extract done</dt><dd>le-file-extract-completed</dd></div>
+        <div><dt>Prompt event</dt><dd>published, worker unfinished</dd></div>
+        <div><dt>Delivery</dt><dd>at least once</dd></div>
+      </dl>
+    </div>
+    <p class="usewhen"><b>Ask this before adding a queue.</b> Does a person need the answer inside this HTTP call? Extract does not. Creating the prompt row does, which is why that row is saved before publish, and publish failure is returned as its own error.</p>
+    <div class="bench">
+      <div class="panel" id="broker-sim">
+        <div class="panel-title"><h3>Extract queue</h3><span class="eyebrow">click through one failure</span></div>
+        <div class="controls">
+          <button type="button" class="btn primary" id="b-pub">Publish extract</button>
+          <button type="button" class="btn" id="b-take">Parser takes one</button>
+          <button type="button" class="btn" id="b-ack">Ack after Qdrant</button>
+          <button type="button" class="btn" id="b-crash">Process dies before ack</button>
+          <button type="button" class="btn" id="b-prompt">Publish a prompt</button>
+        </div>
+        <div class="kv">
+          <div><b>Ready</b><span>${broker.queued}</span></div>
+          <div><b>Unacked at the parser</b><span>${broker.unacked}</span></div>
+          <div><b>Completion events</b><span>${broker.done}</span></div>
+          <div><b>Prompt messages</b><span>${broker.prompts} sitting with no finished consumer</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Broker log</h3>
+        <ol class="log">${broker.log.map(x => `<li>${x}</li>`).join('')}</ol>
+      </div>
+    </div>
+    <div class="subsec">
+      <div class="tablebox"><table>
+        <thead><tr><th>Message</th><th>Who publishes</th><th>Who consumes</th><th>Today</th></tr></thead>
+        <tbody>
+          <tr><td>IExtractRequestSubmitted</td><td>API handler, after the admin check</td><td>Document parser</td><td>Running</td></tr>
+          <tr><td>IExtractRequestCompleted</td><td>Parser, success or failure</td><td>API, then a MediatR command</td><td>Running</td></tr>
+          <tr><td>IQuestionGenerationSubmitted</td><td>API, after the prompt row is saved</td><td>Question generator</td><td>Publish is live. Consumer waits 1 second.</td></tr>
+          <tr><td>IQuestionGenerationCompleted</td><td>Not published</td><td>API registration is commented out</td><td>Not on the bus</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div></section>`;
+}
+
+const sentences = [
+  {text:'Photosynthesis stores energy in glucose.', sim:0.91},
+  {text:'Chlorophyll absorbs red and blue light.', sim:0.88},
+  {text:'The exam allows one retake within 14 days.', sim:0.44},
+  {text:'A failed retake locks the course for the term.', sim:0.86}
+];
+let threshold = 0.72;
+
+function chunkMarkup(){
+  const breaks = sentences.map((s,i) => i < sentences.length-1 && sentences[i].sim < threshold);
+  let n = 1;
+  return sentences.map((s,i) => {
+    const label = `Chunk ${n}`;
+    if (breaks[i]) n += 1;
+    return `<span class="sent${breaks[i]?' split':''}">${label}: ${s.text}${i<sentences.length-1?` <span class="mono">sim ${s.sim.toFixed(2)}</span>`:''}</span>`;
+  }).join('');
+}
+
+function docsView(){
+  const splits = sentences.filter((s,i) => i < sentences.length-1 && s.sim < threshold).length + 1;
+  return `<section class="sec"><div class="wrap">
+    <div class="arch-head">
+      <div>
+        <p class="eyebrow">Chapter 6 of 7 · Document intelligence</p>
+        <h2>Parse, then embed, then remember the organization</h2>
+        <p class="def">The parser extracts text, asks Ollama for vectors, and upserts Qdrant. The image also pulls llama3.1:8b for generation. Nothing in the question-generator consumer calls that model yet.</p>
+      </div>
+      <dl class="stats">
+        <div><dt>Readers</dt><dd>PDF and DOCX</dd></div>
+        <div><dt>Embedding model</dt><dd>qwen3-embedding:0.6b</dd></div>
+        <div><dt>Split</dt><dd>cosine similarity under 0.72</dd></div>
+        <div><dt>Collection</dt><dd>le_docs_{organizationId:N}</dd></div>
+      </dl>
+    </div>
+    <p class="usewhen"><b>Embed the raw chunk.</b> The parser does not prepend a query instruction when it stores a vector. Instructions belong on the question you ask later, not on the memory.</p>
+    <div class="cards">
+      <article class="card"><h3>1. Read</h3><p>Storage key is combined with the uploads root and checked so it cannot escape that root. Missing file or blank text ends the job as Failed.</p></article>
+      <article class="card"><h3>2. Split</h3><p>Sentences are embedded one by one. A similarity drop starts a new chunk. The threshold in code is 0.72, chosen for this embedding model.</p></article>
+      <article class="card"><h3>3. Store</h3><p>Each point has a time-based id, the vector, and a payload of text, chunk type, inserted_at, and file_id. The collection is created if that organization has never ingested a file.</p></article>
+    </div>
+    <div class="subsec panel" id="chunk-sim">
+      <div class="panel-title"><h3>Where a chapter would split</h3><span class="eyebrow" id="th-count">${splits} chunk${splits===1?'':'s'} at this threshold</span></div>
+      <label class="sim">Similarity threshold <output class="mono" id="th-out">${threshold.toFixed(2)}</output>
+        <input id="th" type="range" min="40" max="95" value="${Math.round(threshold*100)}">
+      </label>
+      <div class="chunks" id="chunks">${chunkMarkup()}</div>
+      <p class="note-sm">The third sentence is a different topic. At 0.72 it starts a new chunk. Drop the slider to 0.40 and the policy text stays glued to the biology, which is a worse memory for later questions.</p>
+    </div>
+    <div class="subsec two">
+      <article class="panel"><h3>Models the Ollama container pulls</h3>
+        <ul class="plain">
+          <li><b>qwen3-embedding:0.6b</b> is what EmbeddingService calls, once per sentence and again per chunk.</li>
+          <li><b>llama3.1:8b</b> is pulled at container start for generation. The question consumer does not call it.</li>
+        </ul>
+      </article>
+      <article class="panel"><h3>What a finished generator would do</h3>
+        <ul class="plain">
+          <li>Read the prompt row: training, bank, question type, and count.</li>
+          <li>Search le_docs_{org} and ground the prompt in those payloads.</li>
+          <li>Write questions to SQL and publish a completion the API can apply. That consumer registration is commented out today.</li>
+        </ul>
+      </article>
+    </div>
+  </div></section>`;
+}
+
+const QUESTIONS = [
+  {q:'Redis is down when an admin starts an extract. What still happens?',
+   a:'The handler still publishes to RabbitMQ if the bus is up. The Redis writes are skipped when the cache port is missing, and they throw if the connection fails during SetAsync. The hub cannot show progress until Redis answers. The parser also cannot record Queued, Processing, or the idempotency skip. Treat Redis as required for this feature, not as a decorative cache.'},
+  {q:'The same extract message arrives twice, both times after success.',
+   a:'The second consume reads file_extraction:{id}:status, sees Completed, logs, and returns. It does not parse, embed, or upsert. If the first attempt failed before that key was set to Completed, the second attempt runs the work. The skip is status equality, not a message id log.'},
+  {q:'The PDF is a scan with no text layer.',
+   a:'ExtractTextAsync returns empty. The parser publishes a failed completion, sets Redis to Failed, and does not call Qdrant. The API consumer records the failure on the training file. The UI hears Failed through the hub. Nothing in this path runs OCR.'},
+  {q:'An instructor calls start-extract for their own organization.',
+   a:'The handler refuses. The check is SysAdmin, or OrgAdmin of that organization. Instructor is a real role in the app and it is not sufficient for this command. The message is never published.'},
+  {q:'Two organizations upload files with the same words.',
+   a:'They land in different collections: le_docs_ plus each organization id in "N" format. The payload also stores file_id. A later question search has to choose the collection from the training\'s organization. Sharing one collection and filtering afterwards would be a different, weaker rule than the one in the parser.'},
+  {q:'The browser closes halfway through embedding.',
+   a:'Unwatch and disconnect remove that connection from the registry. The parser keeps writing percent to Redis. Another Watch within the hour gets the current snapshot immediately, then live pushes. After the hour, the keys expire. SQL still has the file and, once the completion is consumed, the outcome.'},
+  {q:'Keycloak is missing the OrgAdmin realm role during admin creation.',
+   a:'The admin client fails with a provisioning error and the handler does not keep a SQL user that has no Keycloak account. The system admin has to create the realm role, then retry. SysAdmin accounts themselves are created in Keycloak, not by this command.'},
+  {q:'The prompt is saved and RabbitMQ does not accept the publish within 8 seconds.',
+   a:'The prompt row stays. The API returns a failure that says the event could not be published. There is no outbox in this handler, so a retry of the HTTP call can create a second prompt row. That is the current trade-off, not a hidden safety net.'}
+];
+
+function guideView(){
+  return `<section class="sec"><div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Chapter 7 of 7 · Facilitator guide</p>
+      <h2 class="subh">Run it as a prediction exercise</h2>
+      <p class="def">Let people say what they think the next box does before you press Next. The interesting answers are the ones the diagram makes easy to get wrong: who is allowed to speak SignalR, and which store is allowed to decide.</p>
+    </div>
+    <div class="two">
+      <article class="panel">
+        <h3>90 minutes</h3>
+        <ul class="plan">
+          <li><span class="mono">0–10</span><span><b>Rules.</b> Read R1 to R5. Ask which rule a shared Qdrant collection would break, and which rule a parser with its own hub would break.</span></li>
+          <li><span class="mono">10–35</span><span><b>Platform.</b> Play the text-extracted path. On the embed step, ask why the bar is the long one. Then switch to the empty file and ask what must not happen.</span></li>
+          <li><span class="mono">35–50</span><span><b>Identity.</b> Walk approval. Ask what a learner can do before KeycloakUserId exists.</span></li>
+          <li><span class="mono">50–70</span><span><b>Data and live.</b> Move the Redis status to Completed and deliver again. Then Watch, tick twice without a chunk, and see the suppressed push.</span></li>
+          <li><span class="mono">70–85</span><span><b>Broker and documents.</b> Crash the parser before ack. Move the similarity slider under 0.44 and ask what a later question would retrieve.</span></li>
+          <li><span class="mono">85–90</span><span><b>Honesty pass.</b> Point at the question generator and say what is real: the prompt row and the publish. Say what is not: generation, Qdrant search, and the completion consumer.</span></li>
+        </ul>
+      </article>
+      <article class="panel">
+        <h3>Ports on a dev machine</h3>
+        <div class="kv">
+          <div><b>Angular</b><span>4200, or 4300 through nginx</span></div>
+          <div><b>API</b><span>5000 HTTP, 5001 HTTPS</span></div>
+          <div><b>Keycloak</b><span>8443, backed by Postgres 5432</span></div>
+          <div><b>SQL Server</b><span>11433</span></div>
+          <div><b>Redis</b><span>6380, commander on 8081</span></div>
+          <div><b>RabbitMQ</b><span>5672, management 15672</span></div>
+          <div><b>Qdrant</b><span>6333 and 6334</span></div>
+          <div><b>Ollama</b><span>11434</span></div>
+        </div>
+        <p class="note-sm">Containers on the compose network use service DNS names and the container ports. The host ports above are for tools on Windows.</p>
+      </article>
+    </div>
+    <div class="subsec">
+      <h3 class="subh">Ask before you open the answer</h3>
+      <div class="wi" id="wi">
+        ${QUESTIONS.map((item,i) => `<div>
+          <button type="button" class="q" aria-expanded="false" data-q="${i}"><b>${item.q}</b></button>
+          <div class="ans" hidden>${item.a}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div></section>`;
+}
+
+const VIEWS = {platform:platformView, identity:identityView, data:dataView, live:liveView, broker:brokerView, docs:docsView, guide:guideView};
+
+function stopPlay(){
+  state.playing = false;
+  if (state.timer){ clearInterval(state.timer); state.timer = null; }
+}
+
+function render(){
+  const arch = state.chapter === 'guide' ? 'guide' : state.chapter;
+  $('#app').dataset.arch = arch;
+  renderChapters();
+  $$('.view').forEach(v => {
+    const on = v.dataset.view === state.chapter;
+    v.hidden = !on;
+    if (on) v.innerHTML = VIEWS[state.chapter]();
+  });
+}
+
+function show(chapter){
+  stopPlay();
+  state.chapter = chapter;
+  state.step = 0;
+  render();
+}
+
+document.addEventListener('click', (event) => {
+  const ch = event.target.closest('[data-ch]');
+  if (ch){ show(ch.dataset.ch); return; }
+  const path = event.target.closest('[data-path]');
+  if (path){
+    stopPlay();
+    state.path = path.dataset.path;
+    state.step = 0;
+    render();
+    return;
+  }
+  const row = event.target.closest('.row');
+  if (row){
+    stopPlay();
+    state.step = Number(row.dataset.i);
+    render();
+    return;
+  }
+  if (event.target.id === 'prev'){ stopPlay(); state.step = Math.max(0, state.step-1); render(); return; }
+  if (event.target.id === 'next'){ stopPlay(); const n = stepsFor().length-1; state.step = Math.min(n, state.step+1); render(); return; }
+  if (event.target.id === 'play'){
+    if (state.playing){ stopPlay(); render(); return; }
+    state.playing = true;
+    render();
+    state.timer = setInterval(() => {
+      const n = stepsFor().length - 1;
+      if (state.step >= n){ stopPlay(); render(); return; }
+      state.step += 1;
+      render();
+    }, 1600);
+    return;
+  }
+  if (event.target.id === 'theme'){
+    const root = document.documentElement;
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    return;
+  }
+  if (event.target.id === 'r-again'){
+    redisState.again = true;
+    render();
+    return;
+  }
+  if (event.target.id === 'lv-watch'){
+    live.watching = !live.watching;
+    if (live.watching){
+      live.last = '';
+      pushLive('Watch sends the snapshot to this caller.');
+    } else {
+      live.log.unshift('Unwatch. This connection leaves the group.');
+    }
+    render();
+    return;
+  }
+  if (event.target.id === 'lv-tick'){ pushLive(); render(); return; }
+  if (event.target.id === 'lv-chunk'){
+    live.status = 'Processing';
+    live.progress = Math.min(100, live.progress + 20);
+    live.log.unshift(`Parser wrote progress ${live.progress}. No SignalR send until the next tick.`);
+    render();
+    return;
+  }
+  if (event.target.id === 'lv-done'){
+    live.status = 'Completed';
+    live.progress = 100;
+    live.log.unshift('Redis status is Completed. The reader will report 100 on the next read.');
+    render();
+    return;
+  }
+  if (event.target.id === 'b-pub'){
+    broker.queued += 1;
+    brokerNote('API published IExtractRequestSubmitted. HTTP can return. Parsing has not started.');
+    render(); return;
+  }
+  if (event.target.id === 'b-take'){
+    if (broker.queued < 1){ brokerNote('Nothing ready to take.'); render(); return; }
+    broker.queued -= 1; broker.unacked += 1;
+    brokerNote('Parser has the message unacked. A crash now puts it back.');
+    render(); return;
+  }
+  if (event.target.id === 'b-ack'){
+    if (broker.unacked < 1){ brokerNote('Nothing unacked. Take a message first.'); render(); return; }
+    broker.unacked -= 1; broker.done += 1;
+    brokerNote('Ack. Completion published for the API queue. Redis status would be Completed.');
+    render(); return;
+  }
+  if (event.target.id === 'b-crash'){
+    if (broker.unacked < 1){ brokerNote('No unacked message to return.'); render(); return; }
+    broker.unacked -= 1; broker.queued += 1;
+    brokerNote('Process died before ack. RabbitMQ requeues. The consumer must tolerate a second run.');
+    render(); return;
+  }
+  if (event.target.id === 'b-prompt'){
+    broker.prompts += 1;
+    brokerNote('Prompt row is already in SQL. The message has no finished consumer, so no questions are written.');
+    render(); return;
+  }
+  const q = event.target.closest('[data-q]');
+  if (q){
+    const open = q.getAttribute('aria-expanded') === 'true';
+    q.setAttribute('aria-expanded', String(!open));
+    q.nextElementSibling.hidden = open;
+  }
+});
+
+function redisReadout(){
+  if (redisState.status === 'Completed') return '100 (reader forces this)';
+  if (redisState.status === 'Queued') return '0 (reader forces this)';
+  return String(redisState.progress);
+}
+
+function paintRedis(){
+  const status = $('#r-status-val');
+  if (!status) return;
+  $('#r-out').textContent = redisState.progress + '%';
+  status.textContent = redisState.status;
+  $('#r-progress-val').textContent = redisReadout();
+  const skip = redisState.again && redisState.status === 'Completed';
+  $('#r-note').textContent = skip
+    ? 'The consumer sees Completed and returns. Qdrant is not written a second time. That is rule R3.'
+    : 'A second delivery while status is ' + redisState.status + ' will run the pipeline again. Only Completed is the skip.';
+}
+
+function paintChunks(){
+  const box = $('#chunks');
+  if (!box) return;
+  const splits = sentences.filter((s, i) => i < sentences.length - 1 && s.sim < threshold).length + 1;
+  $('#th-out').textContent = threshold.toFixed(2);
+  $('#th-count').textContent = splits + ' chunk' + (splits === 1 ? '' : 's') + ' at this threshold';
+  box.innerHTML = chunkMarkup();
+}
+
+document.addEventListener('input', (event) => {
+  if (event.target.id === 'r-status'){
+    redisState.status = event.target.value;
+    redisState.again = false;
+    paintRedis();
+  }
+  if (event.target.id === 'r-progress'){
+    redisState.progress = Number(event.target.value);
+    redisState.again = false;
+    paintRedis();
+  }
+  if (event.target.id === 'th'){
+    threshold = Number(event.target.value) / 100;
+    paintChunks();
+  }
+});
+
+document.addEventListener('change', (event) => {
+  if (event.target.id === 'r-status'){
+    redisState.status = event.target.value;
+    redisState.again = false;
+    paintRedis();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.target.matches('input, select, textarea')) return;
+  if (event.key >= '1' && event.key <= '7'){
+    show(CHAPTERS[Number(event.key)-1].id);
+    return;
+  }
+  if (event.key === 'ArrowRight' && (state.chapter === 'platform' || state.chapter === 'identity')){
+    const n = stepsFor().length - 1;
+    if (state.step < n){ stopPlay(); state.step += 1; render(); }
+  }
+  if (event.key === 'ArrowLeft' && (state.chapter === 'platform' || state.chapter === 'identity')){
+    if (state.step > 0){ stopPlay(); state.step -= 1; render(); }
+  }
+});
+
+render();
+</script>
+</body>
+</html>

@@ -9,7 +9,8 @@ namespace LearningEdge.Domain.Entities.Organizations;
 public sealed class Organization: BaseEntity<Guid>
 {
     public string Name { get; private set; } 
-    public string Description { get; private set; } = string.Empty; 
+    public string Description { get; private set; } = string.Empty;
+    public bool IsActive { get; private set; } = true; 
     private readonly List<User> _users = [];    
     public IReadOnlyCollection<User> Users => _users.AsReadOnly();
     private readonly List<Category> _categories = [];
@@ -27,6 +28,12 @@ public sealed class Organization: BaseEntity<Guid>
     {
         Name = name ?? throw new ArgumentNullException(nameof(name));
         Description = description ?? string.Empty;
+        MarkUpdated();
+    }
+
+    public void SetActive(bool isActive)
+    {
+        IsActive = isActive;
         MarkUpdated();
     }
 }

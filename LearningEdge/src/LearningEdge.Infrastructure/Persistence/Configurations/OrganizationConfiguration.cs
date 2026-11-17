@@ -17,6 +17,9 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
         builder.Property(organization => organization.Description)
             .IsRequired()
             .HasMaxLength(500);
+        builder.Property(organization => organization.IsActive)
+            .IsRequired()
+            .HasDefaultValue(true);
 
         builder.HasIndex(organization => organization.Name)
             .IsUnique()

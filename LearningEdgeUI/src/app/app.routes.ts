@@ -3,13 +3,48 @@ import { anonymousOnlyGuard, authGuard } from './core/auth/auth.guard';
 import { roleGuard } from './core/auth/role.guard';
 import { tenantGuard } from './core/auth/tenant.guard';
 import { UserRole } from './core/models/user-role';
+import { MARKETING_PATHS, MARKETING_TITLES, marketingMatch } from './features/marketing/marketing-match';
 
 /**
  * Route matrix from spec section 6. Every feature is lazy-loaded; roles are
  * declared in `data` and enforced by roleGuard.
  */
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+  {
+    path: '',
+    canMatch: [marketingMatch],
+    loadComponent: () =>
+      import('./features/marketing/marketing-layout.component').then(
+        (m) => m.MarketingLayoutComponent,
+      ),
+    children: [
+      {
+        path: '',
+        pathMatch: 'full',
+        title: 'LearningEdge',
+        loadComponent: () =>
+          import('./features/marketing/home.component').then((m) => m.HomeComponent),
+      },
+      {
+        // Dedicated page: the lab document is not one of the generic marketing pages.
+        path: 'architecture',
+        title: 'Architecture · LearningEdge',
+        loadComponent: () =>
+          import('./features/marketing/architecture-page.component').then(
+            (m) => m.ArchitecturePageComponent,
+          ),
+      },
+      ...MARKETING_PATHS.map((page) => ({
+        path: page,
+        title: `${MARKETING_TITLES[page]} · LearningEdge`,
+        data: { page },
+        loadComponent: () =>
+          import('./features/marketing/marketing-page.component').then(
+            (m) => m.MarketingPageComponent,
+          ),
+      })),
+    ],
+  },
 
   {
     path: 'login',

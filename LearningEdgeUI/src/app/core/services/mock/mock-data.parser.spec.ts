@@ -82,6 +82,29 @@ describe('parseMockDataset', () => {
     expect(dataset.users[0].activationStatus).toBe(1);
   });
 
+  it('reads an inactive activation status and defaults a missing organization flag to active', () => {
+    const dataset = parseMockDataset(
+      {
+        organizations: [{ id: 'org-a', name: 'Northwind', description: 'Logistics' }],
+        users: [
+          {
+            id: 'user-a1',
+            firstName: 'Mark',
+            lastName: 'Price',
+            email: 'Mark@example.com',
+            role: 3,
+            organizationId: 'org-a',
+            activationStatus: 3,
+          },
+        ],
+      },
+      NOW,
+    );
+
+    expect(dataset.organizations[0].isActive).toBe(true);
+    expect(dataset.users[0].activationStatus).toBe(3);
+  });
+
   it('rejects a role outside the backend enum', () => {
     const invalid = {
       users: [

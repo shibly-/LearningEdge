@@ -26,6 +26,7 @@ public class Enums
     public enum UserActivationStatus
     {
         Pending = 1,
-        Active = 2
+        Active = 2,
+        Inactive = 3
     }
 }

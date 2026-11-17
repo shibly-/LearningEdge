@@ -1,0 +1,42 @@
+<article class="page">
+  <p class="eyebrow">LearningEdge</p>
+  <h1>{{ content().title }}</h1>
+  <p class="lede">{{ content().lede }}</p>
+
+  @if (content().plans; as plans) {
+    <ul class="plans">
+      @for (plan of plans; track plan.name) {
+        <li class="le-card plan">
+          <h2>{{ plan.name }}</h2>
+          <p>{{ plan.summary }}</p>
+          <ul>
+            @for (point of plan.points; track point) {
+              <li>{{ point }}</li>
+            }
+          </ul>
+        </li>
+      }
+    </ul>
+  }
+
+  @for (section of content().sections; track section.heading) {
+    <section>
+      <h2>{{ section.heading }}</h2>
+      @for (paragraph of section.paragraphs; track paragraph) {
+        <p>{{ paragraph }}</p>
+      }
+    </section>
+  }
+
+  @if (content().email; as email) {
+    <p class="contact">
+      <a [href]="'mailto:' + email">{{ email }}</a>
+    </p>
+  }
+
+  @if (page() === 'copyright') {
+    <p class="year">© {{ year }} LearningEdge.</p>
+  }
+
+  <p class="back"><a routerLink="/">Back to home</a></p>
+</article>

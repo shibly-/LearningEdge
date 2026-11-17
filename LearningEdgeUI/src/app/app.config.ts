@@ -7,6 +7,7 @@ import {
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
 import { AutoRefreshTokenService, UserActivityService, provideKeycloak } from 'keycloak-angular';
+import { provideHighcharts } from 'highcharts-angular';
 
 import { routes } from './app.routes';
 import { environment } from '../environments/environment';
@@ -15,6 +16,11 @@ import { KeycloakAuthProvider } from './core/auth/keycloak-auth.provider';
 import { KeycloakBootstrap } from './core/auth/keycloak-bootstrap';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { retryInterceptor } from './core/http/retry.interceptor';
+import {
+  PlatformRepository,
+  HttpPlatformRepository,
+  MockPlatformRepository,
+} from './core/services/platform.repository';
 import {
   OrganizationRepository,
   HttpOrganizationRepository,
@@ -67,6 +73,7 @@ import { MockDataLoader } from './core/services/mock/mock-data.loader';
  */
 const apiBackedRepositories = environment.useMockApi
   ? [
+      { provide: PlatformRepository, useClass: MockPlatformRepository },
       { provide: OrganizationRepository, useClass: MockOrganizationRepository },
       { provide: UserRepository, useClass: MockUserRepository },
       { provide: CategoryRepository, useClass: MockCategoryRepository },
@@ -75,6 +82,7 @@ const apiBackedRepositories = environment.useMockApi
       { provide: ExamRepository, useClass: MockExamRepository },
     ]
   : [
+      { provide: PlatformRepository, useClass: HttpPlatformRepository },
       { provide: OrganizationRepository, useClass: HttpOrganizationRepository },
       { provide: UserRepository, useClass: HttpUserRepository },
       { provide: CategoryRepository, useClass: HttpCategoryRepository },
@@ -117,6 +125,10 @@ const authProviders = [
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    provideHighcharts({
+      instance: () => import('highcharts/esm/highcharts').then((mod) => mod.default),
+      modules: () => [import('highcharts/esm/modules/accessibility')],
+    }),
     provideRouter(
       routes,
       withComponentInputBinding(),

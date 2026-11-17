@@ -75,6 +75,30 @@ export class OrganizationStore extends AsyncCollectionStore<OrganizationDto> {
       });
   }
 
+  setActive(id: string, isActive: boolean, onUpdated?: (organization: OrganizationDto) => void): void {
+    if (this.savingState()) {
+      return;
+    }
+    this.savingState.set(true);
+
+    this.repository
+      .setActive(id, isActive)
+      .pipe(
+        finalize(() => this.savingState.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (organization) => {
+          this.toast.success(
+            `Organization "${organization.name}" ${organization.isActive ? 'enabled' : 'disabled'}.`,
+          );
+          this.upsert(organization, (existing) => existing.id === organization.id);
+          onUpdated?.(organization);
+        },
+        error: (error: unknown) => this.toast.error(describeError(error)),
+      });
+  }
+
   findById(id: string): OrganizationDto | undefined {
     return this.items().find((org) => org.id === id);
   }

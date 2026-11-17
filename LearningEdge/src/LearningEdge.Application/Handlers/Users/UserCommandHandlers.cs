@@ -17,7 +17,8 @@ public class UserCommandHandlers :
     IRequestHandler<CreateOrganizationAdminCommand, Result<Guid>>,
     IRequestHandler<UpdateUserCommand, Result<UserDTO>>,
     IRequestHandler<RegisterLearnerCommand, Result<Guid>>,
-    IRequestHandler<ApproveUserCommand, Result<UserDTO>>
+    IRequestHandler<ApproveUserCommand, Result<UserDTO>>,
+    IRequestHandler<SetOrganizationAdminEnabledCommand, Result<UserDTO>>
 {
     private readonly IApplicationDbContext _appDbContext;
     private readonly IMapper _mapper;
@@ -341,6 +342,51 @@ public class UserCommandHandlers :
                 $"User with email {user.Email} already exists in organization {user.OrganizationId}.");
         }
 
+        return Result<UserDTO>.Ok(_mapper.Map<UserDTO>(user));
+    }
+
+    public async Task<Result<UserDTO>> Handle(
+        SetOrganizationAdminEnabledCommand request,
+        CancellationToken cancellationToken)
+    {
+        var user = await _appDbContext.Users
+            .FirstOrDefaultAsync(candidate => candidate.Id == request.Id, cancellationToken);
+
+        if (user is null)
+        {
+            return Result<UserDTO>.NotFound($"No user found with Id {request.Id}.");
+        }
+
+        if (user.Role != UserRole.OrgAdmin)
+        {
+            return Result<UserDTO>.Validation("Only an organization admin can be enabled or disabled here.");
+        }
+
+        if (user.ActivationStatus == UserActivationStatus.Pending)
+        {
+            return Result<UserDTO>.Validation("Approve a pending account before enabling or disabling it.");
+        }
+
+        var enabled = user.ActivationStatus == UserActivationStatus.Active;
+        if (enabled == request.Enabled)
+        {
+            return Result<UserDTO>.Ok(_mapper.Map<UserDTO>(user));
+        }
+
+        if (_keycloakUsers is not null && !string.IsNullOrWhiteSpace(user.KeycloakUserId))
+        {
+            try
+            {
+                await _keycloakUsers.SetEnabledAsync(user.KeycloakUserId, request.Enabled, cancellationToken);
+            }
+            catch (KeycloakProvisioningException ex)
+            {
+                return Result<UserDTO>.Fail(ex.Message);
+            }
+        }
+
+        user.SetEnabled(request.Enabled);
+        await _appDbContext.SaveChangesAsync(cancellationToken);
         return Result<UserDTO>.Ok(_mapper.Map<UserDTO>(user));
     }
 

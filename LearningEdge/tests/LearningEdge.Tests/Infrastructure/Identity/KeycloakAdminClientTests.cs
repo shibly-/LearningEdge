@@ -92,6 +92,21 @@ public class KeycloakAdminClientTests
         Assert.Contains("Lovelace", handler.Calls[1].Body);
     }
 
+    [Fact]
+    public async Task SetEnabled_ShouldSendTheEnabledFlag()
+    {
+        var handler = new StubHandler();
+        handler.Respond(_ => Json(HttpStatusCode.OK, """{"access_token":"admin-token"}"""));
+        handler.Respond(_ => new HttpResponseMessage(HttpStatusCode.NoContent));
+        var client = new KeycloakAdminClient(new HttpClient(handler), Settings());
+
+        await client.SetEnabledAsync("kc-1", false, CancellationToken.None);
+
+        Assert.Equal(HttpMethod.Put, handler.Calls[1].Method);
+        Assert.EndsWith("/users/kc-1", handler.Calls[1].Url);
+        Assert.Contains("false", handler.Calls[1].Body);
+    }
+
     private static KeycloakAccount Account() =>
         new("ada@example.com", "Ada", "Lovelace", "Password1");
 

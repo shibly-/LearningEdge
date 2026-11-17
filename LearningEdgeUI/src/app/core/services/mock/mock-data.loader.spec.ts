@@ -34,7 +34,9 @@ describe('MockDataLoader', () => {
     });
 
     expect(db.isSeeded).toBe(true);
-    expect(db.organizations).toEqual([{ id: 'org-a', name: 'Northwind', description: 'Logistics' }]);
+    expect(db.organizations).toEqual([
+      { id: 'org-a', name: 'Northwind', description: 'Logistics', isActive: true },
+    ]);
   });
 
   it('leaves the app usable and empty when the file is missing', () => {

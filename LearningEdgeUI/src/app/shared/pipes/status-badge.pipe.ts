@@ -4,6 +4,8 @@ const TONES: Readonly<Record<string, BadgeTone>> = {
   // Category and training active flag
   on: 'success',
   off: 'neutral',
+  pending: 'warning',
+  inactive: 'neutral',
   // Assignment status
   completed: 'success',
   'in-progress': 'info',

@@ -140,6 +140,27 @@ public class OrganizationCommandHandlerTests
         Assert.Equal(ResultErrorKind.Conflict, result.Kind);
     }
 
+    [Fact]
+    public async Task Handle_ShouldDisableAnOrganizationWithoutRemovingIt()
+    {
+        await using var context = CreateContext();
+        var organization = new Organization("Acme");
+        context.Organizations.Add(organization);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        var handler = new OrganizationCommandHandlers(context, CreateMapper());
+        var result = await handler.Handle(
+            new SetOrganizationActiveCommand(organization.Id, false),
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.False(result.Data!.IsActive);
+        var saved = await context.Organizations.SingleAsync();
+        Assert.False(saved.IsActive);
+        Assert.False(saved.IsDeleted);
+    }
+
     private static ApplicationDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -151,7 +172,9 @@ public class OrganizationCommandHandlerTests
 
     private static IMapper CreateMapper()
     {
-        var configuration = new MapperConfiguration(config => config.AddProfile<OrganizationProfile>(), null);
+        var configuration = new MapperConfiguration(
+            config => config.AddProfile<OrganizationProfile>(),
+            Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance);
         return configuration.CreateMapper();
     }
 }

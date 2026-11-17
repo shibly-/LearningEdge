@@ -73,4 +73,27 @@ export class PlatformUserStore extends AsyncCollectionStore<UserDto> {
         error: (error: unknown) => this.toast.error(describeError(error)),
       });
   }
+
+  setEnabled(user: UserDto, enabled: boolean): void {
+    if (this.savingState()) {
+      return;
+    }
+    this.savingState.set(true);
+
+    this.repository
+      .setEnabled(user.id, enabled)
+      .pipe(
+        finalize(() => this.savingState.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (updated) => {
+          this.toast.success(
+            `${fullName(updated)} ${enabled ? 'can sign in again' : 'can no longer sign in'}.`,
+          );
+          this.upsert(updated, (existing) => existing.id === updated.id);
+        },
+        error: (error: unknown) => this.toast.error(describeError(error)),
+      });
+  }
 }

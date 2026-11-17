@@ -3,7 +3,8 @@
 public record OrganizationDTO (
     Guid Id,
     string Name,
-    string Description
+    string Description,
+    bool IsActive
 );
 
 /// <summary>Public registration dropdown. Name only — no description.</summary>

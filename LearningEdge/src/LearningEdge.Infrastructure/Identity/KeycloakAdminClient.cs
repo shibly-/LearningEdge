@@ -41,6 +41,42 @@ public sealed class KeycloakAdminClient : IKeycloakUserDirectory
     public Task<string> CreateOrganizationAdminAsync(KeycloakAccount account, CancellationToken cancellationToken) =>
         CreateWithRoleAsync(account, _settings.OrgAdminRole, cancellationToken);
 
+    public async Task SetEnabledAsync(string keycloakUserId, bool enabled, CancellationToken cancellationToken)
+    {
+        EnsureConfigured();
+
+        try
+        {
+            var token = await RequestTokenAsync(cancellationToken);
+            using var response = await SendAsync(
+                HttpMethod.Put,
+                $"{_settings.AdminRoot}/users/{keycloakUserId}",
+                token,
+                new SetKeycloakEnabled { Enabled = enabled },
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw await Failure(
+                    response,
+                    enabled ? "Keycloak could not enable the user." : "Keycloak could not disable the user.",
+                    cancellationToken);
+            }
+        }
+        catch (KeycloakProvisioningException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new KeycloakProvisioningException("Cannot reach Keycloak to update the user.", ex);
+        }
+        catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new KeycloakProvisioningException("Keycloak did not respond in time.", ex);
+        }
+    }
+
     public async Task UpdateProfileAsync(
         string keycloakUserId,
         string email,
@@ -390,6 +426,11 @@ public sealed class KeycloakAdminClient : IKeycloakUserDirectory
         public string Type { get; set; } = "password";
         public string Value { get; set; } = "";
         public bool Temporary { get; set; }
+    }
+
+    private sealed class SetKeycloakEnabled
+    {
+        public bool Enabled { get; set; }
     }
 
     private sealed class EnableKeycloakUser

@@ -7,6 +7,7 @@ import type {
   CreateOrganizationAdminCommand,
   CreateUserCommand,
   RegisterLearnerCommand,
+  SetOrganizationAdminEnabledCommand,
   UpdateUserCommand,
   UserDto,
 } from '../models/user';
@@ -31,6 +32,8 @@ export abstract class UserRepository {
   abstract createOrganizationAdmin(command: CreateOrganizationAdminCommand): Observable<string>;
   abstract register(command: RegisterLearnerCommand): Observable<string>;
   abstract approve(id: string): Observable<UserDto>;
+  /** Turns an organization admin's sign-in on or off. Pending accounts stay pending. */
+  abstract setEnabled(id: string, enabled: boolean): Observable<UserDto>;
   abstract update(id: string, command: UpdateUserCommand): Observable<UserDto>;
   /**
    * The record for the signed-in principal, or null when none exists yet.
@@ -73,6 +76,14 @@ export class HttpUserRepository extends UserRepository {
 
   override approve(id: string): Observable<UserDto> {
     return this.api.postResult<Record<string, never>, UserDto>(apiPaths.user.approve(id), {});
+  }
+
+  override setEnabled(id: string, enabled: boolean): Observable<UserDto> {
+    const command: SetOrganizationAdminEnabledCommand = { id, enabled };
+    return this.api.put<SetOrganizationAdminEnabledCommand, UserDto>(
+      apiPaths.user.setEnabled(id),
+      command,
+    );
   }
 
   override update(id: string, command: UpdateUserCommand): Observable<UserDto> {
@@ -237,6 +248,31 @@ export class MockUserRepository extends UserRepository {
     const approved: UserDto = { ...existing, activationStatus: UserActivationStatus.Active };
     this.db.users = this.db.users.map((user) => (user.id === id ? approved : user));
     return of(approved).pipe(delay(MOCK_LATENCY_MS));
+  }
+
+  // MOCK: no Keycloak. Flips the activation flag the live route also sends to the realm.
+  override setEnabled(id: string, enabled: boolean): Observable<UserDto> {
+    const existing = this.db.users.find((user) => user.id === id);
+    if (existing === undefined) {
+      return throwError(() => new ApiFailure('not-found', `No user found with Id ${id}.`, 404));
+    }
+    if (existing.role !== UserRole.OrgAdmin) {
+      return throwError(
+        () => new ApiFailure('validation', 'Only an organization admin can be enabled or disabled here.', 400),
+      );
+    }
+    if (existing.activationStatus === UserActivationStatus.Pending) {
+      return throwError(
+        () => new ApiFailure('validation', 'Approve a pending account before enabling or disabling it.', 400),
+      );
+    }
+
+    const updated: UserDto = {
+      ...existing,
+      activationStatus: enabled ? UserActivationStatus.Active : UserActivationStatus.Inactive,
+    };
+    this.db.users = this.db.users.map((user) => (user.id === id ? updated : user));
+    return of(updated).pipe(delay(MOCK_LATENCY_MS));
   }
 
   override update(id: string, command: UpdateUserCommand): Observable<UserDto> {

@@ -39,6 +39,15 @@ h1 {
 .submit {
   width: 100%;
   justify-content: center;
+  box-sizing: border-box;
+}
+
+a.le-btn {
+  text-decoration: none;
+}
+
+a.submit {
+  margin-top: 12px;
 }
 
 // Also used by the register and forgot-password screens.

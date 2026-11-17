@@ -68,6 +68,27 @@ public class UserQueryHandlers :
                 "This account is waiting for an administrator to approve it.");
         }
 
+        if (matches[0].ActivationStatus == UserActivationStatus.Inactive)
+        {
+            return Result<UserDTO>.Forbidden(
+                "This account has been disabled. Ask a system admin to enable it.");
+        }
+
+        if (matches[0].Role != UserRole.SysAdmin)
+        {
+            var organizationActive = await _context.Organizations
+                .AsNoTracking()
+                .AnyAsync(
+                    organization => organization.Id == matches[0].OrganizationId && organization.IsActive,
+                    cancellationToken);
+
+            if (!organizationActive)
+            {
+                return Result<UserDTO>.Forbidden(
+                    "This organization has been disabled. Ask a system admin to enable it.");
+            }
+        }
+
         return Result<UserDTO>.Ok(_mapper.Map<UserDTO>(matches[0]));
     }
 

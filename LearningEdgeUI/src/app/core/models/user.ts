@@ -4,6 +4,7 @@ import type { UserRole } from './user-role';
 export enum UserActivationStatus {
   Pending = 1,
   Active = 2,
+  Inactive = 3,
 }
 
 /** GET /api/v1/user/{id} -> UserDTO */
@@ -50,6 +51,12 @@ export interface CreateOrganizationAdminCommand {
 /** PUT /api/v1/user/{id} -> UserDTO */
 export type UpdateUserCommand = CreateUserCommand;
 
+/** PUT /api/v1/user/{id}/enabled -> UserDTO. Organization admins only. */
+export interface SetOrganizationAdminEnabledCommand {
+  readonly id: string;
+  readonly enabled: boolean;
+}
+
 /** Mirrors the server-side validators. */
 export const USER_LIMITS = { firstName: 50, lastName: 50, email: 100 } as const;
 
@@ -57,9 +64,26 @@ export function fullName(user: Pick<UserDto, 'firstName' | 'lastName'>): string 
   return `${user.firstName} ${user.lastName}`.trim();
 }
 
-/** Pending is named in text so status is not conveyed by colour alone. */
+/** Pending and inactive are named in text so status is not conveyed by colour alone. */
 export function activationLabel(status: UserActivationStatus | undefined): string {
-  return status === UserActivationStatus.Pending ? 'Pending approval' : 'Active';
+  if (status === UserActivationStatus.Pending) {
+    return 'Pending approval';
+  }
+  if (status === UserActivationStatus.Inactive) {
+    return 'Inactive';
+  }
+  return 'Active';
+}
+
+/** Badge status token paired with {@link activationLabel}. */
+export function activationTone(status: UserActivationStatus | undefined): string {
+  if (status === UserActivationStatus.Pending) {
+    return 'pending';
+  }
+  if (status === UserActivationStatus.Inactive) {
+    return 'off';
+  }
+  return 'on';
 }
 
 export function isPendingActivation(status: UserActivationStatus | undefined): boolean {

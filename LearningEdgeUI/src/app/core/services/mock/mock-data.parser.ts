@@ -170,6 +170,7 @@ function parseOrganization(entry: unknown, field: string): OrganizationDto {
     id: str(record, 'id', field),
     name: str(record, 'name', field),
     description: optionalStr(record, 'description'),
+    isActive: record['isActive'] === undefined ? true : bool(record, 'isActive', field),
   };
 }
 
@@ -197,11 +198,15 @@ function parseActivationStatus(value: unknown, field: string): UserActivationSta
   if (value === undefined) {
     return UserActivationStatus.Active;
   }
-  if (value === UserActivationStatus.Pending || value === UserActivationStatus.Active) {
+  if (
+    value === UserActivationStatus.Pending ||
+    value === UserActivationStatus.Active ||
+    value === UserActivationStatus.Inactive
+  ) {
     return value;
   }
   throw new MockDataError(
-    `${field}.activationStatus must be 1 (pending) or 2 (active) when it is present.`,
+    `${field}.activationStatus must be 1 (pending), 2 (active), or 3 (inactive) when it is present.`,
   );
 }
 

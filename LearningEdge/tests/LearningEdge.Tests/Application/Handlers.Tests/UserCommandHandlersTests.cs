@@ -322,6 +322,53 @@ public class UserCommandHandlersTests
         Assert.Equal(UserRole.OrgAdmin, (await context.Users.SingleAsync()).Role);
     }
 
+    [Fact]
+    public async Task Handle_ShouldDisableAnOrganizationAdminAndTheirKeycloakSignIn()
+    {
+        await using var context = CreateContext();
+        var organization = new Organization("Acme");
+        var admin = User.CreateOrganizationAdmin("Ada", "Lovelace", "ada@example.com", organization.Id, "kc-1");
+        context.Organizations.Add(organization);
+        context.Users.Add(admin);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        var keycloak = new RecordingKeycloak();
+        var handler = new UserCommandHandlers(context, CreateMapper(), keycloakUsers: keycloak);
+        var result = await handler.Handle(
+            new SetOrganizationAdminEnabledCommand(admin.Id, false),
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(UserActivationStatus.Inactive, result.Data!.ActivationStatus);
+        Assert.False(keycloak.Enabled);
+        Assert.Equal(UserActivationStatus.Inactive, (await context.Users.SingleAsync()).ActivationStatus);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldNotDisable_WhenKeycloakRejectsIt()
+    {
+        await using var context = CreateContext();
+        var organization = new Organization("Acme");
+        var admin = User.CreateOrganizationAdmin("Ada", "Lovelace", "ada@example.com", organization.Id, "kc-1");
+        context.Organizations.Add(organization);
+        context.Users.Add(admin);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        var keycloak = new RecordingKeycloak
+        {
+            Failure = new KeycloakProvisioningException("Keycloak could not disable the user."),
+        };
+        var handler = new UserCommandHandlers(context, CreateMapper(), keycloakUsers: keycloak);
+        var result = await handler.Handle(
+            new SetOrganizationAdminEnabledCommand(admin.Id, false),
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(UserActivationStatus.Active, (await context.Users.SingleAsync()).ActivationStatus);
+    }
+
     private static ApplicationDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -378,6 +425,19 @@ public class UserCommandHandlersTests
             Password = account.Password;
             OrganizationAdmins++;
             return Task.FromResult("kc-admin");
+        }
+
+        public bool? Enabled { get; private set; }
+
+        public Task SetEnabledAsync(string keycloakUserId, bool enabled, CancellationToken cancellationToken)
+        {
+            if (Failure is not null)
+            {
+                throw Failure;
+            }
+
+            Enabled = enabled;
+            return Task.CompletedTask;
         }
 
         public Task UpdateProfileAsync(

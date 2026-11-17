@@ -1,0 +1,119 @@
+<section class="hero">
+  <p class="eyebrow">Training management</p>
+  <h1>Train every team, inside its own organization.</h1>
+  <p class="lede">
+    LearningEdge keeps courses, instructors, and learners together for each organization.
+    Administrators design trainings, turn documents into questions, and assign the work.
+    Learners sign in, complete it, and see their scores.
+  </p>
+  <div class="hero-actions">
+    <a class="le-btn" routerLink="/register">Sign up</a>
+    <a class="le-btn le-btn-secondary" routerLink="/login">Sign in</a>
+    <a class="text-link" routerLink="/product">See the product</a>
+  </div>
+</section>
+
+<section class="band" aria-labelledby="snapshot-heading">
+  <div class="band-heading">
+    <h2 id="snapshot-heading">Platform at a glance</h2>
+    <p>Organizations, learner accounts, and trainings currently on LearningEdge.</p>
+  </div>
+
+  @if (status() === 'loading') {
+    <div class="charts" aria-busy="true">
+      <article class="panel"><h3>Organizations using the platform</h3><div class="skeleton"></div></article>
+      <article class="panel"><h3>Active learners</h3><div class="skeleton"></div></article>
+      <article class="panel"><h3>Trainings designed</h3><div class="skeleton"></div></article>
+    </div>
+  } @else if (status() === 'error') {
+    <app-error-state [message]="error() ?? ''" (retry)="reload()" />
+  } @else {
+    <div class="charts">
+      <article class="panel">
+        <h3>Organizations using the platform</h3>
+        @if (total(organizations()) === 0) {
+          <p>No organizations have been recorded yet.</p>
+        } @else {
+          <highcharts-chart [options]="organizationChart()" />
+          <p>
+            {{ format(countOf(organizations(), 'Active')) }} of
+            {{ format(total(organizations())) }} organizations are active.
+          </p>
+        }
+      </article>
+      <article class="panel">
+        <h3>Active learners</h3>
+        @if (total(learners()) === 0) {
+          <p>No learner accounts have been recorded yet.</p>
+        } @else {
+          <highcharts-chart [options]="learnerChart()" />
+          <p>
+            {{ format(countOf(learners(), 'Active')) }} learners are active out of
+            {{ format(total(learners())) }} learner accounts.
+          </p>
+        }
+      </article>
+      <article class="panel">
+        <h3>Trainings designed</h3>
+        @if (total(trainings()) === 0) {
+          <p>No trainings have been recorded yet.</p>
+        } @else {
+          <highcharts-chart [options]="trainingChart()" />
+          <p>
+            {{ format(total(trainings())) }} trainings have been designed,
+            {{ format(countOf(trainings(), 'Active')) }} of them active.
+          </p>
+        }
+      </article>
+    </div>
+  }
+</section>
+
+<section class="band" aria-labelledby="tables-heading">
+  <div class="band-heading">
+    <h2 id="tables-heading">Questions and growth</h2>
+    <p>A sample of question types and yearly growth. These figures are not loaded from the platform.</p>
+  </div>
+
+  <div class="tables">
+    <article class="panel">
+      <h3 id="questions-heading">Question types</h3>
+      <ag-grid-angular
+        class="data-grid"
+        [theme]="gridTheme"
+        [rowData]="questions"
+        [columnDefs]="questionColumns"
+        [defaultColDef]="defaultColDef"
+        [domLayout]="'autoHeight'"
+      />
+    </article>
+    <article class="panel">
+      <h3 id="growth-heading">Yearly growth</h3>
+      <ag-grid-angular
+        class="data-grid"
+        [theme]="gridTheme"
+        [rowData]="growth"
+        [columnDefs]="growthColumns"
+        [defaultColDef]="defaultColDef"
+        [domLayout]="'autoHeight'"
+      />
+    </article>
+  </div>
+</section>
+
+<section class="band" aria-labelledby="companies-heading">
+  <div class="band-heading">
+    <h2 id="companies-heading">Organizations on LearningEdge</h2>
+    <p>A sample of the companies and academies running their training here.</p>
+  </div>
+  <ul class="companies">
+    @for (company of companies; track company.name) {
+      <li class="le-card company">
+        <p class="mark" aria-hidden="true">{{ company.name.slice(0, 1) }}</p>
+        <h3>{{ company.name }}</h3>
+        <p class="sector">{{ company.sector }}</p>
+        <p>{{ company.note }}</p>
+      </li>
+    }
+  </ul>
+</section>

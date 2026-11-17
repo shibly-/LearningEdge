@@ -13,7 +13,7 @@ import {
   template: `
     <app-platform-user-directory
       heading="Organization Admins"
-      subtitle="Administrators of every organization on the platform."
+      subtitle="Administrators of every organization, including disabled accounts."
       emptyMessage="No organization admins yet. Add one to let a tenant manage its own users."
       [scopes]="scopes"
     >

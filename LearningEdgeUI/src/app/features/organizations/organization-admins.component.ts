@@ -11,11 +11,19 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import type { Subscription } from 'rxjs';
-import type { UpdateUserCommand, UserDto } from '../../core/models/user';
+import {
+  UserActivationStatus,
+  activationLabel,
+  activationTone,
+  isPendingActivation,
+  type UpdateUserCommand,
+  type UserDto,
+} from '../../core/models/user';
 import { UserRole } from '../../core/models/user-role';
 import { UserRepository } from '../../core/services/user.repository';
 import { ToastService } from '../../core/services/toast.service';
 import { describeError } from '../../core/stores/async-collection.store';
+import { BadgeComponent } from '../../shared/components/badge.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state.component';
 import { ErrorStateComponent } from '../../shared/components/error-state.component';
 import { ModalShellComponent } from '../../shared/components/modal-shell.component';
@@ -30,6 +38,7 @@ type LoadState = 'loading' | 'ready' | 'error';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
+    BadgeComponent,
     SkeletonComponent,
     EmptyStateComponent,
     ErrorStateComponent,
@@ -74,6 +83,7 @@ type LoadState = 'loading' | 'ready' | 'error';
                   <tr>
                     <th scope="col">Name</th>
                     <th scope="col">Email</th>
+                    <th scope="col">Status</th>
                     <th scope="col"><span class="le-visually-hidden">Actions</span></th>
                   </tr>
                 </thead>
@@ -82,7 +92,31 @@ type LoadState = 'loading' | 'ready' | 'error';
                     <tr>
                       <th scope="row">{{ admin.firstName }} {{ admin.lastName }}</th>
                       <td>{{ admin.email }}</td>
+                      <td>
+                        <app-badge
+                          [status]="tone(admin.activationStatus)"
+                          [text]="activationText(admin.activationStatus)"
+                        />
+                      </td>
                       <td class="row-actions">
+                        @if (!pending(admin.activationStatus)) {
+                          <button
+                            type="button"
+                            class="le-btn le-btn-secondary le-btn-sm"
+                            [disabled]="isSaving()"
+                            [attr.aria-label]="
+                              (admin.activationStatus === activeStatus
+                                ? 'Disable '
+                                : 'Enable ') +
+                              admin.firstName +
+                              ' ' +
+                              admin.lastName
+                            "
+                            (click)="setEnabled(admin)"
+                          >
+                            {{ admin.activationStatus === activeStatus ? 'Disable' : 'Enable' }}
+                          </button>
+                        }
                         <button
                           type="button"
                           class="le-btn le-btn-secondary"
@@ -153,6 +187,10 @@ export class OrganizationAdminsComponent {
   protected readonly isSaving = this.saving.asReadonly();
   protected readonly editing = signal<UserDto | null>(null);
   protected readonly adminOnly: readonly UserRole[] = [UserRole.OrgAdmin];
+  protected readonly activeStatus = UserActivationStatus.Active;
+  protected readonly activationText = activationLabel;
+  protected readonly tone = activationTone;
+  protected readonly pending = isPendingActivation;
 
   constructor() {
     effect(() => {
@@ -179,6 +217,33 @@ export class OrganizationAdminsComponent {
         error: (error: unknown) => {
           this.failure.set(describeError(error));
           this.viewState.set('error');
+        },
+      });
+  }
+
+  protected setEnabled(admin: UserDto): void {
+    if (this.saving()) {
+      return;
+    }
+    this.saving.set(true);
+    const enabled = admin.activationStatus !== UserActivationStatus.Active;
+
+    this.users
+      .setEnabled(admin.id, enabled)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (updated) => {
+          this.saving.set(false);
+          this.adminState.update((admins) =>
+            admins.map((current) => (current.id === updated.id ? updated : current)),
+          );
+          this.toast.success(
+            `${updated.firstName} ${updated.lastName} ${enabled ? 'can sign in again' : 'can no longer sign in'}.`.trim(),
+          );
+        },
+        error: (error: unknown) => {
+          this.saving.set(false);
+          this.toast.error(describeError(error));
         },
       });
   }

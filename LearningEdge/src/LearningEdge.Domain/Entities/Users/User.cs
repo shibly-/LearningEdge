@@ -97,6 +97,26 @@ public class User: BaseEntity<Guid>
         MarkUpdated();
     }
 
+    /// <summary>
+    /// Turns an organization admin's sign-in on or off. Pending registrations
+    /// are approved instead, and other roles are not managed this way.
+    /// </summary>
+    public void SetEnabled(bool enabled)
+    {
+        if (Role != UserRole.OrgAdmin)
+        {
+            throw new InvalidOperationException("Only an organization admin can be enabled or disabled here.");
+        }
+
+        if (ActivationStatus == UserActivationStatus.Pending)
+        {
+            throw new InvalidOperationException("Approve a pending account before enabling or disabling it.");
+        }
+
+        ActivationStatus = enabled ? UserActivationStatus.Active : UserActivationStatus.Inactive;
+        MarkUpdated();
+    }
+
     public void Update(string firstName, string lastName, string email, UserRole role, Guid organizationId)
     {
         FirstName = firstName ?? throw new ArgumentNullException(nameof(firstName));

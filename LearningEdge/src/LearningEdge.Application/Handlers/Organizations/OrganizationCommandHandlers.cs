@@ -12,7 +12,8 @@ namespace LearningEdge.Application.Handlers.Organizations;
 
 public class OrganizationCommandHandlers :
     IRequestHandler<CreateOrganizationCommand, Result<Guid>>,
-    IRequestHandler<UpdateOrganizationCommand, Result<OrganizationDTO>>
+    IRequestHandler<UpdateOrganizationCommand, Result<OrganizationDTO>>,
+    IRequestHandler<SetOrganizationActiveCommand, Result<OrganizationDTO>>
 {
     private readonly IApplicationDbContext _appDbContext;
     private readonly IMapper _mapper;
@@ -79,6 +80,27 @@ public class OrganizationCommandHandlers :
         catch (UniqueConstraintViolationException)
         {
             return Result<OrganizationDTO>.Conflict($"Organization with name {request.Name} already exists.");
+        }
+
+        return Result<OrganizationDTO>.Ok(_mapper.Map<OrganizationDTO>(organization));
+    }
+
+    public async Task<Result<OrganizationDTO>> Handle(
+        SetOrganizationActiveCommand request,
+        CancellationToken cancellationToken)
+    {
+        var organization = await _appDbContext.Organizations
+            .FirstOrDefaultAsync(candidate => candidate.Id == request.Id, cancellationToken);
+
+        if (organization is null)
+        {
+            return Result<OrganizationDTO>.NotFound($"No organization found with Id {request.Id}.");
+        }
+
+        if (organization.IsActive != request.IsActive)
+        {
+            organization.SetActive(request.IsActive);
+            await _appDbContext.SaveChangesAsync(cancellationToken);
         }
 
         return Result<OrganizationDTO>.Ok(_mapper.Map<OrganizationDTO>(organization));

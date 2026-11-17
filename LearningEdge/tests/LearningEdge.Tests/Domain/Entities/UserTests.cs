@@ -83,6 +83,25 @@ public class UserTests
     }
 
     [Fact]
+    public void SetEnabled_ShouldSwitchAnOrganizationAdminBetweenActiveAndInactive()
+    {
+        var user = User.CreateOrganizationAdmin("Ada", "Lovelace", "ada@example.com", Guid.NewGuid(), "kc-9");
+
+        user.SetEnabled(false);
+        Assert.Equal(UserActivationStatus.Inactive, user.ActivationStatus);
+
+        user.SetEnabled(true);
+        Assert.Equal(UserActivationStatus.Active, user.ActivationStatus);
+    }
+
+    [Fact]
+    public void SetEnabled_ShouldThrow_WhenTheUserIsNotAnOrganizationAdmin()
+    {
+        var user = new User("Ada", "Lovelace", "ada@example.com", UserRole.Learner, Guid.NewGuid());
+        Assert.Throws<InvalidOperationException>(() => user.SetEnabled(false));
+    }
+
+    [Fact]
     public void CreateOrganizationAdmin_ShouldThrow_WhenKeycloakIdIsMissing()
     {
         Assert.Throws<ArgumentException>(() =>

@@ -1,0 +1,68 @@
+<a class="le-skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <a class="brand" routerLink="/" (click)="closeMenu()">LearningEdge</a>
+
+  <button
+    type="button"
+    class="menu-toggle le-btn le-btn-secondary"
+    [attr.aria-expanded]="menuOpen()"
+    aria-controls="site-nav"
+    (click)="toggleMenu()"
+  >
+    Menu
+  </button>
+
+  <nav id="site-nav" class="site-nav" [class.is-open]="menuOpen()" aria-label="Primary">
+    <a routerLink="/product" routerLinkActive="is-current" ariaCurrentWhenActive="page" (click)="closeMenu()">
+      Product
+    </a>
+    <a routerLink="/demo" routerLinkActive="is-current" ariaCurrentWhenActive="page" (click)="closeMenu()">
+      Demo
+    </a>
+    <a
+      routerLink="/architecture"
+      routerLinkActive="is-current"
+      ariaCurrentWhenActive="page"
+      (click)="closeMenu()"
+    >
+      Architecture
+    </a>
+    <a routerLink="/pricing" routerLinkActive="is-current" ariaCurrentWhenActive="page" (click)="closeMenu()">
+      Pricing
+    </a>
+  </nav>
+
+  <div class="account">
+    @if (auth.isAuthenticated()) {
+      <a class="le-btn" routerLink="/dashboard">Open app</a>
+    } @else {
+      <a class="le-btn le-btn-secondary" routerLink="/register">Sign up</a>
+      <a class="le-btn" routerLink="/login">Sign in</a>
+    }
+  </div>
+</header>
+
+<main id="main">
+  <router-outlet />
+</main>
+
+<section class="stack" aria-labelledby="stack-heading">
+  <h2 id="stack-heading">Core technical stack</h2>
+  <ul>
+    @for (item of stack; track item) {
+      <li>{{ item }}</li>
+    }
+  </ul>
+</section>
+
+<footer class="site-footer">
+  <nav aria-label="Footer">
+    <a routerLink="/about" routerLinkActive="is-current" ariaCurrentWhenActive="page">About</a>
+    <a routerLink="/contact" routerLinkActive="is-current" ariaCurrentWhenActive="page">Contact</a>
+    <a routerLink="/faq" routerLinkActive="is-current" ariaCurrentWhenActive="page">FAQ</a>
+    <a routerLink="/privacy" routerLinkActive="is-current" ariaCurrentWhenActive="page">Privacy Policy</a>
+    <a routerLink="/copyright" routerLinkActive="is-current" ariaCurrentWhenActive="page">Copyright</a>
+  </nav>
+  <p>© {{ year }} LearningEdge. All rights reserved.</p>
+</footer>

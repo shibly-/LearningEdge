@@ -19,6 +19,9 @@ public interface IKeycloakUserDirectory
     /// <summary>Returns the Keycloak user id. Assigns the configured organization-admin role.</summary>
     Task<string> CreateOrganizationAdminAsync(KeycloakAccount account, CancellationToken cancellationToken);
 
+    /// <summary>Turns the realm user's sign-in on or off without changing their password.</summary>
+    Task SetEnabledAsync(string keycloakUserId, bool enabled, CancellationToken cancellationToken);
+
     /// <summary>Keeps the realm user's name and email aligned with the LearningEdge record.</summary>
     Task UpdateProfileAsync(
         string keycloakUserId,

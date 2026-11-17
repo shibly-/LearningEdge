@@ -147,6 +147,30 @@ public class UserController : ControllerBase
         return Ok(result.Data);
     }
 
+    // PUT: api/v1/user/{id}/enabled
+    [HttpPut("{id:guid}/enabled")]
+    [Authorize(Policy = AuthPolicies.SysAdmin)]
+    [MapToApiVersion("1.0")]
+    [EndpointSummary("Enable or disable an organization admin")]
+    [EndpointDescription("System admin only. Disabling also turns off the Keycloak sign-in. The account stays in the list.")]
+    [ProducesResponseType(typeof(UserDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<UserDTO>> SetEnabled(
+        Guid id,
+        [FromBody] SetOrganizationAdminEnabledCommand command,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(command with { Id = id }, cancellationToken);
+        if (!result.Success)
+        {
+            return result.ToErrorResult();
+        }
+
+        return Ok(result.Data);
+    }
+
     // GET: api/v1/user?organizationId={id}&role=OrgAdmin&role=Learner
     [HttpGet]
     [Authorize(Policy = AuthPolicies.SysAdmin)]

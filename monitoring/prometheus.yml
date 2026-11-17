@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 120s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # MSSQL Server Metrics
+  - job_name: mssql
+    static_configs:
+      - targets:
+          - mssql-exporter:4000
+  
+  # Docker CPU & Memory Metrics
+  - job_name: cadvisor
+    static_configs:
+      - targets:
+          - cadvisor:8080  

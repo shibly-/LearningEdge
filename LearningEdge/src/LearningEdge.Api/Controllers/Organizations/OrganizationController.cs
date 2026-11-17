@@ -70,12 +70,34 @@ public class OrganizationController : ControllerBase
         return Ok(result.Data);
     }
 
+    // PUT: api/v1/organization/{id}/active
+    [HttpPut("{id}/active")]
+    [Authorize(Policy = AuthPolicies.SysAdmin)]
+    [MapToApiVersion("1.0")]
+    [EndpointSummary("Enable or disable an organization")]
+    [EndpointDescription("System admin only. A disabled organization stays in the list, but its users cannot sign in and it is hidden from registration.")]
+    [ProducesResponseType(typeof(OrganizationDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<OrganizationDTO>> SetActive(
+        Guid id,
+        [FromBody] SetOrganizationActiveCommand command,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(command with { Id = id }, cancellationToken);
+        if (!result.Success)
+        {
+            return result.ToErrorResult();
+        }
+
+        return Ok(result.Data);
+    }
+
     // GET: api/v1/organization
     [HttpGet]
     [Authorize(Policy = AuthPolicies.SysAdmin)]
     [MapToApiVersion("1.0")]
     [EndpointSummary("Get all organizations")]
-    [EndpointDescription("Returns every organization that has not been deleted, ordered by name.")]
+    [EndpointDescription("Returns every organization that has not been deleted, active and inactive, ordered by name.")]
     [ProducesResponseType(typeof(IReadOnlyList<OrganizationDTO>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<OrganizationDTO>>> GetAll(CancellationToken cancellationToken)
     {
@@ -93,7 +115,7 @@ public class OrganizationController : ControllerBase
     [AllowAnonymous]
     [MapToApiVersion("1.0")]
     [EndpointSummary("List organizations for registration")]
-    [EndpointDescription("Returns id and name for every organization, so a visitor can choose one while registering. No description is included.")]
+    [EndpointDescription("Returns id and name for every active organization, so a visitor can choose one while registering. Disabled organizations are omitted.")]
     [ProducesResponseType(typeof(IReadOnlyList<OrganizationChoice>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<OrganizationChoice>>> Directory(CancellationToken cancellationToken)
     {
@@ -104,6 +126,7 @@ public class OrganizationController : ControllerBase
         }
 
         var choices = result.Data!
+            .Where(organization => organization.IsActive)
             .Select(organization => new OrganizationChoice(organization.Id, organization.Name))
             .ToList();
         return Ok(choices);

@@ -8,11 +8,15 @@ function base(): string {
 const seg = encodeURIComponent;
 
 export const apiPaths = {
+  platform: {
+    snapshot: () => `${base()}/platform/snapshot`,
+  },
   organization: {
     list: () => `${base()}/organization`,
     directory: () => `${base()}/organization/directory`,
     create: () => `${base()}/organization`,
     byId: (id: string) => `${base()}/organization/${seg(id)}`,
+    setActive: (id: string) => `${base()}/organization/${seg(id)}/active`,
     users: (id: string) => `${base()}/organization/${seg(id)}/users`,
   },
   user: {
@@ -35,6 +39,7 @@ export const apiPaths = {
     byId: (id: string) => `${base()}/user/${seg(id)}`,
     register: () => `${base()}/user/register`,
     approve: (id: string) => `${base()}/user/${seg(id)}/approve`,
+    setEnabled: (id: string) => `${base()}/user/${seg(id)}/enabled`,
     /** The record for the bearer token's principal. */
     me: () => `${base()}/user/me`,
   },

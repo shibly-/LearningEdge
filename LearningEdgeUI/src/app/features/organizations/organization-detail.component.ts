@@ -14,6 +14,7 @@ import type { CreateOrganizationCommand, OrganizationDto } from '../../core/mode
 import { OrganizationRepository } from '../../core/services/organization.repository';
 import { describeError } from '../../core/stores/async-collection.store';
 import { OrganizationStore } from '../../core/stores/organization.store';
+import { BadgeComponent } from '../../shared/components/badge.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state.component';
 import { ErrorStateComponent } from '../../shared/components/error-state.component';
 import { ModalShellComponent } from '../../shared/components/modal-shell.component';
@@ -29,6 +30,7 @@ type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
+    BadgeComponent,
     PageHeaderComponent,
     SkeletonComponent,
     EmptyStateComponent,
@@ -41,6 +43,16 @@ type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
     <app-page-header [title]="organization()?.name ?? 'Organization'" subtitle="Tenant detail">
       <a class="le-btn le-btn-secondary" routerLink="/platform/organizations">Back to list</a>
       @if (state() === 'loaded') {
+        @if (organization(); as current) {
+          <button
+            type="button"
+            class="le-btn le-btn-secondary"
+            [disabled]="store.isSaving()"
+            (click)="setActive(current.id, !current.isActive)"
+          >
+            {{ current.isActive ? 'Disable' : 'Enable' }}
+          </button>
+        }
         <button type="button" class="le-btn" (click)="editing.set(true)">Edit</button>
       }
     </app-page-header>
@@ -77,6 +89,13 @@ type ViewState = 'loading' | 'loaded' | 'missing' | 'error';
           <dd>{{ organization()?.name }}</dd>
           <dt>Description</dt>
           <dd>{{ organization()?.description || '—' }}</dd>
+          <dt>Status</dt>
+          <dd>
+            <app-badge
+              [status]="organization()?.isActive ? 'on' : 'off'"
+              [text]="organization()?.isActive ? 'Active' : 'Inactive'"
+            />
+          </dd>
           <dt>Identifier</dt>
           <dd>
             <code>{{ organization()?.id }}</code>
@@ -155,6 +174,10 @@ export class OrganizationDetailComponent {
       untracked(() => this.load());
     });
     this.destroyRef.onDestroy(() => this.request?.unsubscribe());
+  }
+
+  protected setActive(id: string, isActive: boolean): void {
+    this.store.setActive(id, isActive, (organization) => this.organizationState.set(organization));
   }
 
   protected saveEdit(id: string, command: CreateOrganizationCommand): void {

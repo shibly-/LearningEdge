@@ -1,6 +1,6 @@
 <app-page-header
   title="Organizations"
-  subtitle="Every tenant on the platform. Only Super Admins can see this list."
+  subtitle="Every tenant on the platform, including disabled ones. Only Super Admins can see this list."
 >
   <button type="button" class="le-btn" (click)="openCreate()">New organization</button>
 </app-page-header>
@@ -32,13 +32,19 @@
       [value]="searchTerm()"
       (input)="onSearch($event)"
     />
+    <label class="le-visually-hidden" for="org-status">Filter by status</label>
+    <select id="org-status" [value]="activityFilter()" (change)="onActivity($event)">
+      <option value="all">All statuses</option>
+      <option value="active">Active</option>
+      <option value="inactive">Inactive</option>
+    </select>
     <span class="count">{{ filtered().length }} of {{ store.count() }}</span>
   </div>
 
   @if (noMatches()) {
     <app-empty-state
       title="No matches"
-      message="No organization matches that search. Try a different term."
+      message="No organization matches those filters. Try a different status or search."
     />
   } @else {
     <div class="le-card le-table-wrap">
@@ -50,6 +56,7 @@
           <tr>
             <th scope="col">Name</th>
             <th scope="col">Description</th>
+            <th scope="col">Status</th>
             <th scope="col"><span class="le-visually-hidden">Actions</span></th>
           </tr>
         </thead>
@@ -58,8 +65,23 @@
             <tr>
               <th scope="row">{{ org.name }}</th>
               <td>{{ org.description || '—' }}</td>
+              <td>
+                <app-badge
+                  [status]="org.isActive ? 'on' : 'off'"
+                  [text]="org.isActive ? 'Active' : 'Inactive'"
+                />
+              </td>
               <td class="row-actions">
                 <a [routerLink]="['/platform/organizations', org.id]">View</a>
+                <button
+                  type="button"
+                  class="le-btn le-btn-secondary le-btn-sm"
+                  [disabled]="store.isSaving()"
+                  [attr.aria-label]="(org.isActive ? 'Disable ' : 'Enable ') + org.name"
+                  (click)="setActive(org.id, !org.isActive)"
+                >
+                  {{ org.isActive ? 'Disable' : 'Enable' }}
+                </button>
               </td>
             </tr>
           }

@@ -190,6 +190,41 @@ public class UserQueryHandlersTests
     }
 
     [Fact]
+    public async Task GetByEmail_ShouldRejectADisabledOrganizationAdmin()
+    {
+        await using var context = CreateContext();
+        var organization = new Organization("Acme");
+        var admin = User.CreateOrganizationAdmin("Ada", "Lovelace", "ada@example.com", organization.Id, "kc-1");
+        admin.SetEnabled(false);
+        context.Organizations.Add(organization);
+        context.Users.Add(admin);
+        await context.SaveChangesAsync();
+
+        var handler = new UserQueryHandlers(context, CreateMapper());
+        var result = await handler.Handle(new GetUserByEmailQuery("ada@example.com"), CancellationToken.None);
+
+        Assert.Equal(ResultErrorKind.Forbidden, result.Kind);
+        Assert.Contains("disabled", result.Error);
+    }
+
+    [Fact]
+    public async Task GetByEmail_ShouldRejectAUserWhoseOrganizationIsDisabled()
+    {
+        await using var context = CreateContext();
+        var organization = new Organization("Acme");
+        organization.SetActive(false);
+        context.Organizations.Add(organization);
+        context.Users.Add(new User("Ada", "Lovelace", "ada@example.com", UserRole.OrgAdmin, organization.Id));
+        await context.SaveChangesAsync();
+
+        var handler = new UserQueryHandlers(context, CreateMapper());
+        var result = await handler.Handle(new GetUserByEmailQuery("ada@example.com"), CancellationToken.None);
+
+        Assert.Equal(ResultErrorKind.Forbidden, result.Kind);
+        Assert.Contains("organization", result.Error);
+    }
+
+    [Fact]
     public async Task GetUsers_FiltersByActivationStatus()
     {
         await using var context = CreateContext();

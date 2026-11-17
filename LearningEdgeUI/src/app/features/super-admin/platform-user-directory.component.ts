@@ -9,10 +9,11 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import type { UpdateUserCommand, UserDto } from '../../core/models/user';
-import { UserActivationStatus, activationLabel, isPendingActivation } from '../../core/models/user';
+import { UserActivationStatus, activationLabel, activationTone, isPendingActivation } from '../../core/models/user';
 import { UserRole } from '../../core/models/user-role';
 import { OrganizationStore } from '../../core/stores/organization.store';
 import { PlatformUserStore } from '../../core/stores/platform-user.store';
+import { BadgeComponent } from '../../shared/components/badge.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state.component';
 import { ErrorStateComponent } from '../../shared/components/error-state.component';
 import { ModalShellComponent } from '../../shared/components/modal-shell.component';
@@ -39,6 +40,7 @@ export interface RoleScope {
   providers: [PlatformUserStore],
   imports: [
     RouterLink,
+    BadgeComponent,
     RoleLabelPipe,
     PageHeaderComponent,
     SkeletonComponent,
@@ -77,8 +79,17 @@ export interface RoleScope {
       >
         <option value="" [selected]="organizationId() === null">All organizations</option>
         @for (org of organizations.sortedByName(); track org.id) {
-          <option [value]="org.id" [selected]="org.id === organizationId()">{{ org.name }}</option>
+          <option [value]="org.id" [selected]="org.id === organizationId()">
+            {{ org.name }}{{ org.isActive ? '' : ' (inactive)' }}
+          </option>
         }
+      </select>
+
+      <label class="le-visually-hidden" for="directory-status">Filter by status</label>
+      <select id="directory-status" [value]="activityFilter()" (change)="onActivity($event)">
+        <option value="all">All statuses</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
       </select>
 
       <label class="le-visually-hidden" for="directory-search">Search users</label>
@@ -104,7 +115,7 @@ export interface RoleScope {
     } @else if (store.isEmpty()) {
       <app-empty-state title="No users found" [message]="emptyMessage()" />
     } @else if (visible().length === 0) {
-      <app-empty-state title="No matches" message="No user matches that search." />
+      <app-empty-state title="No matches" message="No user matches those filters." />
     } @else {
       <div class="le-card le-table-wrap">
         <table class="le-table">
@@ -130,7 +141,12 @@ export interface RoleScope {
                 <th scope="row">{{ user.firstName }} {{ user.lastName }}</th>
                 <td>{{ user.email }}</td>
                 <td>{{ user.role | roleLabel }}</td>
-                <td>{{ activationText(user.activationStatus) }}</td>
+                <td>
+                  <app-badge
+                    [status]="tone(user.activationStatus)"
+                    [text]="activationText(user.activationStatus)"
+                  />
+                </td>
                 <td>
                   <a [routerLink]="['/platform/organizations', user.organizationId]">
                     {{ organizationName(user.organizationId) }}
@@ -146,6 +162,21 @@ export interface RoleScope {
                       (click)="approve(user)"
                     >
                       Approve
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="le-btn le-btn-secondary le-btn-sm"
+                      [disabled]="store.isSaving()"
+                      [attr.aria-label]="
+                        (user.activationStatus === activeStatus ? 'Disable ' : 'Enable ') +
+                        user.firstName +
+                        ' ' +
+                        user.lastName
+                      "
+                      (click)="setEnabled(user)"
+                    >
+                      {{ user.activationStatus === activeStatus ? 'Disable' : 'Enable' }}
                     </button>
                   }
                   <button
@@ -194,6 +225,7 @@ export class PlatformUserDirectoryComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
 
   private readonly search = signal('');
+  private readonly activity = signal<'all' | 'active' | 'inactive'>('all');
   private readonly selectedScope = signal<RoleScope | null>(null);
   protected readonly organizationId = signal<string | null>(
     this.route.snapshot.queryParamMap.get('organizationId'),
@@ -201,20 +233,28 @@ export class PlatformUserDirectoryComponent implements OnInit {
   protected readonly editing = signal<UserDto | null>(null);
 
   protected readonly searchTerm = this.search.asReadonly();
+  protected readonly activityFilter = this.activity.asReadonly();
   protected readonly activeScope = computed(() => this.selectedScope() ?? this.scopes()[0]);
   protected readonly activationText = activationLabel;
+  protected readonly tone = activationTone;
   protected readonly pending = isPendingActivation;
+  protected readonly activeStatus = UserActivationStatus.Active;
 
   protected readonly visible = computed(() => {
     const term = this.search().trim().toLowerCase();
-    const users = this.store.items();
-    return term.length === 0
-      ? users
-      : users.filter(
-          (user) =>
-            `${user.firstName} ${user.lastName}`.toLowerCase().includes(term) ||
-            user.email.toLowerCase().includes(term),
-        );
+    const activity = this.activity();
+    return this.store.items().filter((user) => {
+      const matchesActivity =
+        activity === 'all' ||
+        (activity === 'active'
+          ? user.activationStatus === UserActivationStatus.Active
+          : user.activationStatus === UserActivationStatus.Inactive);
+      const matchesTerm =
+        term.length === 0 ||
+        `${user.firstName} ${user.lastName}`.toLowerCase().includes(term) ||
+        user.email.toLowerCase().includes(term);
+      return matchesActivity && matchesTerm;
+    });
   });
 
   ngOnInit(): void {
@@ -248,12 +288,21 @@ export class PlatformUserDirectoryComponent implements OnInit {
     this.search.set((event.target as HTMLInputElement).value);
   }
 
+  protected onActivity(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.activity.set(value === 'active' || value === 'inactive' ? value : 'all');
+  }
+
   protected update(id: string, command: UpdateUserCommand): void {
     this.store.update(id, command, () => this.editing.set(null));
   }
 
   protected approve(user: UserDto): void {
     this.store.approve(user);
+  }
+
+  protected setEnabled(user: UserDto): void {
+    this.store.setEnabled(user, user.activationStatus !== UserActivationStatus.Active);
   }
 
   private refresh(): void {

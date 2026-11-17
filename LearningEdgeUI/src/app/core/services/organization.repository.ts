@@ -7,6 +7,7 @@ import type {
   CreateOrganizationCommand,
   OrganizationChoice,
   OrganizationDto,
+  SetOrganizationActiveCommand,
   UpdateOrganizationCommand,
 } from '../models/organization';
 import { MockDb } from './mock/mock-db';
@@ -18,6 +19,7 @@ export abstract class OrganizationRepository {
   abstract getById(id: string): Observable<OrganizationDto | null>;
   abstract create(command: CreateOrganizationCommand): Observable<string>;
   abstract update(id: string, command: UpdateOrganizationCommand): Observable<OrganizationDto>;
+  abstract setActive(id: string, isActive: boolean): Observable<OrganizationDto>;
 }
 
 @Injectable()
@@ -46,6 +48,14 @@ export class HttpOrganizationRepository extends OrganizationRepository {
       command,
     );
   }
+
+  override setActive(id: string, isActive: boolean): Observable<OrganizationDto> {
+    const command: SetOrganizationActiveCommand = { id, isActive };
+    return this.api.put<SetOrganizationActiveCommand, OrganizationDto>(
+      apiPaths.organization.setActive(id),
+      command,
+    );
+  }
 }
 
 @Injectable()
@@ -57,7 +67,9 @@ export class MockOrganizationRepository extends OrganizationRepository {
   }
 
   override directory(): Observable<readonly OrganizationChoice[]> {
-    const choices = this.db.organizations.map((org) => ({ id: org.id, name: org.name }));
+    const choices = this.db.organizations
+      .filter((org) => org.isActive)
+      .map((org) => ({ id: org.id, name: org.name }));
     return of(choices).pipe(delay(MOCK_LATENCY_MS));
   }
 
@@ -75,7 +87,7 @@ export class MockOrganizationRepository extends OrganizationRepository {
     const id = this.db.nextGuid();
     this.db.organizations = [
       ...this.db.organizations,
-      { id, name: command.name.trim(), description: command.description.trim() },
+      { id, name: command.name.trim(), description: command.description.trim(), isActive: true },
     ];
     return of(id).pipe(delay(MOCK_LATENCY_MS));
   }
@@ -91,11 +103,26 @@ export class MockOrganizationRepository extends OrganizationRepository {
       return throwError(() => problem);
     }
 
+    const current = this.db.organizations.find((org) => org.id === id);
     const updated: OrganizationDto = {
       id,
       name: command.name.trim(),
       description: command.description.trim(),
+      isActive: current?.isActive ?? true,
     };
+    this.db.organizations = this.db.organizations.map((org) => (org.id === id ? updated : org));
+    return of(updated).pipe(delay(MOCK_LATENCY_MS));
+  }
+
+  override setActive(id: string, isActive: boolean): Observable<OrganizationDto> {
+    const current = this.db.organizations.find((org) => org.id === id);
+    if (current === undefined) {
+      return throwError(
+        () => new ApiFailure('not-found', `No organization found with Id ${id}.`, 404),
+      );
+    }
+
+    const updated: OrganizationDto = { ...current, isActive };
     this.db.organizations = this.db.organizations.map((org) => (org.id === id ? updated : org));
     return of(updated).pipe(delay(MOCK_LATENCY_MS));
   }

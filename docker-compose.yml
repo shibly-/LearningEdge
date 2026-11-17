@@ -14,7 +14,7 @@ services:
       - manual  
     restart: on-failure
     networks:
-      - appnet
+      - le-shared-net
 
   api:
     container_name: api
@@ -48,7 +48,7 @@ services:
       - manual    
     restart: on-failure
     networks:
-      - appnet
+      - le-shared-net
 
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -65,9 +65,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 30
-      start_period: 20s
+      start_period: 20s 
     networks:
-      - appnet
+      - le-shared-net
   
   rabbitmq:
     image: rabbitmq:3-management
@@ -80,9 +80,9 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RabbitMQ_Password}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-      - ./docker/rabbitmq/20-allow-guest.conf:/etc/rabbitmq/conf.d/20-allow-guest.conf:ro
+      - ./docker/rabbitmq/20-allow-guest.conf:/etc/rabbitmq/conf.d/20-allow-guest.conf:ro    
     networks:
-      - appnet  
+      - le-shared-net  
       
   qdrant:
     image: qdrant/qdrant:v1.20.0
@@ -91,17 +91,15 @@ services:
       - "6333:6333"   # REST API
       - "6334:6334"   # gRPC API
     volumes:
-      - qdrant_storage:/qdrant/storage
+      - qdrant_storage:/qdrant/storage    
     networks:
-      - appnet
+      - le-shared-net
       
   ollama:
     image: ollama/ollama
     container_name: ollama
     ports:
       - "11434:11434"
-    networks:
-      - appnet
     volumes:
       - ollama_data:/root/.ollama  # persist models
     restart: unless-stopped
@@ -112,7 +110,9 @@ services:
       ollama pull llama3.1:8b &&
       ollama pull qwen3-embedding:0.6b &&      
       tail -f /dev/null
-      "  
+      "
+    networks:
+      - le-shared-net
       
   redis:
     image: redis:7.2
@@ -122,7 +122,9 @@ services:
       # reaches this container through 6380. Containers still use redis:6379.
       - "6380:6379"
     volumes:
-      - redisdata:/data  
+      - redisdata:/data      
+    networks:
+      - le-shared-net  
       
   redis-commander:
     image: rediscommander/redis-commander:latest
@@ -147,9 +149,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 10s    
     networks:
-    - appnet  
+    - le-shared-net  
   
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.2
@@ -178,9 +180,9 @@ services:
     command:
       - start-dev
       - --https-key-store-file=/opt/keycloak/conf/certs/keycloak.pfx
-      - --https-key-store-password=Password123!    
+      - --https-key-store-password=Password123!      
     networks:
-      - appnet      
+      - le-shared-net      
 
   document-parser:
     container_name: document-parser
@@ -209,10 +211,11 @@ services:
         condition: service_healthy      
     restart: on-failure
     networks:
-      - appnet
+      - le-shared-net
 
 networks:
-  appnet:    
+  le-shared-net:
+    external: true   
 
 volumes:
   sqlvolume:

@@ -82,8 +82,8 @@ describe('MockUserRepository.listAll', () => {
     repository = TestBed.inject(MockUserRepository);
     const db = TestBed.inject(MockDb);
     db.organizations = [
-      { id: 'org-1', name: 'Acme', description: '' },
-      { id: 'org-2', name: 'Contoso', description: '' },
+      { id: 'org-1', name: 'Acme', description: '', isActive: true },
+      { id: 'org-2', name: 'Contoso', description: '', isActive: true },
     ];
     db.users = [
       user('grace', 'Grace', 'Hopper', UserRole.Instructor, 'org-1'),
