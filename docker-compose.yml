@@ -162,6 +162,7 @@ services:
     volumes:
       - ./certs:/opt/keycloak/conf/certs
       - keycloak_data:/opt/keycloak/data
+      - ./keycloak/themes/learningedge:/opt/keycloak/themes/learningedge:ro
     environment:
       KC_DB: postgres
       KC_DB_URL_HOST: postgres
@@ -170,7 +171,10 @@ services:
       KC_DB_USERNAME: ${KEYCLOAK_DB_USERNAME}
       KC_DB_PASSWORD: "${KEYCLOAK_DB_PASSWORD}"
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}    
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_SPI_THEME_CACHE_THEMES: "false"
+      KC_SPI_THEME_CACHE_TEMPLATES: "false"
+      KC_SPI_THEME_STATIC_MAX_AGE: "-1"    
     command:
       - start-dev
       - --https-key-store-file=/opt/keycloak/conf/certs/keycloak.pfx
