@@ -11,7 +11,7 @@
 :root{
   --paper:#F1F4F5; --surface:#FFFFFF; --surface-2:#E8EDEF; --ink:#14212A; --ink-2:#425360; --muted:#667783;
   --line:#D1D9DE; --line-2:#A8B5BE;
-  --c-platform:#1F6B4A; --c-identity:#2F558C; --c-data:#5B45B0; --c-live:#A02B5B; --c-broker:#0A6A8C; --c-docs:#9C5900;
+  --c-platform:#1F6B4A; --c-identity:#2F558C; --c-data:#5B45B0; --c-live:#A02B5B; --c-broker:#0A6A8C; --c-docs:#9C5900; --c-observe:#0B6E6A;
   --on-arch:#FFFFFF;
   --good:#1D7A44; --mixed:#9C5900; --poor:#B2271F;
   --good-bg:#E2F2E7; --mixed-bg:#FAEDD9; --poor-bg:#FAE3E0;
@@ -24,7 +24,7 @@
   :root:not([data-theme="light"]){
     --paper:#0D1317; --surface:#141C21; --surface-2:#1B252C; --ink:#E1E8EC; --ink-2:#A5B3BD; --muted:#82919B;
     --line:#26333B; --line-2:#3A4B56;
-    --c-platform:#4DC7A2; --c-identity:#8DB0E8; --c-data:#B4A5F5; --c-live:#EF80AC; --c-broker:#63C3E5; --c-docs:#E8AD58;
+    --c-platform:#4DC7A2; --c-identity:#8DB0E8; --c-data:#B4A5F5; --c-live:#EF80AC; --c-broker:#63C3E5; --c-docs:#E8AD58; --c-observe:#7DDED4;
     --on-arch:#0D1317;
     --good:#6BCB8E; --mixed:#E8AD58; --poor:#F18A83;
     --good-bg:#15301F; --mixed-bg:#33250F; --poor-bg:#3A1A18;
@@ -35,7 +35,7 @@
 :root[data-theme="dark"]{
   --paper:#0D1317; --surface:#141C21; --surface-2:#1B252C; --ink:#E1E8EC; --ink-2:#A5B3BD; --muted:#82919B;
   --line:#26333B; --line-2:#3A4B56;
-  --c-platform:#4DC7A2; --c-identity:#8DB0E8; --c-data:#B4A5F5; --c-live:#EF80AC; --c-broker:#63C3E5; --c-docs:#E8AD58;
+  --c-platform:#4DC7A2; --c-identity:#8DB0E8; --c-data:#B4A5F5; --c-live:#EF80AC; --c-broker:#63C3E5; --c-docs:#E8AD58; --c-observe:#7DDED4;
   --on-arch:#0D1317;
   --good:#6BCB8E; --mixed:#E8AD58; --poor:#F18A83;
   --good-bg:#15301F; --mixed-bg:#33250F; --poor-bg:#3A1A18;
@@ -86,6 +86,7 @@ code{font-size:.88em}
 .app[data-arch="live"]{--arch:var(--c-live)}
 .app[data-arch="broker"]{--arch:var(--c-broker)}
 .app[data-arch="docs"]{--arch:var(--c-docs)}
+.app[data-arch="observe"]{--arch:var(--c-observe)}
 .app[data-arch="guide"]{--arch:var(--ink-2)}
 .sec{padding-block:32px}
 .sec + .sec{border-top:1px solid var(--line)}
@@ -205,6 +206,13 @@ pre{margin:0;background:var(--code-bg);border-radius:8px;padding:12px 14px;overf
 .plan{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .plan li{display:grid;grid-template-columns:64px 1fr;gap:8px;font-size:14px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.versions{padding-block:8px 32px}
+.versions details{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.versions summary{cursor:pointer;font-family:var(--font-display);font-weight:700;font-size:1.15rem;padding:12px 14px}
+.versions summary:focus-visible{outline-offset:-2px}
+.versions details[open] summary{border-bottom:1px solid var(--line)}
+.versions .d-desc{margin:12px 14px 0}
+.versions .tablebox{margin:12px 14px 14px}
 @media (max-width:900px){
   .domain,.arch-head,.bench,.gc,.cards,.two{grid-template-columns:1fr}
   .contexts{grid-template-columns:1fr 1fr}
@@ -260,8 +268,51 @@ pre{margin:0;background:var(--code-bg);border-radius:8px;padding:12px 14px;overf
   <div class="view" data-view="live" hidden></div>
   <div class="view" data-view="broker" hidden></div>
   <div class="view" data-view="docs" hidden></div>
+  <div class="view" data-view="observe" hidden></div>
   <div class="view" data-view="guide" hidden></div>
 </main>
+
+<footer class="versions">
+  <div class="wrap">
+    <details>
+      <summary>Versions in this repo</summary>
+      <p class="d-desc">Pinned where the project pins them. Images tagged <span class="mono">latest</span> follow the registry at the next pull, so those rows name the tag rather than a build number.</p>
+      <div class="tablebox"><table>
+        <thead><tr><th>Piece</th><th>Version</th><th>Where it is set</th></tr></thead>
+        <tbody>
+          <tr><td>.NET / ASP.NET Core API</td><td>10</td><td><span class="mono">net10.0</span>, image <span class="mono">mcr.microsoft.com/dotnet/aspnet:10.0</span></td></tr>
+          <tr><td>EF Core, SQL Server provider</td><td>10.0.11</td><td><span class="mono">Directory.Packages.props</span></td></tr>
+          <tr><td>JWT bearer</td><td>10.0.14</td><td><span class="mono">Microsoft.AspNetCore.Authentication.JwtBearer</span></td></tr>
+          <tr><td>MediatR</td><td>14.2.0</td><td>Application handlers</td></tr>
+          <tr><td>FluentValidation</td><td>12.1.1</td><td>Command validators</td></tr>
+          <tr><td>AutoMapper</td><td>16.3.0</td><td>DTO mapping</td></tr>
+          <tr><td>MassTransit + RabbitMQ transport</td><td>8.5.11</td><td>API and document parser</td></tr>
+          <tr><td>Serilog.AspNetCore</td><td>10.0.0</td><td>API console logs</td></tr>
+          <tr><td>StackExchange.Redis</td><td>3.4.5</td><td>Extract board client</td></tr>
+          <tr><td>Scalar.AspNetCore</td><td>2.20.0</td><td>API reference UI</td></tr>
+          <tr><td>ASP.NET API versioning</td><td>10.2.1</td><td><span class="mono">/api/v1</span></td></tr>
+          <tr><td>Angular</td><td>22</td><td><span class="mono">@angular/core ^22.0.0</span></td></tr>
+          <tr><td>TypeScript</td><td>6.0.2</td><td><span class="mono">typescript ~6.0.2</span></td></tr>
+          <tr><td>Tailwind CSS</td><td>4.3.3</td><td>UI layout</td></tr>
+          <tr><td>Vitest</td><td>4.0.8</td><td>UI unit tests</td></tr>
+          <tr><td>keycloak-js / keycloak-angular</td><td>26.2.5 / 22.0.0</td><td>Browser sign-in</td></tr>
+          <tr><td>SignalR client</td><td>10.0.11</td><td><span class="mono">@microsoft/signalr</span></td></tr>
+          <tr><td>Node / nginx (UI image)</td><td>24 / 1.29</td><td><span class="mono">node:24-alpine</span>, <span class="mono">nginx:1.29-alpine</span></td></tr>
+          <tr><td>Keycloak</td><td>26.8.2</td><td>Realm <span class="mono">learningedge</span></td></tr>
+          <tr><td>Postgres</td><td>16</td><td>Keycloak database only</td></tr>
+          <tr><td>SQL Server</td><td>2022</td><td><span class="mono">mcr.microsoft.com/mssql/server:2022-latest</span></td></tr>
+          <tr><td>Redis</td><td>7.2</td><td>Extract status and progress</td></tr>
+          <tr><td>RabbitMQ</td><td>3</td><td><span class="mono">rabbitmq:3-management</span></td></tr>
+          <tr><td>Qdrant server and client</td><td>1.20.0</td><td>One collection per organization</td></tr>
+          <tr><td>OllamaSharp</td><td>5.5.0</td><td>Embedding calls</td></tr>
+          <tr><td>Embedding / generation models</td><td>qwen3-embedding:0.6b · llama3.1:8b</td><td>Pulled by the Ollama container</td></tr>
+          <tr><td>PdfPig / Open XML</td><td>0.1.16 / 3.5.1</td><td>PDF and DOCX readers</td></tr>
+          <tr><td>.NET Aspire</td><td>13.4.6</td><td>Local app host, not the Compose stack</td></tr>
+        </tbody>
+      </table></div>
+    </details>
+  </div>
+</footer>
 
 <script>
 const CHAPTERS = [
@@ -271,22 +322,23 @@ const CHAPTERS = [
   {id:'live', n:'4', c:'var(--c-live)', t:'Live', s:'SignalR'},
   {id:'broker', n:'5', c:'var(--c-broker)', t:'Broker', s:'RabbitMQ'},
   {id:'docs', n:'6', c:'var(--c-docs)', t:'Documents', s:'Ollama · Qdrant'},
-  {id:'guide', n:'7', c:'var(--ink-2)', t:'Guide', s:'walkthrough'}
+  {id:'observe', n:'7', c:'var(--c-observe)', t:'Observability', s:'Grafana · Loki'},
+  {id:'guide', n:'8', c:'var(--ink-2)', t:'Guide', s:'walkthrough'}
 ];
 
 const NODES = [
-  {id:'ui', x:24, y:16, w:168, h:48, t:'Angular UI', s:':4200 dev · :4300 nginx', kind:'ext'},
-  {id:'kc', x:214, y:16, w:176, h:48, t:'Keycloak 26', s:'realm learningedge · :8443', kind:'ext'},
+  {id:'ui', x:24, y:16, w:168, h:48, t:'Angular 22 UI', s:':4200 dev · :4300 nginx 1.29', kind:'ext'},
+  {id:'kc', x:214, y:16, w:176, h:48, t:'Keycloak 26.8.2', s:'realm learningedge · :8443', kind:'ext'},
   {id:'pg', x:412, y:16, w:168, h:48, t:'Postgres 16', s:'Keycloak data only', kind:'db'},
   {id:'handlers', x:40, y:112, w:168, h:40, t:'MediatR handlers', s:'', kind:'service'},
   {id:'hub', x:224, y:112, w:168, h:40, t:'SignalR hub', s:'', kind:'service'},
-  {id:'sql', x:24, y:214, w:176, h:52, t:'SQL Server 2022', s:'LearningEdgeDB · :11433', kind:'db'},
-  {id:'redis', x:216, y:214, w:176, h:52, t:'Redis 7.2', s:'host :6380 → :6379', kind:'db'},
-  {id:'mq', x:408, y:214, w:172, h:52, t:'RabbitMQ 3', s:':5672 · UI :15672', kind:'db'},
+  {id:'sql', x:24, y:214, w:176, h:52, t:'SQL Server 2022', s:'EF Core 10.0.11 · :11433', kind:'db'},
+  {id:'redis', x:216, y:214, w:176, h:52, t:'Redis 7.2', s:'client 3.4.5 · host :6380', kind:'db'},
+  {id:'mq', x:408, y:214, w:172, h:52, t:'RabbitMQ 3', s:'MassTransit 8.5.11 · :5672', kind:'db'},
   {id:'files', x:24, y:286, w:176, h:44, t:'uploads volume', s:'shared by API and parser', kind:'ext'},
   {id:'parser', x:24, y:350, w:200, h:56, t:'Document parser', s:'MassTransit consumer', kind:'service'},
   {id:'ollama', x:240, y:350, w:164, h:56, t:'Ollama', s:':11434', kind:'ext'},
-  {id:'qdrant', x:420, y:350, w:160, h:56, t:'Qdrant', s:':6333 REST · :6334 gRPC', kind:'db'},
+  {id:'qdrant', x:420, y:350, w:160, h:56, t:'Qdrant 1.20.0', s:':6333 REST · :6334 gRPC', kind:'db'},
   {id:'qgs', x:24, y:424, w:280, h:48, t:'Question generator', s:'contract exists · consumer is a stub', kind:'stub'}
 ];
 
@@ -475,7 +527,7 @@ function mountTrace(title, list, withPath){
       <button type="button" class="btn" id="prev" ${state.step===0?'disabled':''}>← Prev</button>
       <button type="button" class="btn primary" id="play" aria-pressed="${state.playing}">${state.playing?'Pause':'Play'}</button>
       <button type="button" class="btn" id="next" ${state.step===list.length-1?'disabled':''}>Next →</button>
-      <span class="kbd">Keys: ← → step · 1–7 chapters</span>
+      <span class="kbd">Keys: ← → step · 1–8 chapters</span>
     </div>
     <div class="rows-head"><span></span><span>step</span><span class="axis"><span>less of the wait</span><span>more</span></span></div>
     <ol class="rows">${rows(list)}</ol>
@@ -487,14 +539,14 @@ function platformView(){
   return `<section class="sec"><div class="wrap">
     <div class="arch-head">
       <div>
-        <p class="eyebrow">Chapter 1 of 7 · UI and API</p>
+        <p class="eyebrow">Chapter 1 of 8 · UI and API</p>
         <h2>A clean-architecture host, with workers beside it</h2>
         <p class="def">The Angular app talks only to LearningEdge.Api. The API is one deployable: controllers, MediatR handlers, EF Core, MassTransit, and the SignalR hub. Parsing and question generation are separate processes. They share SQL Server, Redis, RabbitMQ, and the uploads volume. They do not share a project reference into the API.</p>
       </div>
       <dl class="stats">
-        <div><dt>UI</dt><dd>Angular, Keycloak bearer</dd></div>
+        <div><dt>UI</dt><dd>Angular 22, Keycloak bearer</dd></div>
         <div><dt>API shape</dt><dd>/api/v1/{controller}</dd></div>
-        <div><dt>Inside the API</dt><dd>Api → Application → Domain</dd></div>
+        <div><dt>Inside the API</dt><dd>.NET 10 · Api → Application → Domain</dd></div>
         <div><dt>Workers</dt><dd>Document parser, question generator</dd></div>
       </dl>
     </div>
@@ -554,7 +606,7 @@ function identityView(){
   return `<section class="sec"><div class="wrap">
     <div class="arch-head">
       <div>
-        <p class="eyebrow">Chapter 2 of 7 · Authentication</p>
+        <p class="eyebrow">Chapter 2 of 8 · Authentication</p>
         <h2>Keycloak signs people in. The API provisions them.</h2>
         <p class="def">Browsers use the realm learningedge on port 8443. The API validates access tokens and, for two admin actions, calls Keycloak\'s admin REST API with a confidential client. Learner self-registration does not create a Keycloak user.</p>
       </div>
@@ -606,7 +658,7 @@ function dataView(){
   return `<section class="sec"><div class="wrap">
     <div class="arch-head">
       <div>
-        <p class="eyebrow">Chapter 3 of 7 · SQL Server and Redis</p>
+        <p class="eyebrow">Chapter 3 of 8 · SQL Server and Redis</p>
         <h2>SQL remembers the course. Redis remembers the job.</h2>
         <p class="def">LearningEdgeDB is the system of record for organizations, people, trainings, files, banks, questions, and exams. Redis holds the extract board: status and percent, for one hour. Output caching of read endpoints is a separate 30-second policy and is not this board.</p>
       </div>
@@ -681,7 +733,7 @@ function liveView(){
   return `<section class="sec"><div class="wrap">
     <div class="arch-head">
       <div>
-        <p class="eyebrow">Chapter 4 of 7 · Real time</p>
+        <p class="eyebrow">Chapter 4 of 8 · Real time</p>
         <h2>SignalR reads the board. It does not do the work.</h2>
         <p class="def">The hub is mapped at /hubs/file-extract. Watch joins a group named file-extract:{fileId} and sends the current snapshot to that caller. A hosted service then polls Redis every 500 ms, but only for file ids somebody is still watching, and only pushes when the status:percent token changed.</p>
       </div>
@@ -731,7 +783,7 @@ function brokerView(){
   return `<section class="sec"><div class="wrap">
     <div class="arch-head">
       <div>
-        <p class="eyebrow">Chapter 5 of 7 · Message broker</p>
+        <p class="eyebrow">Chapter 5 of 8 · Message broker</p>
         <h2>RabbitMQ moves facts. It does not share a database transaction.</h2>
         <p class="def">MassTransit names the extract request le-file-extract-requested. The API listens on le-file-extract-completed. A prompt publish uses IQuestionGenerationSubmitted with an 8 second timeout. The entity-name line for that message, and the API consumer for question-generation completion, are commented out.</p>
       </div>
@@ -802,7 +854,7 @@ function docsView(){
   return `<section class="sec"><div class="wrap">
     <div class="arch-head">
       <div>
-        <p class="eyebrow">Chapter 6 of 7 · Document intelligence</p>
+        <p class="eyebrow">Chapter 6 of 8 · Document intelligence</p>
         <h2>Parse, then embed, then remember the organization</h2>
         <p class="def">The parser extracts text, asks Ollama for vectors, and upserts Qdrant. The image also pulls llama3.1:8b for generation. Nothing in the question-generator consumer calls that model yet.</p>
       </div>
@@ -864,10 +916,86 @@ const QUESTIONS = [
    a:'The prompt row stays. The API returns a failure that says the event could not be published. There is no outbox in this handler, so a retry of the HTTP call can create a second prompt row. That is the current trade-off, not a hidden safety net.'}
 ];
 
+function observeView(){
+  return `<section class="sec"><div class="wrap">
+    <div class="arch-head">
+      <div>
+        <p class="eyebrow">Chapter 7 of 8 · Observability</p>
+        <h2>Grafana reads two stores. Logs are not metrics.</h2>
+        <p class="def">The monitoring stack is a second Compose file, <span class="mono">monitoring/docker-compose.yml</span>, on the same external network <span class="mono">le-shared-net</span>. Prometheus keeps numbers. Loki keeps log lines. Grafana is the only UI for both. Promtail ships container stdout. cAdvisor and the SQL exporter give Prometheus something to scrape.</p>
+      </div>
+      <dl class="stats">
+        <div><dt>Grafana</dt><dd>grafana/grafana:latest · :3000</dd></div>
+        <div><dt>Prometheus</dt><dd>prom/prometheus:latest · :9090</dd></div>
+        <div><dt>Loki / Promtail</dt><dd>grafana/loki:latest · grafana/promtail:latest</dd></div>
+        <div><dt>Scrape interval</dt><dd>120 seconds</dd></div>
+      </dl>
+    </div>
+    <p class="usewhen"><b>Pick the store by the question.</b> "Is SQL Server up, and how long do pages stay in the buffer pool?" is Prometheus. "What did Serilog print for this request?" is Loki. A logs panel cannot graph <span class="mono">mssql_up</span>, and a Prometheus panel cannot show the exception text.</p>
+    <div class="cards">
+      <article class="card"><h3>Grafana</h3><p>Image tag <span class="mono">latest</span>, host port 3000. Add Prometheus at <span class="mono">http://prometheus:9090</span> and Loki at <span class="mono">http://loki:3100</span>. Those names resolve only on the Docker network, so the browser uses <span class="mono">localhost:3000</span> and Grafana uses the service names.</p></article>
+      <article class="card"><h3>Prometheus</h3><p>Image tag <span class="mono">latest</span>. <span class="mono">monitoring/prometheus.yml</span> scrapes itself, <span class="mono">cadvisor:8080</span>, and <span class="mono">mssql-exporter:4000</span> every 120 seconds.</p></article>
+      <article class="card"><h3>Loki and Promtail</h3><p>Both image tags are <span class="mono">latest</span>. Promtail reads the Docker socket and pushes to <span class="mono">http://loki:3100/loki/api/v1/push</span>. The keep rule is the containers <span class="mono">api</span>, <span class="mono">ui</span>, and <span class="mono">keycloak</span>.</p></article>
+    </div>
+    <div class="subsec">
+      <h3 class="subh">What each tool is watching</h3>
+      <div class="tablebox"><table>
+        <thead><tr><th>Tool</th><th>Image</th><th>It records</th></tr></thead>
+        <tbody>
+          <tr><td>cAdvisor</td><td><span class="mono">gcr.io/cadvisor/cadvisor:latest</span> · :8080</td><td>Container CPU and memory, including the SQL Server container. Prometheus job <span class="mono">cadvisor</span>.</td></tr>
+          <tr><td>SQL exporter</td><td><span class="mono">awaragi/prometheus-mssql-exporter:latest</span> · :4000</td><td>DMV stats as <span class="mono">mssql_*</span> gauges and counters. Login <span class="mono">le_db_monitor</span> must reach <span class="mono">sqlserver:1433</span>. Prometheus job <span class="mono">mssql</span>.</td></tr>
+          <tr><td>Promtail</td><td><span class="mono">grafana/promtail:latest</span></td><td>Docker json logs. Serilog lines such as <span class="mono">[15:28:11 INF] Database migrations applied.</span> become a <span class="mono">level</span> label.</td></tr>
+          <tr><td>Serilog</td><td>Serilog.AspNetCore 10.0.0</td><td>The API writes those lines to stdout. Promtail is what copies them into Loki. The API does not push to Loki itself.</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="subsec two">
+      <article class="panel"><h3>Prometheus queries for the SQL DMVs</h3>
+        <p>Use these in a Grafana panel whose data source is Prometheus. Counters since startup need <span class="mono">rate()</span>. Gauges are used as they are. The first point can take the 120 second scrape.</p>
+        <pre>mssql_up
+mssql_page_life_expectancy
+sum(mssql_connections)
+mssql_database_state{database="LearningEdgeDB"}
+rate(mssql_batch_requests[5m])
+rate(mssql_transactions{database="LearningEdgeDB"}[5m])
+mssql_database_filesize{database="LearningEdgeDB"} / 1024</pre>
+        <p class="note-sm">File size is kilobytes. Divide by 1024 for megabytes. <span class="mono">type="0"</span> is the data file and <span class="mono">type="1"</span> is the log. Dashboard ids 13919 and 18875 are built for this exporter.</p>
+      </article>
+      <article class="panel"><h3>Loki queries for the log lines</h3>
+        <p>Use these in Explore with the Loki data source. <span class="mono">container</span> is the Docker name after Promtail strips the leading slash.</p>
+        <pre>{container="api"}
+{container="api", level="INF"}
+{container="api"} |= "Database migrations"
+{container="api"} |~ "ERR|FTL|WRN"
+{container="ui"}
+{container="keycloak"}</pre>
+        <p class="note-sm">Container CPU for SQL Server is still Prometheus, from cAdvisor: <span class="mono">rate(container_cpu_usage_seconds_total{name=~".*sqlserver.*"}[2m])</span>.</p>
+      </article>
+    </div>
+    <div class="gc">
+      <div class="gains"><h3><span class="dot"></span>What this split gives you</h3>
+        <ul>
+          <li>The API stays a request path. Shipping logs is Promtail's job.</li>
+          <li>DMV numbers and Serilog text stay in the store that can query them.</li>
+          <li>Grafana is one place for the SQL board, container CPU, and the API log.</li>
+        </ul>
+      </div>
+      <div class="costs"><h3><span class="dot"></span>What it costs</h3>
+        <ul>
+          <li>Grafana, Loki, and Prometheus images are <span class="mono">latest</span>, not a pinned release.</li>
+          <li>A 120 second scrape means a new SQL panel looks empty for up to two minutes.</li>
+          <li>The exporter must be on <span class="mono">le-shared-net</span> with <span class="mono">sqlserver</span>. A project-prefixed network cannot resolve that name.</li>
+          <li>Promtail currently keeps api, ui, and keycloak. SQL Server's error log is not in Loki until <span class="mono">sqlserver</span> is added to that keep rule.</li>
+        </ul>
+      </div>
+    </div>
+  </div></section>`;
+}
+
 function guideView(){
   return `<section class="sec"><div class="wrap">
     <div class="sec-head">
-      <p class="eyebrow">Chapter 7 of 7 · Facilitator guide</p>
+        <p class="eyebrow">Chapter 8 of 8 · Facilitator guide</p>
       <h2 class="subh">Run it as a prediction exercise</h2>
       <p class="def">Let people say what they think the next box does before you press Next. The interesting answers are the ones the diagram makes easy to get wrong: who is allowed to speak SignalR, and which store is allowed to decide.</p>
     </div>
@@ -894,6 +1022,9 @@ function guideView(){
           <div><b>RabbitMQ</b><span>5672, management 15672</span></div>
           <div><b>Qdrant</b><span>6333 and 6334</span></div>
           <div><b>Ollama</b><span>11434</span></div>
+          <div><b>Grafana</b><span>3000</span></div>
+          <div><b>Prometheus</b><span>9090</span></div>
+          <div><b>Loki</b><span>3100</span></div>
         </div>
         <p class="note-sm">Containers on the compose network use service DNS names and the container ports. The host ports above are for tools on Windows.</p>
       </article>
@@ -910,7 +1041,7 @@ function guideView(){
   </div></section>`;
 }
 
-const VIEWS = {platform:platformView, identity:identityView, data:dataView, live:liveView, broker:brokerView, docs:docsView, guide:guideView};
+const VIEWS = {platform:platformView, identity:identityView, data:dataView, live:liveView, broker:brokerView, docs:docsView, observe:observeView, guide:guideView};
 
 function stopPlay(){
   state.playing = false;
@@ -1094,7 +1225,7 @@ document.addEventListener('change', (event) => {
 
 document.addEventListener('keydown', (event) => {
   if (event.target.matches('input, select, textarea')) return;
-  if (event.key >= '1' && event.key <= '7'){
+  if (event.key >= '1' && event.key <= '8'){
     show(CHAPTERS[Number(event.key)-1].id);
     return;
   }
