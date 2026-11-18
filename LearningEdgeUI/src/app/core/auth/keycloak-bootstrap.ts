@@ -48,7 +48,7 @@ export class KeycloakBootstrap {
         // back to a full redirect where third-party cookies are blocked.
         onLoad: 'check-sso',
         silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
-        scope: 'openid profile email',
+        scope: 'openid profile email le-api-audience',
       })
       .catch((error: unknown) => {
         this.toast.error(

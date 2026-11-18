@@ -68,7 +68,7 @@ services:
     container_name: promtail
     volumes:
       - ./promtail-config.yml:/etc/promtail/config.yml:ro
-      - ./logs:/logs:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     command:
       - -config.file=/etc/promtail/config.yml
     networks:
@@ -76,7 +76,8 @@ services:
 
 networks:
   le-shared-net:
-    driver: bridge
+    external: true
+    name: le-shared-net
     
 volumes:
   grafana-storage: 

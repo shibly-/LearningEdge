@@ -40,16 +40,37 @@ public static class ServiceCollectionExtension
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {
+            var requireHttpsMetadata = bool.Parse(configuration["Keycloak:RequireHttpsMetadata"] ?? "false");
+            var trustServerCertificate = bool.Parse(configuration["Keycloak:TrustServerCertificate"] ?? "false");
             options.Authority = configuration["Keycloak:Authority"];
-            options.RequireHttpsMetadata = bool.Parse(configuration["Keycloak:RequireHttpsMetadata"] ?? "false");
+            options.RequireHttpsMetadata = requireHttpsMetadata;
             options.TokenValidationParameters.ValidAudience = configuration["Keycloak:APIClientId"];
+            var validIssuer = configuration["Keycloak:ValidIssuer"];
+            if (!string.IsNullOrWhiteSpace(validIssuer))
+            {
+                options.TokenValidationParameters.ValidIssuer = validIssuer;
+            }
+
+            var documentRetriever = new HttpDocumentRetriever(CreateKeycloakBackchannel(trustServerCertificate))
+            {
+                RequireHttps = requireHttpsMetadata
+            };
             options.ConfigurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(
-            configuration["Keycloak:ConfigurationMetadataURL"],
-            new OpenIdConnectConfigurationRetriever());
+                configuration["Keycloak:ConfigurationMetadataURL"] ?? string.Empty,
+                new OpenIdConnectConfigurationRetriever(),
+                documentRetriever);
             options.RefreshInterval = TimeSpan.FromMinutes(int.Parse(configuration["Keycloak:RefreshInterval"] ?? "5"));
             options.AutomaticRefreshInterval = TimeSpan.FromHours(int.Parse(configuration["Keycloak:AutomaticRefreshInterval"] ?? "12"));
             options.Events = new JwtBearerEvents
             {
+                OnAuthenticationFailed = context =>
+                {
+                    var logger = context.HttpContext.RequestServices
+                        .GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("LearningEdge.Api.JwtBearer");
+                    logger.LogWarning(context.Exception, "Bearer token rejected.");
+                    return Task.CompletedTask;
+                },
                 OnTokenValidated = context =>
                 {
                     if (context.Principal?.Identity is ClaimsIdentity identity)
@@ -205,6 +226,19 @@ public static class ServiceCollectionExtension
         });
 
         return services;
+    }
+
+    private static HttpClient CreateKeycloakBackchannel(bool trustServerCertificate)
+    {
+        if (!trustServerCertificate)
+        {
+            return new HttpClient();
+        }
+
+        return new HttpClient(new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        });
     }
 
     private static KeycloakAdminSettings BuildKeycloakAdminSettings(IConfiguration configuration)

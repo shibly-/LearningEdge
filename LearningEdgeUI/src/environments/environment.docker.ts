@@ -11,8 +11,8 @@ import type { AppEnvironment } from './environment.model';
  * redirected to it, so the compose-internal hostname would not resolve.
  */
 export const environment: AppEnvironment = {
-  production: true,
-  apiBaseUrl: '',
+  production: false,
+  apiBaseUrl: 'https://localhost:5001',
   apiVersion: 'v1',
   useMockApi: false,
   keycloak: {
