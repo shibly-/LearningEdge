@@ -47,9 +47,20 @@ namespace LearningEdgeMS.DocumentParserService.Extensions
             services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(sp =>
                 new OllamaApiClient(new Uri(configuration["OLLama:Endpoint"] ?? "http://localhost:11434"), configuration["OLLama:Model"] ?? "qwen3-embedding:0.6b"));
 
-            // Register Qdrant Client (gRPC)
-            services.AddSingleton<QdrantClient>(sp =>
-                new QdrantClient(host: "localhost", port: 6334));
+            // gRPC endpoint. Port 6334 is the Qdrant gRPC port; 6333 is HTTP only.
+            services.AddSingleton<QdrantClient>(_ =>
+            {
+                var endpoint = configuration["VectorDB:Qdrant:Endpoint"];
+                if (string.IsNullOrWhiteSpace(endpoint))
+                {
+                    endpoint = "http://localhost:6334";
+                }
+
+                var apiKey = configuration["VectorDB:Qdrant:APIKey"];
+                return new QdrantClient(
+                    new Uri(endpoint),
+                    string.IsNullOrWhiteSpace(apiKey) ? null : apiKey);
+            });
 
             return services;
         }

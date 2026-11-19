@@ -2,8 +2,9 @@
 using LearningEdge.Application.Caching;
 using LearningEdge.Application.Interfaces;
 using Microsoft.Extensions.AI;
-using OllamaSharp.Models.Chat;
 using Qdrant.Client.Grpc;
+using System.Buffers.Binary;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 
 namespace LearningEdgeMS.DocumentParserService.Services;
@@ -13,85 +14,65 @@ public class EmbeddingService
     private readonly IEmbeddingGenerator<string, Embedding<float>> _embeddingGenerator;
     private readonly ICacheService _cache;
 
-    public EmbeddingService(IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator, ICacheService cache   )
+    public EmbeddingService(IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator, ICacheService cache)
     {
         _embeddingGenerator = embeddingGenerator;
         _cache = cache;
     }
 
-    public async Task<List<PointStruct>> ProcessAndEmbedTextAsync(Guid fileId,string fullText)
+    public async Task<List<PointStruct>> ProcessAndEmbedTextAsync(
+        Guid fileId,
+        string fullText,
+        CancellationToken cancellationToken = default)
     {
-        // Chunk the document text into smaller segments
-        //var chunks = ChunkText(fullText, maxChunkLength: 1000, overlap: 100);
-        //var results = new List<(string, float[])>();
+        // A similarity threshold of 0.70 to 0.75 works well for Qwen3-Embedding.
+        List<string> semanticChunks = await SplitTextSemanticallyAsync(
+            fullText,
+            similarityThreshold: 0.72f,
+            cancellationToken);
 
-        // Perform the semantic split
-        // A similarity threshold of 0.70 to 0.75 works well for Qwen3-Embedding
-        List<string> semanticChunks = await SplitTextSemanticallyAsync(fullText, similarityThreshold: 0.72f);
-
-        // Generate embeddings and prepare points for Qdrant
-        var points = new List<PointStruct>();
-
-        // Generate a unique starting ID baseline based on the current timestamp
-        ulong startingId = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
+        var points = new List<PointStruct>(semanticChunks.Count);
         string progressOfFileId = FileExtractCache.ProgressKey(fileId);
-        
 
         for (int i = 0; i < semanticChunks.Count; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string chunkText = semanticChunks[i];
-            Console.WriteLine($"Generating embedding vector for Semantic Chunk {i + 1}/{semanticChunks.Count}...");
 
-            double progressPercentage = ((double)(i + 1)/ ((double)semanticChunks.Count)) * 100;
-            progressPercentage = Math.Ceiling(progressPercentage);
+            double progressPercentage = Math.Ceiling(((double)(i + 1) / semanticChunks.Count) * 100);
             if (progressPercentage > 100) progressPercentage = 100;
-            Console.WriteLine($"progressPercentage => {progressPercentage}");
             await SetExtractStatusWithProgressAsync(progressOfFileId, ((int)progressPercentage).ToString());
 
-            // CRITICAL: Embed the RAW semantic chunk text only. 
-            // Do NOT add query instructions ("Given a query...") during data insertion.
-
-            // Generate embeddings for all chunks
-            // Microsoft.Extensions.AI natively supports batch processing for efficiency
-            //GeneratedEmbeddings<Embedding<float>> embeddings = await _embeddingGenerator.GenerateAsync(semanticChunks);
-
-            var embeddingResult = await _embeddingGenerator.GenerateVectorAsync(chunkText);
+            // Embed the raw chunk text only. Query instructions belong on the search side.
+            var embeddingResult = await _embeddingGenerator.GenerateVectorAsync(chunkText, cancellationToken: cancellationToken);
             float[] vector = embeddingResult.ToArray();
 
-            // Structure the metadata payload so you can identify the source later
             var payload = new MapField<string, Value>
             {
                 { "text", new Value { StringValue = chunkText } },
                 { "chunk_type", new Value { StringValue = "semantic" } },
+                { "chunk_index", new Value { IntegerValue = i } },
                 { "inserted_at", new Value { StringValue = DateTime.UtcNow.ToString("o") } },
                 { "file_id", new Value { StringValue = fileId.ToString() } }
             };
 
-            // Build the individual point point object
-            var point = new PointStruct
+            points.Add(new PointStruct
             {
-                Id = startingId + (ulong)i, // Must be a completely unique ulong number
+                // Stable id: a later extract of the same file overwrites these points
+                // instead of landing on another file's timestamp range.
+                Id = ChunkPointId(fileId, i),
                 Vectors = vector,
                 Payload = { payload }
-            };
-
-            points.Add(point);
+            });
         }
-
-        //// Map the generated vectors back to their respective text chunks
-        //for (int i = 0; i < semanticChunks.Count; i++)
-        //{
-        //    float[] vector = embeddings[i].Vector.ToArray();
-        //    results.Add((semanticChunks[i], vector));
-        //}
 
         return points;
     }
 
     public async Task<List<string>> SplitTextSemanticallyAsync(
         string text,
-        float similarityThreshold)
+        float similarityThreshold,
+        CancellationToken cancellationToken = default)
     {
         // Regex to split by sentences (. ! ?) while handling spacing safely
         string[] sentences = Regex.Split(text, @"(?<=[.!?])\s+")
@@ -104,7 +85,8 @@ public class EmbeddingService
         var sentenceVectors = new List<float[]>();
         foreach (var sentence in sentences)
         {
-            var result = await _embeddingGenerator.GenerateVectorAsync(sentence);
+            cancellationToken.ThrowIfCancellationRequested();
+            var result = await _embeddingGenerator.GenerateVectorAsync(sentence, cancellationToken: cancellationToken);
             sentenceVectors.Add(result.ToArray());
         }
 
@@ -199,4 +181,21 @@ public class EmbeddingService
 
     private Task SetExtractStatusWithProgressAsync(string progressOfFileId, string progress)
         => _cache.SetAsync(progressOfFileId, progress, FileExtractCache.StatusLifetime);
+
+    /// <summary>
+    /// UUID derived from the file id and chunk index. Re-indexing the same chunk
+    /// keeps the same Qdrant point id.
+    /// </summary>
+    private static Guid ChunkPointId(Guid fileId, int chunkIndex)
+    {
+        Span<byte> material = stackalloc byte[20];
+        fileId.TryWriteBytes(material);
+        BinaryPrimitives.WriteInt32LittleEndian(material[16..], chunkIndex);
+
+        Span<byte> hash = stackalloc byte[32];
+        SHA256.HashData(material, hash);
+        hash[6] = (byte)((hash[6] & 0x0F) | 0x50);
+        hash[8] = (byte)((hash[8] & 0x3F) | 0x80);
+        return new Guid(hash[..16]);
+    }
 }

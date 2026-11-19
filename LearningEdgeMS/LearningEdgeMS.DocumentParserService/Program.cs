@@ -8,6 +8,7 @@ using Serilog;
 try
 {
     Log.Logger = new LoggerConfiguration()
+            .WriteTo.Console()
             .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
             .CreateBootstrapLogger();
 
@@ -24,7 +25,6 @@ try
 
     // Register custom services & default background worker
     builder.Services
-        .AddSingleton<DocumentParsingService>()
         .AddSingleton<EmbeddingService>()
         .AddHostedService<DefaultWorkerService>();    
 

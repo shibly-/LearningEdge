@@ -9,13 +9,14 @@ namespace LearningEdgeMS.DocumentParserService.Services;
 
 public class DocumentParsingService
 {
-    public static async Task<string> ExtractTextAsync(string filePath)
+    public static async Task<string> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         string extension = Path.GetExtension(filePath).ToLowerInvariant();
 
         return extension switch
         {
-            ".txt" => await File.ReadAllTextAsync(filePath),
+            ".txt" => await File.ReadAllTextAsync(filePath, cancellationToken),
             ".pdf" => ExtractPdf(filePath),
             ".docx" => ExtractDocx(filePath),
             ".pptx" => ExtractPptx(filePath),
