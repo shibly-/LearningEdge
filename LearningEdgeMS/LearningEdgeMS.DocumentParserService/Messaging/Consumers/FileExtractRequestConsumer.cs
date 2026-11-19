@@ -288,8 +288,8 @@ public sealed class FileExtractRequestConsumer : IConsumer<IExtractRequestSubmit
                     collectionName: collectionName,
                     vectorsConfig: new VectorParams
                     {
-                        // default output dimension of 'qwen3-embedding:4b'
-                        Size = (ulong)int.Parse(_configuration["VectorDB:VectorParams:VectorSize"] ?? "2560"),
+                        // default output dimension of 'qwen3-embedding:0.6b'
+                        Size = (ulong)int.Parse(_configuration["VectorDB:VectorParams:VectorSize"] ?? "1024"),
                         Distance = Enum.Parse<Distance>(_configuration["VectorDB:VectorParams:Distance"] ?? "Cosine"),
                         Memory = Memory.Cold
                     },

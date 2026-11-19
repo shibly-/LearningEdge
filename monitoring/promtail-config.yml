@@ -16,7 +16,7 @@ scrape_configs:
     relabel_configs:
       # Keep only the LearningEdge web containers
       - source_labels: ['__meta_docker_container_name']
-        regex: '/(api|ui|keycloak)'
+        regex: '/(api|ui|keycloak|parser)'
         action: keep
       - source_labels: ['__meta_docker_container_name']
         regex: '/(.*)'

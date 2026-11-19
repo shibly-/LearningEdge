@@ -17,10 +17,10 @@ COPY ["LearningEdge/src/LearningEdge.Messaging.Contracts/", "LearningEdge/src/Le
 COPY ["LearningEdge/src/LearningEdge.Application/", "LearningEdge/src/LearningEdge.Application/"]
 COPY ["LearningEdge/src/LearningEdge.Infrastructure/", "LearningEdge/src/LearningEdge.Infrastructure/"]
 COPY ["LearningEdgeMS/LearningEdgeMS.DocumentParserService/", "LearningEdgeMS/LearningEdgeMS.DocumentParserService/"]
-RUN dotnet publish "LearningEdgeMS/LearningEdgeMS.DocumentParserService/LearningEdgeMS.DocumentParserService.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "LearningEdgeMS/LearningEdgeMS.DocumentParserService/LearningEdgeMS.DocumentParserService.csproj" -c Release -o /parser/publish /p:UseAppHost=false
 
 # Stage 2: Runtime image. This is a worker, so it does not host HTTP.
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS final
-WORKDIR /app
-COPY --from=build /app/publish .
+WORKDIR /parser
+COPY --from=build /parser/publish .
 ENTRYPOINT ["dotnet", "LearningEdgeMS.DocumentParserService.dll"]
